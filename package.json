@@ -1,0 +1,18 @@
+{
+  "name": "stockflow-cloud",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Serverless multi-branch electronics inventory platform.",
+  "workspaces": [
+    "apps/web",
+    "apps/api",
+    "apps/lambdas/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace apps/web run dev",
+    "dev:api": "npm --workspace apps/api run start:dev",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  }
+}
