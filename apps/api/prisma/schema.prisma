@@ -1,0 +1,247 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STORE_MANAGER
+  WAREHOUSE
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum BranchStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ComponentCategory {
+  RAM
+  CPU
+  SSD
+  GPU
+  MAINBOARD
+  PSU
+  CASE
+  COOLER
+}
+
+enum ImportStatus {
+  UPLOADED
+  PARSING
+  VALIDATING
+  PREVIEW_READY
+  CONFIRMING
+  COMMITTING
+  COMPLETED
+  PARTIAL_FAILED
+  FAILED
+  CANCELLED
+}
+
+enum ImportRowStatus {
+  PENDING
+  VALID
+  INVALID
+  COMMITTED
+  FAILED
+  SKIPPED
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum StockMovementType {
+  IMPORT_IN
+  TRANSFER_OUT
+  TRANSFER_IN
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  RESERVATION_CREATED
+  RESERVATION_RELEASED
+  RECONCILIATION_ADJUSTMENT
+}
+
+model User {
+  id        String     @id @default(uuid()) @db.Uuid
+  email     String     @unique @db.VarChar(255)
+  fullName  String?    @map("full_name") @db.VarChar(255)
+  passwordHash String  @map("password_hash")
+  role      UserRole
+  branchId  String?    @map("branch_id") @db.Uuid
+  status    UserStatus @default(ACTIVE)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  branch     Branch?     @relation(fields: [branchId], references: [id])
+  importJobs ImportJob[]
+
+  @@map("users")
+}
+
+model Branch {
+  id        String       @id @default(uuid()) @db.Uuid
+  code      String       @unique @db.VarChar(50)
+  name      String       @db.VarChar(255)
+  address   String?
+  status    BranchStatus @default(ACTIVE)
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  users      User[]
+  inventory  Inventory[]
+  importJobs ImportJob[]
+  transfersFrom Transfer[] @relation("TransferFromBranch")
+  transfersTo   Transfer[] @relation("TransferToBranch")
+  stockMovements StockMovement[]
+
+  @@map("branches")
+}
+
+model Component {
+  id             String            @id @default(uuid()) @db.Uuid
+  sku            String            @unique @db.VarChar(100)
+  name           String            @db.VarChar(255)
+  brand          String?           @db.VarChar(100)
+  category       ComponentCategory
+  specs          Json?
+  unitPrice      Decimal?          @map("unit_price") @db.Decimal(12, 2)
+  supplier       String?           @db.VarChar(255)
+  warrantyMonths Int?              @map("warranty_months")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  inventory Inventory[]
+  transferItems TransferItem[]
+  stockMovements StockMovement[]
+
+  @@map("components")
+}
+
+model Inventory {
+  branchId          String   @map("branch_id") @db.Uuid
+  componentId       String   @map("component_id") @db.Uuid
+  quantity          Int      @default(0)
+  reservedQuantity  Int      @default(0) @map("reserved_quantity")
+  minStockThreshold Int      @default(5) @map("min_stock_threshold")
+  version           Int      @default(0)
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  branch    Branch    @relation(fields: [branchId], references: [id])
+  component Component @relation(fields: [componentId], references: [id])
+
+  @@id([branchId, componentId])
+  @@map("inventory")
+}
+
+model ImportJob {
+  id            String       @id @default(uuid()) @db.Uuid
+  branchId      String       @map("branch_id") @db.Uuid
+  fileName      String?      @map("file_name") @db.VarChar(255)
+  s3Key         String?      @map("s3_key")
+  status        ImportStatus
+  totalRows     Int          @default(0) @map("total_rows")
+  processedRows Int          @default(0) @map("processed_rows")
+  validRows     Int          @default(0) @map("valid_rows")
+  invalidRows   Int          @default(0) @map("invalid_rows")
+  committedRows Int          @default(0) @map("committed_rows")
+  createdBy     String?      @map("created_by") @db.Uuid
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  completedAt   DateTime?    @map("completed_at")
+
+  branch Branch         @relation(fields: [branchId], references: [id])
+  user   User?          @relation(fields: [createdBy], references: [id])
+  rows   ImportJobRow[]
+
+  @@map("import_jobs")
+}
+
+model ImportJobRow {
+  id               String          @id @default(uuid()) @db.Uuid
+  importJobId      String          @map("import_job_id") @db.Uuid
+  rowNumber        Int             @map("row_number")
+  sku              String?         @db.VarChar(100)
+  rawData          Json?           @map("raw_data")
+  normalizedData   Json?           @map("normalized_data")
+  validationStatus ImportRowStatus @default(PENDING) @map("validation_status")
+  errorMessage     String?         @map("error_message")
+  idempotencyKey   String          @unique @map("idempotency_key") @db.VarChar(255)
+  processedAt      DateTime?       @map("processed_at")
+  createdAt        DateTime        @default(now()) @map("created_at")
+
+  importJob ImportJob @relation(fields: [importJobId], references: [id])
+
+  @@index([importJobId])
+  @@map("import_job_rows")
+}
+
+model Transfer {
+  id           String         @id @default(uuid()) @db.Uuid
+  fromBranchId String         @map("from_branch_id") @db.Uuid
+  toBranchId   String         @map("to_branch_id") @db.Uuid
+  status       TransferStatus
+  requestedBy  String?        @map("requested_by") @db.Uuid
+  approvedBy   String?        @map("approved_by") @db.Uuid
+  rejectedBy   String?        @map("rejected_by") @db.Uuid
+  note         String?
+  rejectReason String?        @map("reject_reason")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  approvedAt   DateTime?      @map("approved_at")
+  rejectedAt   DateTime?      @map("rejected_at")
+  completedAt  DateTime?      @map("completed_at")
+
+  fromBranch Branch         @relation("TransferFromBranch", fields: [fromBranchId], references: [id])
+  toBranch   Branch         @relation("TransferToBranch", fields: [toBranchId], references: [id])
+  items      TransferItem[]
+
+  @@index([fromBranchId])
+  @@index([toBranchId])
+  @@map("transfers")
+}
+
+model TransferItem {
+  id          String @id @default(uuid()) @db.Uuid
+  transferId  String @map("transfer_id") @db.Uuid
+  componentId String @map("component_id") @db.Uuid
+  quantity    Int
+
+  transfer  Transfer  @relation(fields: [transferId], references: [id])
+  component Component @relation(fields: [componentId], references: [id])
+
+  @@index([transferId])
+  @@map("transfer_items")
+}
+
+model StockMovement {
+  id            String            @id @default(uuid()) @db.Uuid
+  branchId      String            @map("branch_id") @db.Uuid
+  componentId   String            @map("component_id") @db.Uuid
+  movementType  StockMovementType @map("movement_type")
+  quantityChange Int              @map("quantity_change")
+  referenceType String?           @map("reference_type") @db.VarChar(50)
+  referenceId   String?           @map("reference_id") @db.Uuid
+  createdBy     String?           @map("created_by") @db.Uuid
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  branch    Branch    @relation(fields: [branchId], references: [id])
+  component Component @relation(fields: [componentId], references: [id])
+
+  @@index([branchId, componentId])
+  @@index([referenceType, referenceId])
+  @@map("stock_movements")
+}
