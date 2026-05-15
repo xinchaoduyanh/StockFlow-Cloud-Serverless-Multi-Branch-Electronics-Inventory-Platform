@@ -1,31 +1,83 @@
 import { createHash } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import { ImportRowStatus, ImportStatus, Prisma, StockMovementType } from "@prisma/client";
+import ExcelJS from "exceljs";
 import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
 import { PrismaService } from "../database/prisma.service";
-import { ImportListQuery, ImportRowInput, InitImportBody, StartImportBody } from "./imports.schemas";
+import {
+  ImportListQuery,
+  ImportRowInput,
+  importRowInputSchema,
+  InitImportBody,
+  StartImportBody,
+} from "./imports.schemas";
+
+type PreparedImportRow = {
+  rowNumber: number;
+  sku: string;
+  rawData: Prisma.InputJsonValue;
+  normalizedData?: Prisma.InputJsonValue;
+  validationStatus: ImportRowStatus;
+  errorMessage?: string;
+};
 
 @Injectable()
 export class ImportsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async init(input: InitImportBody, actorId?: string) {
+    const preparedRows = this.prepareRows(input.rows ?? []);
     const job = await this.prisma.importJob.create({
       data: {
         branchId: input.branchId,
         fileName: input.fileName,
         s3Key: input.s3Key,
-        status: input.rows?.length ? ImportStatus.PREVIEW_READY : ImportStatus.UPLOADED,
-        totalRows: input.rows?.length ?? 0,
-        processedRows: input.rows?.length ?? 0,
-        validRows: input.rows?.length ?? 0,
+        status: preparedRows.length ? ImportStatus.PREVIEW_READY : ImportStatus.UPLOADED,
+        totalRows: preparedRows.length,
+        processedRows: preparedRows.length,
+        validRows: preparedRows.filter((row) => row.validationStatus === ImportRowStatus.VALID).length,
+        invalidRows: preparedRows.filter((row) => row.validationStatus === ImportRowStatus.INVALID).length,
         createdBy: actorId,
       },
     });
 
-    if (input.rows?.length) {
-      await this.saveRows(job.id, input.rows);
+    if (preparedRows.length) {
+      await this.saveRows(job.id, preparedRows);
+    }
+
+    return this.get(job.id);
+  }
+
+  async upload(branchId: string, file: Express.Multer.File | undefined, actorId?: string) {
+    if (!file) {
+      throw ApiErrors.badRequest("Excel file is required");
+    }
+
+    if (!file.originalname.match(/\.xlsx$/i)) {
+      throw ApiErrors.badRequest("Only .xlsx files are supported for Phase 1 upload");
+    }
+
+    const rows = await this.parseExcel(file.buffer);
+    const preparedRows = this.prepareRows(rows);
+    const validRows = preparedRows.filter((row) => row.validationStatus === ImportRowStatus.VALID).length;
+    const invalidRows = preparedRows.length - validRows;
+
+    const job = await this.prisma.importJob.create({
+      data: {
+        branchId,
+        fileName: file.originalname,
+        status: ImportStatus.PREVIEW_READY,
+        totalRows: preparedRows.length,
+        processedRows: preparedRows.length,
+        validRows,
+        invalidRows,
+        createdBy: actorId,
+      },
+    });
+
+    if (preparedRows.length) {
+      await this.saveRows(job.id, preparedRows);
     }
 
     return this.get(job.id);
@@ -58,6 +110,8 @@ export class ImportsService {
 
   async start(id: string, input: StartImportBody) {
     await this.assertJob(id);
+    const preparedRows = this.prepareRows(input.rows);
+    const validRows = preparedRows.filter((row) => row.validationStatus === ImportRowStatus.VALID).length;
 
     await this.prisma.$transaction(async (tx) => {
       await tx.importJobRow.deleteMany({ where: { importJobId: id } });
@@ -65,15 +119,15 @@ export class ImportsService {
         where: { id },
         data: {
           status: ImportStatus.PREVIEW_READY,
-          totalRows: input.rows.length,
-          processedRows: input.rows.length,
-          validRows: input.rows.length,
-          invalidRows: 0,
+          totalRows: preparedRows.length,
+          processedRows: preparedRows.length,
+          validRows,
+          invalidRows: preparedRows.length - validRows,
         },
       });
     });
 
-    await this.saveRows(id, input.rows);
+    await this.saveRows(id, preparedRows);
     return this.get(id);
   }
 
@@ -212,26 +266,178 @@ export class ImportsService {
     });
   }
 
-  private async saveRows(importJobId: string, rows: ImportRowInput[]) {
+  private async saveRows(importJobId: string, rows: PreparedImportRow[]) {
+    await this.prisma.importJobRow.createMany({
+      data: rows.map((row) => ({
+        importJobId,
+        rowNumber: row.rowNumber,
+        sku: row.sku || undefined,
+        rawData: row.rawData,
+        normalizedData: row.normalizedData,
+        validationStatus: row.validationStatus,
+        errorMessage: row.errorMessage,
+        idempotencyKey: this.idempotencyKey(importJobId, row.rowNumber, row.sku || "missing-sku"),
+      })),
+    });
+  }
+
+  private async parseExcel(buffer: Buffer) {
+    const workbook = new ExcelJS.Workbook();
+    const arrayBuffer = buffer.buffer.slice(
+      buffer.byteOffset,
+      buffer.byteOffset + buffer.byteLength,
+    );
+    await workbook.xlsx.load(arrayBuffer as never);
+    const sheet = workbook.worksheets[0];
+
+    if (!sheet) {
+      throw ApiErrors.badRequest("Excel workbook does not contain any sheets");
+    }
+
+    const headers: string[] = [];
+    const rows: Record<string, unknown>[] = [];
+
+    sheet.eachRow((row, rowNumber) => {
+      const values = row.values;
+
+      if (!Array.isArray(values)) {
+        return;
+      }
+
+      if (rowNumber === 1) {
+        values.slice(1).forEach((value) => headers.push(this.toStringValue(this.cellValue(value))));
+        return;
+      }
+
+      const item: Record<string, unknown> = {};
+      values.slice(1).forEach((value, index) => {
+        const header = headers[index];
+
+        if (header) {
+          item[header] = this.cellValue(value);
+        }
+      });
+      rows.push(item);
+    });
+
+    return rows.map((row) => this.normalizeExcelRow(row));
+  }
+
+  private normalizeExcelRow(row: Record<string, unknown>) {
+    const normalized = Object.fromEntries(
+      Object.entries(row).map(([key, value]) => [this.normalizeHeader(key), value]),
+    );
+
+    return {
+      sku: this.toStringValue(normalized.sku),
+      name: this.toStringValue(normalized.name),
+      brand: this.toOptionalString(normalized.brand),
+      category: this.toStringValue(normalized.category).toUpperCase(),
+      quantity: this.toNumber(normalized.quantity),
+      unitPrice: this.toOptionalNumber(normalized.unitprice),
+      supplier: this.toOptionalString(normalized.supplier),
+      warrantyMonths: this.toOptionalNumber(normalized.warrantymonths),
+      ddrGeneration: this.toOptionalString(normalized.ddrgeneration)?.toUpperCase(),
+      speedMhz: this.toOptionalNumber(normalized.speedmhz),
+      capacityGb: this.toOptionalNumber(normalized.capacitygb),
+      socket: this.toOptionalString(normalized.socket),
+      cores: this.toOptionalNumber(normalized.cores),
+      threads: this.toOptionalNumber(normalized.threads),
+      interface: this.toInterface(normalized.interface),
+      formFactor: this.toOptionalString(normalized.formfactor),
+      vramGb: this.toOptionalNumber(normalized.vramgb),
+      chipset: this.toOptionalString(normalized.chipset),
+    };
+  }
+
+  private prepareRows(rows: unknown[]): PreparedImportRow[] {
     const seen = new Set<string>();
 
-    await this.prisma.importJobRow.createMany({
-      data: rows.map((row, index) => {
-        const duplicate = seen.has(row.sku);
-        seen.add(row.sku);
+    return rows.map((row, index) => {
+      const result = importRowInputSchema.safeParse(row);
+      const sku = typeof row === "object" && row && "sku" in row ? String(row.sku ?? "") : "";
 
+      if (!result.success) {
         return {
-          importJobId,
           rowNumber: index + 1,
-          sku: row.sku,
-          rawData: row as Prisma.InputJsonValue,
-          normalizedData: row as Prisma.InputJsonValue,
-          validationStatus: duplicate ? ImportRowStatus.INVALID : ImportRowStatus.VALID,
-          errorMessage: duplicate ? "sku must be unique within file" : undefined,
-          idempotencyKey: this.idempotencyKey(importJobId, index + 1, row.sku),
+          sku,
+          rawData: this.toJson(row),
+          validationStatus: ImportRowStatus.INVALID,
+          errorMessage: result.error.issues
+            .map((issue) => `${issue.path.join(".") || "row"}: ${issue.message}`)
+            .join("; "),
         };
-      }),
+      }
+
+      const duplicate = seen.has(result.data.sku);
+      seen.add(result.data.sku);
+
+      return {
+        rowNumber: index + 1,
+        sku: result.data.sku,
+        rawData: this.toJson(row),
+        normalizedData: this.toJson(result.data),
+        validationStatus: duplicate ? ImportRowStatus.INVALID : ImportRowStatus.VALID,
+        errorMessage: duplicate ? "sku must be unique within file" : undefined,
+      };
     });
+  }
+
+  private normalizeHeader(header: string) {
+    return header.trim().toLowerCase().replace(/[\s_-]+/g, "");
+  }
+
+  private toStringValue(value: unknown) {
+    return String(value ?? "").trim();
+  }
+
+  private toOptionalString(value: unknown) {
+    const text = this.toStringValue(value);
+    return text ? text : undefined;
+  }
+
+  private toNumber(value: unknown) {
+    return Number(value);
+  }
+
+  private toOptionalNumber(value: unknown) {
+    if (value === undefined || value === null || value === "") {
+      return undefined;
+    }
+
+    return Number(value);
+  }
+
+  private toInterface(value: unknown) {
+    const text = this.toOptionalString(value)?.toUpperCase();
+
+    if (text === "NVME") {
+      return "NVMe";
+    }
+
+    return text;
+  }
+
+  private toJson(value: unknown): Prisma.InputJsonValue {
+    return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+  }
+
+  private cellValue(value: ExcelJS.CellValue) {
+    if (value && typeof value === "object") {
+      if ("text" in value) {
+        return value.text;
+      }
+
+      if ("result" in value) {
+        return value.result;
+      }
+
+      if ("richText" in value) {
+        return value.richText.map((part) => part.text).join("");
+      }
+    }
+
+    return value ?? "";
   }
 
   private async assertJob(id: string) {

@@ -30,6 +30,12 @@ export class InventoryController {
     return this.inventoryService.getBySku(params.sku);
   }
 
+  @Get("branches")
+  @ApiOkResponse({ description: "List branches for inventory workflows." })
+  listBranches() {
+    return this.inventoryService.listBranches();
+  }
+
   @Get("branches/:branchId/inventory")
   @ApiOkResponse({ description: "List inventory for one branch." })
   listByBranch(

@@ -11,27 +11,42 @@ export class InventoryService {
 
   list(query: InventoryQuery) {
     const { skip, take } = toPagination(query);
+    const where: Prisma.InventoryWhereInput = {
+      ...(query.branchId ? { branchId: query.branchId } : {}),
+      component: {
+        ...(query.category ? { category: query.category } : {}),
+        ...(query.search
+          ? {
+              OR: [
+                { sku: { contains: query.search, mode: "insensitive" } },
+                { name: { contains: query.search, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      },
+    };
+
+    if (query.lowStock) {
+      return this.prisma.inventory
+        .findMany({
+          where,
+          include: {
+            branch: true,
+            component: true,
+          },
+          orderBy: [{ branch: { code: "asc" } }, { component: { sku: "asc" } }],
+        })
+        .then((items) =>
+          items
+            .filter((item) => item.quantity <= item.minStockThreshold)
+            .slice(skip, skip + take),
+        );
+    }
 
     return this.prisma.inventory.findMany({
       skip,
       take,
-      where: {
-        ...(query.branchId ? { branchId: query.branchId } : {}),
-        ...(query.lowStock
-          ? { quantity: { lte: this.prisma.inventory.fields.minStockThreshold } }
-          : {}),
-        component: {
-          ...(query.category ? { category: query.category } : {}),
-          ...(query.search
-            ? {
-                OR: [
-                  { sku: { contains: query.search, mode: "insensitive" } },
-                  { name: { contains: query.search, mode: "insensitive" } },
-                ],
-              }
-            : {}),
-        },
-      },
+      where,
       include: {
         branch: true,
         component: true,
@@ -57,6 +72,12 @@ export class InventoryService {
 
   listByBranch(branchId: string, query: Omit<InventoryQuery, "branchId">) {
     return this.list({ ...query, branchId });
+  }
+
+  listBranches() {
+    return this.prisma.branch.findMany({
+      orderBy: { code: "asc" },
+    });
   }
 
   async adjust(input: AdjustInventoryBody, actorId?: string) {

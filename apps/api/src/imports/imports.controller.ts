@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Get, Param, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { AuthenticatedRequest, JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { uuidParamSchema } from "../common/schemas/params.schema";
@@ -10,6 +11,8 @@ import {
   initImportBodySchema,
   StartImportBody,
   startImportBodySchema,
+  UploadImportBody,
+  uploadImportBodySchema,
 } from "./imports.schemas";
 import { ImportsService } from "./imports.service";
 
@@ -28,6 +31,28 @@ export class ImportsController {
     @Req() request: AuthenticatedRequest,
   ) {
     return this.importsService.init(body, request.user.sub);
+  }
+
+  @Post("upload")
+  @UseInterceptors(FileInterceptor("file"))
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["branchId", "file"],
+      properties: {
+        branchId: { type: "string", format: "uuid" },
+        file: { type: "string", format: "binary" },
+      },
+    },
+  })
+  @ApiOkResponse({ description: "Created import job and parsed Excel preview rows." })
+  upload(
+    @Body(new ZodValidationPipe(uploadImportBodySchema)) body: UploadImportBody,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.importsService.upload(body.branchId, file, request.user.sub);
   }
 
   @Post(":id/start")

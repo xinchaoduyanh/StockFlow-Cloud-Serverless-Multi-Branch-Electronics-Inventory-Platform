@@ -86,7 +86,12 @@ export const importListQuerySchema = paginationQuerySchema.extend({
   branchId: z.string().uuid().optional(),
 });
 
+export const uploadImportBodySchema = z.object({
+  branchId: z.string().uuid(),
+});
+
 export type ImportRowInput = z.infer<typeof importRowInputSchema>;
 export type InitImportBody = z.infer<typeof initImportBodySchema>;
 export type StartImportBody = z.infer<typeof startImportBodySchema>;
 export type ImportListQuery = z.infer<typeof importListQuerySchema>;
+export type UploadImportBody = z.infer<typeof uploadImportBodySchema>;
