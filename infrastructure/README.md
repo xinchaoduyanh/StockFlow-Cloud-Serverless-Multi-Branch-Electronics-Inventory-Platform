@@ -7,4 +7,3 @@ Planned options:
 - Terraform
 - AWS CDK
 - AWS SAM
-

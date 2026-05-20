@@ -9,4 +9,3 @@ Planned stack:
 - Tailwind CSS
 - React Query
 - Zustand or Redux Toolkit
-

@@ -17,10 +17,7 @@ export class TransfersService {
       take,
       where: query.branchId
         ? {
-            OR: [
-              { fromBranchId: query.branchId },
-              { toBranchId: query.branchId },
-            ],
+            OR: [{ fromBranchId: query.branchId }, { toBranchId: query.branchId }],
           }
         : {},
       include: {

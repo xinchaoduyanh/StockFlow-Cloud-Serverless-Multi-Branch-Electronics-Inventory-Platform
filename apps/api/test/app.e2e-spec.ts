@@ -29,13 +29,10 @@ describe("AppController (e2e)", () => {
   });
 
   it("/api/health (GET)", () => {
-    return request(app.getHttpServer())
-      .get("/api/health")
-      .expect(200)
-      .expect({
-        service: "stockflow-api",
-        status: "ok",
-      });
+    return request(app.getHttpServer()).get("/api/health").expect(200).expect({
+      service: "stockflow-api",
+      status: "ok",
+    });
   });
 
   it("wraps route errors with the API error envelope", () => {

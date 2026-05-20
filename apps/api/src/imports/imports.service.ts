@@ -36,8 +36,10 @@ export class ImportsService {
         status: preparedRows.length ? ImportStatus.PREVIEW_READY : ImportStatus.UPLOADED,
         totalRows: preparedRows.length,
         processedRows: preparedRows.length,
-        validRows: preparedRows.filter((row) => row.validationStatus === ImportRowStatus.VALID).length,
-        invalidRows: preparedRows.filter((row) => row.validationStatus === ImportRowStatus.INVALID).length,
+        validRows: preparedRows.filter((row) => row.validationStatus === ImportRowStatus.VALID)
+          .length,
+        invalidRows: preparedRows.filter((row) => row.validationStatus === ImportRowStatus.INVALID)
+          .length,
         createdBy: actorId,
       },
     });
@@ -60,7 +62,9 @@ export class ImportsService {
 
     const rows = await this.parseExcel(file.buffer);
     const preparedRows = this.prepareRows(rows);
-    const validRows = preparedRows.filter((row) => row.validationStatus === ImportRowStatus.VALID).length;
+    const validRows = preparedRows.filter(
+      (row) => row.validationStatus === ImportRowStatus.VALID,
+    ).length;
     const invalidRows = preparedRows.length - validRows;
 
     const job = await this.prisma.importJob.create({
@@ -111,7 +115,9 @@ export class ImportsService {
   async start(id: string, input: StartImportBody) {
     await this.assertJob(id);
     const preparedRows = this.prepareRows(input.rows);
-    const validRows = preparedRows.filter((row) => row.validationStatus === ImportRowStatus.VALID).length;
+    const validRows = preparedRows.filter(
+      (row) => row.validationStatus === ImportRowStatus.VALID,
+    ).length;
 
     await this.prisma.$transaction(async (tx) => {
       await tx.importJobRow.deleteMany({ where: { importJobId: id } });
@@ -384,7 +390,10 @@ export class ImportsService {
   }
 
   private normalizeHeader(header: string) {
-    return header.trim().toLowerCase().replace(/[\s_-]+/g, "");
+    return header
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_-]+/g, "");
   }
 
   private toStringValue(value: unknown) {
@@ -451,9 +460,7 @@ export class ImportsService {
   }
 
   private idempotencyKey(importJobId: string, rowNumber: number, sku: string) {
-    return createHash("sha256")
-      .update(`${importJobId}:${rowNumber}:${sku}`)
-      .digest("hex");
+    return createHash("sha256").update(`${importJobId}:${rowNumber}:${sku}`).digest("hex");
   }
 
   private toSpecs(row: ImportRowInput) {

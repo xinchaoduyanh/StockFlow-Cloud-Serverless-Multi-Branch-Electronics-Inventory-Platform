@@ -7,7 +7,7 @@ import {
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
-import { LoginBody, loginBodySchema } from "./auth.schemas";
+import { LoginBody, loginBodySchema, RefreshBody, refreshBodySchema } from "./auth.schemas";
 import { AuthService } from "./auth.service";
 import { AuthenticatedRequest, JwtAuthGuard } from "./jwt-auth.guard";
 
@@ -31,6 +31,22 @@ export class AuthController {
   @ApiUnauthorizedResponse({ description: "Invalid credentials." })
   login(@Body(new ZodValidationPipe(loginBodySchema)) body: LoginBody) {
     return this.authService.login(body);
+  }
+
+  @Post("refresh")
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["refreshToken"],
+      properties: {
+        refreshToken: { type: "string" },
+      },
+    },
+  })
+  @ApiOkResponse({ description: "Returns a new access token and refresh token." })
+  @ApiUnauthorizedResponse({ description: "Invalid or expired refresh token." })
+  refresh(@Body(new ZodValidationPipe(refreshBodySchema)) body: RefreshBody) {
+    return this.authService.refresh(body.refreshToken);
   }
 
   @UseGuards(JwtAuthGuard)

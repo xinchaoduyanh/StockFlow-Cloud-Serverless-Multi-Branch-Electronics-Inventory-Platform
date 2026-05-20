@@ -11,15 +11,7 @@ type Branch = {
   name: string;
 };
 
-type ComponentCategory =
-  | "RAM"
-  | "CPU"
-  | "SSD"
-  | "GPU"
-  | "MAINBOARD"
-  | "PSU"
-  | "CASE"
-  | "COOLER";
+type ComponentCategory = "RAM" | "CPU" | "SSD" | "GPU" | "MAINBOARD" | "PSU" | "CASE" | "COOLER";
 
 type InventoryItem = {
   branchId: string;
@@ -239,9 +231,7 @@ export default function DashboardPage() {
   const transferComponents = useMemo(
     () =>
       inventoryItems.filter(
-        (item) =>
-          !transferForm.fromBranchId ||
-          item.branchId === transferForm.fromBranchId,
+        (item) => !transferForm.fromBranchId || item.branchId === transferForm.fromBranchId,
       ),
     [inventoryItems, transferForm.fromBranchId],
   );
@@ -308,20 +298,34 @@ export default function DashboardPage() {
           <div className="grid grid-cols-[1fr_180px_220px] gap-3 max-md:grid-cols-1">
             <label className="field">
               <span>Search SKU or name</span>
-              <input className="input" onChange={(event) => setSearch(event.target.value)} value={search} />
+              <input
+                className="input"
+                onChange={(event) => setSearch(event.target.value)}
+                value={search}
+              />
             </label>
             <label className="field">
               <span>Category</span>
-              <select className="input" onChange={(event) => setCategory(event.target.value)} value={category}>
+              <select
+                className="input"
+                onChange={(event) => setCategory(event.target.value)}
+                value={category}
+              >
                 <option value="">All</option>
                 {categories.map((item) => (
-                  <option key={item} value={item}>{item}</option>
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
                 ))}
               </select>
             </label>
             <label className="field">
               <span>Branch</span>
-              <select className="input" onChange={(event) => setBranchId(event.target.value)} value={selectedBranchId}>
+              <select
+                className="input"
+                onChange={(event) => setBranchId(event.target.value)}
+                value={selectedBranchId}
+              >
                 <option value="">All branches</option>
                 {branchOptions.map((branch) => (
                   <option key={branch.id} value={branch.id}>
@@ -356,19 +360,26 @@ export default function DashboardPage() {
 
         {activeTab === "transfers" ? (
           <section className="grid gap-5 lg:grid-cols-[360px_1fr]">
-            <form className="grid h-fit gap-4 rounded-lg border border-border bg-white p-4" onSubmit={handleCreateTransfer}>
+            <form
+              className="grid h-fit gap-4 rounded-lg border border-border bg-white p-4"
+              onSubmit={handleCreateTransfer}
+            >
               <h2 className="m-0 text-lg font-bold">Create transfer</h2>
               <label className="field">
                 <span>From branch</span>
                 <select
                   className="input"
-                  onChange={(event) => setTransferForm((current) => ({ ...current, fromBranchId: event.target.value }))}
+                  onChange={(event) =>
+                    setTransferForm((current) => ({ ...current, fromBranchId: event.target.value }))
+                  }
                   required
                   value={transferForm.fromBranchId}
                 >
                   <option value="">Select branch</option>
                   {branchOptions.map((branch) => (
-                    <option key={branch.id} value={branch.id}>{branch.code} - {branch.name}</option>
+                    <option key={branch.id} value={branch.id}>
+                      {branch.code} - {branch.name}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -376,13 +387,17 @@ export default function DashboardPage() {
                 <span>To branch</span>
                 <select
                   className="input"
-                  onChange={(event) => setTransferForm((current) => ({ ...current, toBranchId: event.target.value }))}
+                  onChange={(event) =>
+                    setTransferForm((current) => ({ ...current, toBranchId: event.target.value }))
+                  }
                   required
                   value={transferForm.toBranchId}
                 >
                   <option value="">Select branch</option>
                   {branchOptions.map((branch) => (
-                    <option key={branch.id} value={branch.id}>{branch.code} - {branch.name}</option>
+                    <option key={branch.id} value={branch.id}>
+                      {branch.code} - {branch.name}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -390,14 +405,17 @@ export default function DashboardPage() {
                 <span>Component</span>
                 <select
                   className="input"
-                  onChange={(event) => setTransferForm((current) => ({ ...current, componentId: event.target.value }))}
+                  onChange={(event) =>
+                    setTransferForm((current) => ({ ...current, componentId: event.target.value }))
+                  }
                   required
                   value={transferForm.componentId}
                 >
                   <option value="">Select stock item</option>
                   {transferComponents.map((item) => (
                     <option key={`${item.branchId}-${item.componentId}`} value={item.componentId}>
-                      {item.component.sku} - {item.component.name} ({item.quantity - item.reservedQuantity} available)
+                      {item.component.sku} - {item.component.name} (
+                      {item.quantity - item.reservedQuantity} available)
                     </option>
                   ))}
                 </select>
@@ -407,7 +425,9 @@ export default function DashboardPage() {
                 <input
                   className="input"
                   min="1"
-                  onChange={(event) => setTransferForm((current) => ({ ...current, quantity: event.target.value }))}
+                  onChange={(event) =>
+                    setTransferForm((current) => ({ ...current, quantity: event.target.value }))
+                  }
                   required
                   type="number"
                   value={transferForm.quantity}
@@ -417,11 +437,15 @@ export default function DashboardPage() {
                 <span>Note</span>
                 <textarea
                   className="input min-h-20"
-                  onChange={(event) => setTransferForm((current) => ({ ...current, note: event.target.value }))}
+                  onChange={(event) =>
+                    setTransferForm((current) => ({ ...current, note: event.target.value }))
+                  }
                   value={transferForm.note}
                 />
               </label>
-              {createTransfer.error ? <p className="error-text">{messageFromError(createTransfer.error)}</p> : null}
+              {createTransfer.error ? (
+                <p className="error-text">{messageFromError(createTransfer.error)}</p>
+              ) : null}
               <button className="button-primary" disabled={createTransfer.isPending} type="submit">
                 {createTransfer.isPending ? "Creating..." : "Create request"}
               </button>
@@ -430,7 +454,11 @@ export default function DashboardPage() {
             <div className="grid gap-3">
               <label className="field rounded-lg border border-border bg-white p-4">
                 <span>Reject reason</span>
-                <input className="input" onChange={(event) => setRejectReason(event.target.value)} value={rejectReason} />
+                <input
+                  className="input"
+                  onChange={(event) => setRejectReason(event.target.value)}
+                  value={rejectReason}
+                />
               </label>
               <TransferList
                 isAdmin={user.role === "ADMIN"}
@@ -445,22 +473,40 @@ export default function DashboardPage() {
 
         {activeTab === "imports" ? (
           <section className="grid gap-5 lg:grid-cols-[360px_1fr]">
-            <form className="grid h-fit gap-4 rounded-lg border border-border bg-white p-4" onSubmit={handleUpload}>
+            <form
+              className="grid h-fit gap-4 rounded-lg border border-border bg-white p-4"
+              onSubmit={handleUpload}
+            >
               <h2 className="m-0 text-lg font-bold">Upload Excel</h2>
               <label className="field">
                 <span>Branch</span>
-                <select className="input" onChange={(event) => setImportBranchId(event.target.value)} required value={importBranchId}>
+                <select
+                  className="input"
+                  onChange={(event) => setImportBranchId(event.target.value)}
+                  required
+                  value={importBranchId}
+                >
                   <option value="">Select branch</option>
                   {branchOptions.map((branch) => (
-                    <option key={branch.id} value={branch.id}>{branch.code} - {branch.name}</option>
+                    <option key={branch.id} value={branch.id}>
+                      {branch.code} - {branch.name}
+                    </option>
                   ))}
                 </select>
               </label>
               <label className="field">
                 <span>.xlsx file</span>
-                <input className="input file:mr-3 file:rounded-md file:border-0 file:bg-foreground file:px-3 file:py-2 file:text-white" name="file" required type="file" accept=".xlsx" />
+                <input
+                  className="input file:mr-3 file:rounded-md file:border-0 file:bg-foreground file:px-3 file:py-2 file:text-white"
+                  name="file"
+                  required
+                  type="file"
+                  accept=".xlsx"
+                />
               </label>
-              {uploadImport.error ? <p className="error-text">{messageFromError(uploadImport.error)}</p> : null}
+              {uploadImport.error ? (
+                <p className="error-text">{messageFromError(uploadImport.error)}</p>
+              ) : null}
               <button className="button-primary" disabled={uploadImport.isPending} type="submit">
                 {uploadImport.isPending ? "Uploading..." : "Upload and preview"}
               </button>
@@ -515,7 +561,9 @@ function InventoryTable({ items, isLoading }: { items: InventoryItem[]; isLoadin
           </thead>
           <tbody>
             {isLoading ? <TableState colSpan={7} text="Loading inventory..." /> : null}
-            {!isLoading && items.length === 0 ? <TableState colSpan={7} text="No inventory found." /> : null}
+            {!isLoading && items.length === 0 ? (
+              <TableState colSpan={7} text="No inventory found." />
+            ) : null}
             {items.map((item) => (
               <tr key={`${item.branchId}-${item.componentId}`}>
                 <td className="font-bold">{item.component.sku}</td>
@@ -552,7 +600,9 @@ function LowStockReport({ items, isLoading }: { items: InventoryItem[]; isLoadin
           </thead>
           <tbody>
             {isLoading ? <TableState colSpan={6} text="Loading low stock..." /> : null}
-            {!isLoading && items.length === 0 ? <TableState colSpan={6} text="No low-stock items." /> : null}
+            {!isLoading && items.length === 0 ? (
+              <TableState colSpan={6} text="No low-stock items." />
+            ) : null}
             {items.map((item) => (
               <tr key={`${item.branchId}-${item.componentId}`}>
                 <td className="font-bold">{item.component.sku}</td>
@@ -560,7 +610,9 @@ function LowStockReport({ items, isLoading }: { items: InventoryItem[]; isLoadin
                 <td>{item.branch.code}</td>
                 <td>{item.quantity}</td>
                 <td>{item.minStockThreshold}</td>
-                <td className="font-bold text-red-700">{Math.max(item.minStockThreshold - item.quantity, 0)}</td>
+                <td className="font-bold text-red-700">
+                  {Math.max(item.minStockThreshold - item.quantity, 0)}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -599,20 +651,42 @@ function TransferList({
           </thead>
           <tbody>
             {isLoading ? <TableState colSpan={5} text="Loading transfers..." /> : null}
-            {!isLoading && items.length === 0 ? <TableState colSpan={5} text="No transfer requests." /> : null}
+            {!isLoading && items.length === 0 ? (
+              <TableState colSpan={5} text="No transfer requests." />
+            ) : null}
             {items.map((item) => (
               <tr key={item.id}>
-                <td><StatusPill status={item.status} /></td>
-                <td>{item.fromBranch.code} to {item.toBranch.code}</td>
-                <td>{item.items.map((line) => `${line.component.sku} x${line.quantity}`).join(", ")}</td>
+                <td>
+                  <StatusPill status={item.status} />
+                </td>
+                <td>
+                  {item.fromBranch.code} to {item.toBranch.code}
+                </td>
+                <td>
+                  {item.items.map((line) => `${line.component.sku} x${line.quantity}`).join(", ")}
+                </td>
                 <td>{item.rejectReason ?? item.note ?? "-"}</td>
                 <td>
                   {isAdmin && item.status === "PENDING" ? (
                     <div className="flex gap-2">
-                      <button className="button-small-primary" onClick={() => onApprove(item.id)} type="button">Approve</button>
-                      <button className="button-small-secondary" onClick={() => onReject(item.id)} type="button">Reject</button>
+                      <button
+                        className="button-small-primary"
+                        onClick={() => onApprove(item.id)}
+                        type="button"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        className="button-small-secondary"
+                        onClick={() => onReject(item.id)}
+                        type="button"
+                      >
+                        Reject
+                      </button>
                     </div>
-                  ) : "-"}
+                  ) : (
+                    "-"
+                  )}
                 </td>
               </tr>
             ))}
@@ -650,15 +724,27 @@ function ImportJobsTable({
           </thead>
           <tbody>
             {isLoading ? <TableState colSpan={5} text="Loading imports..." /> : null}
-            {!isLoading && items.length === 0 ? <TableState colSpan={5} text="No imports yet." /> : null}
+            {!isLoading && items.length === 0 ? (
+              <TableState colSpan={5} text="No imports yet." />
+            ) : null}
             {items.map((item) => (
               <tr key={item.id}>
                 <td className="font-bold">{item.fileName ?? "Untitled"}</td>
                 <td>{item.branch.code}</td>
-                <td><StatusPill status={item.status} /></td>
-                <td>{item.validRows} valid / {item.invalidRows} invalid</td>
                 <td>
-                  <button className={selectedId === item.id ? "button-small-primary" : "button-small-secondary"} onClick={() => onSelect(item.id)} type="button">
+                  <StatusPill status={item.status} />
+                </td>
+                <td>
+                  {item.validRows} valid / {item.invalidRows} invalid
+                </td>
+                <td>
+                  <button
+                    className={
+                      selectedId === item.id ? "button-small-primary" : "button-small-secondary"
+                    }
+                    onClick={() => onSelect(item.id)}
+                    type="button"
+                  >
                     Preview
                   </button>
                 </td>
@@ -690,7 +776,12 @@ function ImportPreview({
     <section className="rounded-lg border border-border bg-white">
       <div className="flex items-center justify-between gap-3 border-b border-border p-4 max-md:flex-col max-md:items-start">
         <TableHeader title="Preview rows" count={rows.length} compact />
-        <button className="button-primary" disabled={!canConfirm || invalidCount > 0 || isConfirming} onClick={onConfirm} type="button">
+        <button
+          className="button-primary"
+          disabled={!canConfirm || invalidCount > 0 || isConfirming}
+          onClick={onConfirm}
+          type="button"
+        >
           {isConfirming ? "Confirming..." : "Confirm import"}
         </button>
       </div>
@@ -707,13 +798,17 @@ function ImportPreview({
           </thead>
           <tbody>
             {isLoading ? <TableState colSpan={5} text="Loading preview..." /> : null}
-            {!isLoading && rows.length === 0 ? <TableState colSpan={5} text="Select an import job to preview." /> : null}
+            {!isLoading && rows.length === 0 ? (
+              <TableState colSpan={5} text="Select an import job to preview." />
+            ) : null}
             {rows.map((row) => (
               <tr key={row.id}>
                 <td>{row.rowNumber}</td>
                 <td className="font-bold">{row.sku ?? "-"}</td>
                 <td>{String(row.normalizedData?.name ?? "-")}</td>
-                <td><StatusPill status={row.validationStatus} /></td>
+                <td>
+                  <StatusPill status={row.validationStatus} />
+                </td>
                 <td className="max-w-[340px] whitespace-normal">{row.errorMessage ?? "-"}</td>
               </tr>
             ))}
@@ -724,9 +819,21 @@ function ImportPreview({
   );
 }
 
-function TableHeader({ title, count, compact = false }: { title: string; count: number; compact?: boolean }) {
+function TableHeader({
+  title,
+  count,
+  compact = false,
+}: {
+  title: string;
+  count: number;
+  compact?: boolean;
+}) {
   return (
-    <div className={compact ? "" : "flex items-center justify-between gap-3 border-b border-border p-4"}>
+    <div
+      className={
+        compact ? "" : "flex items-center justify-between gap-3 border-b border-border p-4"
+      }
+    >
       <h2 className="m-0 text-lg font-bold">{title}</h2>
       <span className="text-sm font-bold text-muted">{count} rows</span>
     </div>
@@ -736,17 +843,26 @@ function TableHeader({ title, count, compact = false }: { title: string; count: 
 function TableState({ colSpan, text }: { colSpan: number; text: string }) {
   return (
     <tr>
-      <td className="py-8 text-center text-muted" colSpan={colSpan}>{text}</td>
+      <td className="py-8 text-center text-muted" colSpan={colSpan}>
+        {text}
+      </td>
     </tr>
   );
 }
 
 function StatusPill({ status }: { status: string }) {
-  const tone = status === "VALID" || status === "COMPLETED" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-    status === "INVALID" || status === "REJECTED" || status === "FAILED" ? "bg-red-50 text-red-700 border-red-200" :
-    "bg-slate-50 text-slate-700 border-slate-200";
+  const tone =
+    status === "VALID" || status === "COMPLETED"
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      : status === "INVALID" || status === "REJECTED" || status === "FAILED"
+        ? "bg-red-50 text-red-700 border-red-200"
+        : "bg-slate-50 text-slate-700 border-slate-200";
 
-  return <span className={`inline-flex rounded-md border px-2 py-1 text-xs font-bold ${tone}`}>{status}</span>;
+  return (
+    <span className={`inline-flex rounded-md border px-2 py-1 text-xs font-bold ${tone}`}>
+      {status}
+    </span>
+  );
 }
 
 function messageFromError(error: Error) {

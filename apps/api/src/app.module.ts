@@ -9,14 +9,7 @@ import { InventoryModule } from "./inventory/inventory.module";
 import { TransfersModule } from "./transfers/transfers.module";
 
 @Module({
-  imports: [
-    EnvModule,
-    PrismaModule,
-    AuthModule,
-    ImportsModule,
-    InventoryModule,
-    TransfersModule,
-  ],
+  imports: [EnvModule, PrismaModule, AuthModule, ImportsModule, InventoryModule, TransfersModule],
   controllers: [AppController],
   providers: [AppService],
 })

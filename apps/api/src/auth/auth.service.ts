@@ -19,19 +19,19 @@ export class AuthService {
       where: { email },
     });
 
-    const isValidPassword = user
-      ? await verifyPassword(input.password, user.passwordHash)
-      : false;
+    const isValidPassword = user ? await verifyPassword(input.password, user.passwordHash) : false;
 
     if (!user || user.status !== UserStatus.ACTIVE || !isValidPassword) {
       throw new UnauthorizedException("Invalid email or password");
     }
 
     const authUser = this.toAuthUser(user);
-    const accessToken = await this.signToken(authUser);
+    const accessToken = await this.signToken(authUser, "15m");
+    const refreshToken = await this.signToken(authUser, "7d");
 
     return {
       accessToken,
+      refreshToken,
       user: authUser,
     };
   }
@@ -48,7 +48,32 @@ export class AuthService {
     return this.toAuthUser(user);
   }
 
-  private signToken(user: AuthUser) {
+  async refresh(refreshToken: string) {
+    try {
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken);
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+      });
+
+      if (!user || user.status !== UserStatus.ACTIVE) {
+        throw new UnauthorizedException("User is no longer active");
+      }
+
+      const authUser = this.toAuthUser(user);
+      const newAccessToken = await this.signToken(authUser, "15m");
+      const newRefreshToken = await this.signToken(authUser, "7d");
+
+      return {
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+        user: authUser,
+      };
+    } catch {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+
+  private signToken(user: AuthUser, expiresIn?: string) {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -56,7 +81,15 @@ export class AuthService {
       branchId: user.branchId,
     };
 
-    return this.jwtService.signAsync(payload);
+    return this.jwtService.signAsync(
+      payload,
+      expiresIn
+        ? {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            expiresIn: expiresIn as any,
+          }
+        : undefined,
+    );
   }
 
   private toAuthUser(user: {

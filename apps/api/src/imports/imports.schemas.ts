@@ -38,22 +38,38 @@ export const importRowInputSchema = z
 
     if (row.category === ComponentCategory.CPU) {
       if (!row.socket) {
-        context.addIssue({ code: "custom", path: ["socket"], message: "socket is required for CPU" });
+        context.addIssue({
+          code: "custom",
+          path: ["socket"],
+          message: "socket is required for CPU",
+        });
       }
       if (!row.cores) {
         context.addIssue({ code: "custom", path: ["cores"], message: "cores is required for CPU" });
       }
       if (row.threads && row.cores && row.threads < row.cores) {
-        context.addIssue({ code: "custom", path: ["threads"], message: "threads must be >= cores" });
+        context.addIssue({
+          code: "custom",
+          path: ["threads"],
+          message: "threads must be >= cores",
+        });
       }
     }
 
     if (row.category === ComponentCategory.SSD) {
       if (!row.interface) {
-        context.addIssue({ code: "custom", path: ["interface"], message: "interface is required for SSD" });
+        context.addIssue({
+          code: "custom",
+          path: ["interface"],
+          message: "interface is required for SSD",
+        });
       }
       if (!row.capacityGb) {
-        context.addIssue({ code: "custom", path: ["capacityGb"], message: "capacityGb is required for SSD" });
+        context.addIssue({
+          code: "custom",
+          path: ["capacityGb"],
+          message: "capacityGb is required for SSD",
+        });
       }
     }
 
@@ -63,10 +79,18 @@ export const importRowInputSchema = z
 
     if (row.category === ComponentCategory.MAINBOARD) {
       if (!row.socket) {
-        context.addIssue({ code: "custom", path: ["socket"], message: "socket is required for MAINBOARD" });
+        context.addIssue({
+          code: "custom",
+          path: ["socket"],
+          message: "socket is required for MAINBOARD",
+        });
       }
       if (!row.chipset) {
-        context.addIssue({ code: "custom", path: ["chipset"], message: "chipset is required for MAINBOARD" });
+        context.addIssue({
+          code: "custom",
+          path: ["chipset"],
+          message: "chipset is required for MAINBOARD",
+        });
       }
     }
   });

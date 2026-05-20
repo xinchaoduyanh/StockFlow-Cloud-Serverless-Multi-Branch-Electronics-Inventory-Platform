@@ -37,9 +37,7 @@ export class InventoryService {
           orderBy: [{ branch: { code: "asc" } }, { component: { sku: "asc" } }],
         })
         .then((items) =>
-          items
-            .filter((item) => item.quantity <= item.minStockThreshold)
-            .slice(skip, skip + take),
+          items.filter((item) => item.quantity <= item.minStockThreshold).slice(skip, skip + take),
         );
     }
 

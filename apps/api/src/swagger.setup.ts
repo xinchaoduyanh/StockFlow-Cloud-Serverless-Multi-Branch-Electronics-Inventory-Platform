@@ -4,9 +4,7 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 export function setupSwagger(app: INestApplication) {
   const config = new DocumentBuilder()
     .setTitle("StockFlow Cloud API")
-    .setDescription(
-      "Serverless multi-branch electronics inventory platform API",
-    )
+    .setDescription("Serverless multi-branch electronics inventory platform API")
     .setVersion("0.1.0")
     .addBearerAuth()
     .addTag("auth")

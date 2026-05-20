@@ -41,9 +41,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       error: {
         code: normalized.code,
         message: normalized.message,
-        ...(normalized.details === undefined
-          ? {}
-          : { details: normalized.details }),
+        ...(normalized.details === undefined ? {} : { details: normalized.details }),
       },
     });
   }

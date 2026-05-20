@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { clearAuthToken, getAuthToken, setAuthToken } from "@/lib/auth-token";
+import { clearAllTokens, getAuthToken, setAuthToken, setRefreshToken } from "@/lib/auth-token";
 import { getCurrentUser, login } from "./api";
 
 export const currentUserQueryKey = ["auth", "me"] as const;
@@ -20,10 +20,10 @@ export function useLogin() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: (input: { email: string; password: string }) =>
-      login(input.email, input.password),
+    mutationFn: (input: { email: string; password: string }) => login(input.email, input.password),
     onSuccess: (data) => {
       setAuthToken(data.accessToken);
+      setRefreshToken(data.refreshToken);
       queryClient.setQueryData(currentUserQueryKey, data.user);
       router.replace("/dashboard");
     },
@@ -35,7 +35,7 @@ export function useLogout() {
   const router = useRouter();
 
   return () => {
-    clearAuthToken();
+    clearAllTokens();
     queryClient.removeQueries({ queryKey: currentUserQueryKey });
     router.replace("/login");
   };

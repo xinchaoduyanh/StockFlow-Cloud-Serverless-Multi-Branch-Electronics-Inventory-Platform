@@ -3,10 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { EnvService } from "../config/env.service";
 
 @Injectable()
-export class PrismaService
-  extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy
-{
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly env: EnvService) {
     super();
   }

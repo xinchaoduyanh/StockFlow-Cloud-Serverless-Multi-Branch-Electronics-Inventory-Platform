@@ -16,8 +16,8 @@ export default function Home() {
           Electronics inventory for multi-branch operations
         </h1>
         <p className="mt-6 text-lg leading-7 text-muted">
-          A serverless-ready platform for Excel imports, stock tracking, transfer
-          approvals, and operational reporting.
+          A serverless-ready platform for Excel imports, stock tracking, transfer approvals, and
+          operational reporting.
         </p>
       </section>
 

@@ -767,11 +767,11 @@ chipset
 
 Example:
 
-| sku | name | brand | category | quantity | unit_price | supplier | warranty_months | ddr_generation | speed_mhz | capacity_gb | socket | cores | interface |
-|---|---|---|---|---:|---:|---|---:|---|---:|---:|---|---:|---|
-| RAM-KING-8-DDR4 | Kingston 8GB DDR4 | Kingston | RAM | 20 | 550000 | ABC | 36 | DDR4 | 3200 | 8 |  |  |  |
-| CPU-INTEL-I5-12400F | Intel Core i5 12400F | Intel | CPU | 8 | 3200000 | XYZ | 36 |  |  |  | LGA1700 | 6 |  |
-| SSD-SAM-980-1TB | Samsung 980 1TB | Samsung | SSD | 15 | 1600000 | DEF | 60 |  |  | 1000 |  |  | NVMe |
+| sku                 | name                 | brand    | category | quantity | unit_price | supplier | warranty_months | ddr_generation | speed_mhz | capacity_gb | socket  | cores | interface |
+| ------------------- | -------------------- | -------- | -------- | -------: | ---------: | -------- | --------------: | -------------- | --------: | ----------: | ------- | ----: | --------- |
+| RAM-KING-8-DDR4     | Kingston 8GB DDR4    | Kingston | RAM      |       20 |     550000 | ABC      |              36 | DDR4           |      3200 |           8 |         |       |           |
+| CPU-INTEL-I5-12400F | Intel Core i5 12400F | Intel    | CPU      |        8 |    3200000 | XYZ      |              36 |                |           |             | LGA1700 |     6 |           |
+| SSD-SAM-980-1TB     | Samsung 980 1TB      | Samsung  | SSD      |       15 |    1600000 | DEF      |              60 |                |           |        1000 |         |       | NVMe      |
 
 ---
 
