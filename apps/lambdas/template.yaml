@@ -1,0 +1,201 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  StockFlow Cloud Serverless Batch Ingestion Infrastructure.
+  Contains S3 incoming buckets, Step Functions state machine orchestrator,
+  and high-performance Node.js Lambda workers.
+
+Parameters:
+  DatabaseUrl:
+    Type: String
+    NoEcho: true
+    Description: Neon PostgreSQL Connection String (pgbouncer transaction pooler with connection_limit=1)
+
+Globals:
+  Function:
+    Timeout: 60
+    MemorySize: 256
+    Runtime: nodejs20.x
+    Architectures:
+      - arm64
+    Environment:
+      Variables:
+        DATABASE_URL: !Ref DatabaseUrl
+
+Resources:
+  # -----------------------------------------------------------------
+  # 1. S3 Storage Bucket with CORS and EventBridge notifications enabled
+  # -----------------------------------------------------------------
+  StockFlowIncomingBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub stockflow-imports-${AWS::AccountId}-${AWS::Region}
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - POST
+              - GET
+              - PUT
+              - HEAD
+            AllowedOrigins:
+              - '*' # In production, restrict to http://localhost:3000 and your actual domains
+            ExposedHeaders:
+              - ETag
+            MaxAge: 3000
+
+  # -----------------------------------------------------------------
+  # 2. Serverless Lambda Functions
+  # -----------------------------------------------------------------
+  ImportValidatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      CodeUri: ../../dist/lambdas/import-validator/
+      Description: Validates file mime types and sheet column header integrity.
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+              Resource: !Sub arn:aws:s3:::stockflow-imports-${AWS::AccountId}-${AWS::Region}/*
+
+  ImportParserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      CodeUri: ../../dist/lambdas/import-parser/
+      Timeout: 300 # 5 minutes maximum timeout for streaming extremely large XLSX sheets
+      MemorySize: 512 # Allocating more memory for ExcelJS streaming structures
+      Description: Stream-parses spreadsheet rows and stages data to the PostgreSQL staging database.
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource: !Sub arn:aws:s3:::stockflow-imports-${AWS::AccountId}-${AWS::Region}/*
+
+  ImportApprovalTokenRegisterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      CodeUri: ../../dist/lambdas/import-approval-token-register/
+      Description: Registers Step Functions waitForTaskToken unique execution token to database.
+
+  ImportWriterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      CodeUri: ../../dist/lambdas/import-writer/
+      Timeout: 180 # 3 minutes for bulk commit transactions
+      Description: Commits staged valid items in batches of 500 rows to Component and Inventory tables.
+
+  ImportJobFailHandlerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      CodeUri: ../../dist/lambdas/import-job-fail-handler/
+      Description: Marks job status as FAILED in the database upon state machine runtime failures.
+
+  # -----------------------------------------------------------------
+  # 3. AWS Step Functions State Machine Orchestrator
+  # -----------------------------------------------------------------
+  StockFlowIngestionStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Definition:
+        Comment: StockFlow Electronics Serverless Batch Ingestion Pipeline Orchestrator
+        StartAt: ValidateFileStructure
+        States:
+          ValidateFileStructure:
+            Type: Task
+            Resource: !GetAtt ImportValidatorFunction.Arn
+            Catch:
+              - ErrorEquals:
+                  - States.ALL
+                Next: MarkJobFailed
+            Next: CheckIntegrity
+          CheckIntegrity:
+            Type: Choice
+            Choices:
+              - Variable: $.isValid
+                BooleanEquals: true
+                Next: ParseAndStageRows
+            Default: MarkJobFailed
+          ParseAndStageRows:
+            Type: Task
+            Resource: !GetAtt ImportParserFunction.Arn
+            Catch:
+              - ErrorEquals:
+                  - States.ALL
+                Next: MarkJobFailed
+            Next: HaltForUserApproval
+          HaltForUserApproval:
+            Type: Task
+            Resource: arn:aws:states:::lambda:invoke.waitForTaskToken
+            Parameters:
+              FunctionName: !GetAtt ImportApprovalTokenRegisterFunction.Arn
+              Payload:
+                importJobId.$: $.importJobId
+                taskToken.$: $$.Task.Token
+            Catch:
+              - ErrorEquals:
+                  - States.ALL
+                Next: MarkJobFailed
+            Next: CommitInventory
+          CommitInventory:
+            Type: Task
+            Resource: !GetAtt ImportWriterFunction.Arn
+            End: true
+          MarkJobFailed:
+            Type: Task
+            Resource: !GetAtt ImportJobFailHandlerFunction.Arn
+            End: true
+      Events:
+        S3UploadEvent:
+          Type: EventBridgeRule
+          Properties:
+            InputTransformer:
+              InputPathsMap:
+                bucket: "$.detail.bucket.name"
+                key: "$.detail.object.key"
+                size: "$.detail.object.size"
+              InputTemplate: '{"bucket": <bucket>, "key": <key>, "size": <size>}'
+            Pattern:
+              source:
+                - aws.s3
+              detail-type:
+                - Object Created
+              detail:
+                bucket:
+                  name:
+                    - !Sub stockflow-imports-${AWS::AccountId}-${AWS::Region}
+                key:
+                  - prefix: imports/
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - lambda:InvokeFunction
+              Resource:
+                - !GetAtt ImportValidatorFunction.Arn
+                - !GetAtt ImportParserFunction.Arn
+                - !GetAtt ImportApprovalTokenRegisterFunction.Arn
+                - !GetAtt ImportWriterFunction.Arn
+                - !GetAtt ImportJobFailHandlerFunction.Arn
+
+Outputs:
+  IncomingS3Bucket:
+    Description: S3 Bucket Name for direct browser form uploads
+    Value: !Ref StockFlowIncomingBucket
+  StateMachineArn:
+    Description: Orchestrator State Machine ARN
+    Value: !Ref StockFlowIngestionStateMachine

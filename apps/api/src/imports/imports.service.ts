@@ -11,7 +11,9 @@ import {
   importRowInputSchema,
   InitImportBody,
   StartImportBody,
+  PresignedPostRequest,
 } from "./imports.schemas";
+import { S3Service } from "./s3.service";
 
 type PreparedImportRow = {
   rowNumber: number;
@@ -24,7 +26,47 @@ type PreparedImportRow = {
 
 @Injectable()
 export class ImportsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly s3Service: S3Service,
+  ) {}
+
+  async getPresignedPost(input: PresignedPostRequest, actorId?: string) {
+    const job = await this.prisma.importJob.create({
+      data: {
+        branchId: input.branchId,
+        fileName: input.fileName,
+        status: ImportStatus.UPLOADED,
+        totalRows: 0,
+        processedRows: 0,
+        validRows: 0,
+        invalidRows: 0,
+        createdBy: actorId,
+      },
+    });
+
+    let sanitizedEmail = "unknown-user";
+    if (actorId) {
+      const user = await this.prisma.user.findUnique({ where: { id: actorId } });
+      if (user?.email) {
+        sanitizedEmail = user.email.replace("@", ".");
+      }
+    }
+
+    const s3Key = `imports/${input.branchId}/${sanitizedEmail}/${job.id}-${input.fileName}`;
+
+    await this.prisma.importJob.update({
+      where: { id: job.id },
+      data: { s3Key },
+    });
+
+    const presignedPost = await this.s3Service.generatePresignedPost(s3Key, input.contentType);
+
+    return {
+      importJobId: job.id,
+      presignedPost,
+    };
+  }
 
   async init(input: InitImportBody, actorId?: string) {
     const preparedRows = this.prepareRows(input.rows ?? []);

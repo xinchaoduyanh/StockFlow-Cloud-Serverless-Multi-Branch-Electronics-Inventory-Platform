@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@prisma/client": ["../api/node_modules/@prisma/client"]
+    }
+  },
+  "include": ["**/*.ts"]
+}

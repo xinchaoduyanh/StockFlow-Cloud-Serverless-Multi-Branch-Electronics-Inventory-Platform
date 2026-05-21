@@ -14,6 +14,7 @@
     "dev:api": "npm --workspace apps/api run start:dev",
     "build:web": "npm --workspace apps/web run build",
     "build:api": "npm --workspace apps/api run build",
+    "build:lambdas": "node esbuild.config.js",
     "format": "prettier --write .",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "esbuild": "^0.28.0",
     "eslint": "^10.4.0",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",

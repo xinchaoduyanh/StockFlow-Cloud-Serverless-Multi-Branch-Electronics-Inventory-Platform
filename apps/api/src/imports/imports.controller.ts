@@ -24,6 +24,8 @@ import {
   startImportBodySchema,
   UploadImportBody,
   uploadImportBodySchema,
+  PresignedPostRequest,
+  presignedPostRequestSchema,
 } from "./imports.schemas";
 import { ImportsService } from "./imports.service";
 
@@ -33,6 +35,16 @@ import { ImportsService } from "./imports.service";
 @Controller("imports")
 export class ImportsController {
   constructor(private readonly importsService: ImportsService) {}
+
+  @Post("presigned-post")
+  @ApiBody({ description: "Generate S3 Presigned POST fields for client-side direct uploads." })
+  @ApiOkResponse({ description: "Returns S3 url, fields and the corresponding importJobId." })
+  presignedPost(
+    @Body(new ZodValidationPipe(presignedPostRequestSchema)) body: PresignedPostRequest,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.importsService.getPresignedPost(body, request.user.sub);
+  }
 
   @Post("init")
   @ApiBody({ description: "Create an import job. Rows are optional for local JSON preview mode." })

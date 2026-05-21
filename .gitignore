@@ -9,3 +9,7 @@ coverage/
 .DS_Store
 *.log
 *.tsbuildinfo
+
+# AWS SAM Infrastructure Build & Configurations
+.aws-sam/
+samconfig.toml
