@@ -32,11 +32,40 @@ export class ImportsService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    setInterval(() => {
-      this.autoApprovePendingJobs().catch((err) => {
-        console.error("[Auto-Approve] Polling error:", err);
+    this.runPollingLoop();
+  }
+
+  private async runPollingLoop() {
+    let nextDelay = 10000; // Idle delay: 10 seconds
+
+    try {
+      // 1. Check if there are any jobs currently in-progress
+      const activeJobsCount = await this.prisma.importJob.count({
+        where: {
+          status: {
+            in: [ImportStatus.UPLOADED, ImportStatus.VALIDATING, ImportStatus.PREVIEW_READY],
+          },
+        },
       });
-    }, 15000);
+
+      if (activeJobsCount > 0) {
+        // Active job in progress! Poll fast (1 second) to auto-approve instantly
+        nextDelay = 1000;
+        await this.autoApprovePendingJobs();
+      } else {
+        // Idle! Poll slowly (10 seconds)
+        nextDelay = 10000;
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[Auto-Approve] Polling loop error:", msg);
+      nextDelay = 10000; // safe back-off
+    } finally {
+      // Schedule the next execution recursively
+      setTimeout(() => {
+        this.runPollingLoop();
+      }, nextDelay);
+    }
   }
 
   private async autoApprovePendingJobs() {

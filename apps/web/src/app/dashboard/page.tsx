@@ -194,6 +194,12 @@ export default function DashboardPage() {
       return apiRequest<ImportJob[]>(`/imports?${params.toString()}`);
     },
     enabled: Boolean(user),
+    refetchInterval: (query) => {
+      const hasActiveJobs = query.state.data?.some(
+        (job) => job.status === "UPLOADED" || job.status === "VALIDATING"
+      );
+      return hasActiveJobs ? 1500 : false;
+    },
   });
 
   const previewQuery = useQuery({
@@ -299,8 +305,7 @@ export default function DashboardPage() {
 
       return { id: response.importJobId };
     },
-    onSuccess: (job) => {
-      setSelectedImportId(job.id);
+    onSuccess: () => {
       setSelectedFile(null);
       setUploadProgress(null);
       setIngestionStage(null);

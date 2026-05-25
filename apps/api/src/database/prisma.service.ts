@@ -10,7 +10,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleInit() {
     if (this.env.get("PRISMA_CONNECT_ON_BOOT")) {
-      await this.$connect();
+      try {
+        await this.$connect();
+        console.log("[Prisma] Database connection successfully established on boot.");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.warn("[Prisma] Warning: Unable to establish database connection on boot:", message);
+      }
     }
   }
 
