@@ -40,7 +40,7 @@ export const handler = async (event: any) => {
   }
 
   const filePart = keyParts[keyParts.length - 1];
-  const jobId = filePart.split("-")[0];
+  const jobId = filePart.slice(0, 36);
 
   try {
     const job = await prisma.importJob.findUnique({
@@ -112,7 +112,7 @@ export const handler = async (event: any) => {
     await prisma.importJob.update({
       where: { id: jobId },
       data: {
-        status: ImportStatus.QUEUED,
+        status: ImportStatus.VALIDATING,
       },
     });
 

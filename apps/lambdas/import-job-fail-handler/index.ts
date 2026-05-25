@@ -6,9 +6,19 @@ export const handler = async (event: any) => {
   console.log("Job failure handler event received:", JSON.stringify(event));
 
   // Step Functions error objects often contain Error and Cause
-  const importJobId = event.importJobId || (event.Payload && event.Payload.importJobId);
-  const errorName = event.Error || "UnknownError";
-  const errorMessage = event.Cause || event.Message || "State machine execution failure";
+  let importJobId = event.importJobId || (event.Payload && event.Payload.importJobId);
+
+  // Fallback: Parse importJobId from S3 key if available
+  if (!importJobId && event.key) {
+    const keyParts = String(event.key).split("/");
+    if (keyParts.length >= 3) {
+      const filePart = keyParts[keyParts.length - 1];
+      importJobId = filePart.slice(0, 36);
+    }
+  }
+
+  const errorName = event.Error || (event.errorInfo && event.errorInfo.Error) || "UnknownError";
+  const errorMessage = event.Cause || event.Message || (event.errorInfo && event.errorInfo.Cause) || "State machine execution failure";
 
   if (!importJobId) {
     console.error("No importJobId found in the failure event payload.");

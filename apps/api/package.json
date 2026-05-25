@@ -5,6 +5,7 @@
   "scripts": {
     "build": "nest build",
     "start": "node dist/main.js",
+    "dev": "npm run start:dev",
     "start:dev": "nest start --watch",
     "lint": "tsc --noEmit -p tsconfig.json",
     "test": "jest --config jest-e2e.json",
@@ -15,6 +16,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1051.0",
+    "@aws-sdk/client-sfn": "^3.1053.0",
     "@aws-sdk/s3-presigned-post": "^3.1051.0",
     "@nestjs/common": "latest",
     "@nestjs/core": "latest",

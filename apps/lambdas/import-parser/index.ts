@@ -17,10 +17,10 @@ export const handler = async (event: any) => {
   }
 
   try {
-    // 1. Update status to PROCESSING
+    // 1. Update status to PARSING
     await prisma.importJob.update({
       where: { id: importJobId },
-      data: { status: ImportStatus.PROCESSING },
+      data: { status: ImportStatus.PARSING },
     });
 
     // 2. Fetch S3 spreadsheet stream
@@ -138,8 +138,8 @@ export const handler = async (event: any) => {
         } else {
           validationStatus = ImportRowStatus.INVALID;
           invalidRows++;
-          errorMessage = validationResult.error.errors
-            .map((e) => `${e.path.join(".")}: ${e.message}`)
+          errorMessage = validationResult.error.issues
+            .map((e: any) => `${e.path.join(".")}: ${e.message}`)
             .join(" | ");
         }
 
@@ -151,6 +151,7 @@ export const handler = async (event: any) => {
           errorMessage,
           rawData: rowData as Prisma.InputJsonValue,
           normalizedData: finalNormalizedData as Prisma.InputJsonValue,
+          idempotencyKey: `${importJobId}-${row.number}`,
         });
 
         // Chunk insert to staging database

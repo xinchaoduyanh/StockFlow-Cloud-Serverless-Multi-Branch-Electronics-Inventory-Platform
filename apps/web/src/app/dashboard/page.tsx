@@ -123,6 +123,23 @@ export default function DashboardPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [ingestionStage, setIngestionStage] = useState<"uploading" | "validating" | null>(null);
+  
+  // High-end overhauls state variables
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [inventoryPage, setInventoryPage] = useState(1);
+  const [lowStockPage, setLowStockPage] = useState(1);
+  const [transfersPage, setTransfersPage] = useState(1);
+  const [importsPage, setImportsPage] = useState(1);
+  const [previewPage, setPreviewPage] = useState(1);
+
+  // Reset pages when filters change
+  useEffect(() => {
+    setInventoryPage(1);
+  }, [search, category, branchId]);
+
+  useEffect(() => {
+    setLowStockPage(1);
+  }, [search, category, branchId]);
 
   useEffect(() => {
     if (user?.branchId && !importBranchId) {
@@ -287,6 +304,7 @@ export default function DashboardPage() {
       setSelectedFile(null);
       setUploadProgress(null);
       setIngestionStage(null);
+      setIsUploadModalOpen(false);
       void queryClient.invalidateQueries({ queryKey: ["imports"] });
     },
     onError: () => {
@@ -309,6 +327,10 @@ export default function DashboardPage() {
   const lowStockItems = lowStockQuery.data ?? [];
   const transferItems = transfersQuery.data ?? [];
   const importJobs = importsQuery.data ?? [];
+  const selectedImportJob = useMemo(
+    () => importJobs.find((job) => job.id === selectedImportId),
+    [importJobs, selectedImportId],
+  );
   const transferComponents = useMemo(
     () =>
       inventoryItems.filter(
@@ -355,18 +377,18 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f7f8fa]">
-      <header className="border-b border-[#d7dce5] bg-white">
-        <div className="mx-auto flex w-[calc(100%_-_48px)] max-w-[1240px] items-center justify-between gap-4 py-5 max-md:w-[calc(100%_-_32px)] max-md:flex-col max-md:items-start">
+    <main className="min-h-screen bg-[#f4f7fb]">
+      <header className="sticky top-0 z-30 border-b border-[#d7dce5] bg-white/90 backdrop-blur-xl">
+        <div className="mx-auto flex w-[calc(100%_-_48px)] max-w-[1240px] items-center justify-between gap-4 py-3 max-md:w-[calc(100%_-_32px)] max-md:flex-col max-md:items-start">
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-lg bg-[#0f766e] text-sm font-black text-white shadow-lg shadow-teal-800/15">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#0f766e] text-sm font-black text-white shadow-lg shadow-teal-800/15">
               SF
             </div>
             <div>
               <p className="mb-1 text-xs font-black uppercase tracking-[0.18em] text-[#0f766e]">
                 StockFlow Cloud
               </p>
-              <h1 className="m-0 text-2xl font-black tracking-normal text-[#172033]">
+              <h1 className="m-0 text-xl font-black tracking-normal text-[#172033]">
                 Inventory Operations
               </h1>
             </div>
@@ -383,8 +405,8 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="mx-auto grid w-[calc(100%_-_48px)] max-w-[1240px] gap-5 py-6 max-md:w-[calc(100%_-_32px)]">
-        <section className="grid gap-4 rounded-lg border border-[#d7dce5] bg-white p-5 shadow-sm">
+      <div className="mx-auto grid w-[calc(100%_-_48px)] max-w-[1240px] gap-4 py-5 max-md:w-[calc(100%_-_32px)]">
+        <section className="surface grid gap-4 p-5">
           <div className="grid gap-3 md:grid-cols-4">
             {inventorySummary.map((item) => (
               <div key={item.label} className="rounded-md border border-[#d7dce5] bg-[#f8fafc] p-4">
@@ -437,7 +459,7 @@ export default function DashboardPage() {
             </label>
           </div>
 
-          <nav className="flex flex-wrap gap-2 border-t border-[#d7dce5] pt-4">
+          <nav className="flex flex-wrap gap-2 rounded-xl border border-[#d7dce5] bg-slate-50 p-1">
             {tabs.map((tab) => (
               <button
                 className={tab.id === activeTab ? "tab-active" : "tab"}
@@ -452,20 +474,30 @@ export default function DashboardPage() {
         </section>
 
         {activeTab === "inventory" ? (
-          <InventoryTable isLoading={inventoryQuery.isLoading} items={inventoryItems} />
+          <InventoryTable
+            isLoading={inventoryQuery.isLoading}
+            items={inventoryItems}
+            currentPage={inventoryPage}
+            onPageChange={setInventoryPage}
+          />
         ) : null}
 
         {activeTab === "low-stock" ? (
-          <LowStockReport isLoading={lowStockQuery.isLoading} items={lowStockQuery.data ?? []} />
+          <LowStockReport
+            isLoading={lowStockQuery.isLoading}
+            items={lowStockQuery.data ?? []}
+            currentPage={lowStockPage}
+            onPageChange={setLowStockPage}
+          />
         ) : null}
 
         {activeTab === "transfers" ? (
-          <section className="grid gap-5 lg:grid-cols-[360px_1fr]">
+          <section className="grid gap-4 lg:grid-cols-[340px_1fr]">
             <form
-              className="grid h-fit gap-4 rounded-lg border border-border bg-white p-4"
+              className="surface grid h-fit gap-4 p-4"
               onSubmit={handleCreateTransfer}
             >
-              <h2 className="m-0 text-lg font-bold">Create transfer</h2>
+              <div><p className="m-0 text-xs font-black uppercase tracking-[0.14em] text-[#0f766e]">Transfer</p><h2 className="m-0 mt-1 text-lg font-black">Create request</h2></div>
               <label className="field">
                 <span>From branch</span>
                 <select
@@ -475,24 +507,6 @@ export default function DashboardPage() {
                   }
                   required
                   value={transferForm.fromBranchId}
-                >
-                  <option value="">Select branch</option>
-                  {branchOptions.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.code} - {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>To branch</span>
-                <select
-                  className="input"
-                  onChange={(event) =>
-                    setTransferForm((current) => ({ ...current, toBranchId: event.target.value }))
-                  }
-                  required
-                  value={transferForm.toBranchId}
                 >
                   <option value="">Select branch</option>
                   {branchOptions.map((branch) => (
@@ -553,7 +567,7 @@ export default function DashboardPage() {
             </form>
 
             <div className="grid gap-3">
-              <label className="field rounded-lg border border-border bg-white p-4">
+              <label className="surface field p-4">
                 <span>Reject reason</span>
                 <input
                   className="input"
@@ -564,221 +578,219 @@ export default function DashboardPage() {
               <TransferList
                 isAdmin={user.role === "ADMIN"}
                 isLoading={transfersQuery.isLoading}
-                items={transfersQuery.data ?? []}
+                items={transferItems}
                 onApprove={(id) => approveTransfer.mutate(id)}
                 onReject={(id) => rejectTransfer.mutate(id)}
+                currentPage={transfersPage}
+                onPageChange={setTransfersPage}
               />
             </div>
           </section>
         ) : null}
 
         {activeTab === "imports" ? (
-          <section className="grid gap-5 lg:grid-cols-[360px_1fr]">
-            <form
-              className="grid h-fit gap-5 rounded-xl border border-[#e2e8f0] bg-white p-6 shadow-md shadow-slate-200/50"
-              onSubmit={handleUpload}
-            >
-              <div className="flex items-center justify-between border-b border-[#f1f5f9] pb-3">
-                <h2 className="m-0 text-lg font-bold text-[#1e293b]">Ingest Spreadsheet</h2>
-                <span className="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-semibold text-[#0f766e]">
-                  S3 Direct Upload
-                </span>
+          <section className="grid gap-4">
+            <div className="surface flex items-center justify-between gap-4 p-5 max-sm:flex-col max-sm:items-start">
+              <div>
+                <h2 className="m-0 text-lg font-black tracking-tight text-[#172033]">Spreadsheet Ingestion</h2>
+                <p className="m-0 mt-1 text-xs font-medium text-[#5c667a]">Upload, audit, preview, and commit Excel inventory files.</p>
               </div>
-
-              <label className="field">
-                <span className="text-sm font-semibold text-[#475569]">Target Branch</span>
-                <select
-                  className="input mt-1.5 border-[#cbd5e1] focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e] rounded-lg transition-all"
-                  onChange={(event) => setImportBranchId(event.target.value)}
-                  required
-                  value={importBranchId}
-                >
-                  <option value="">Select branch for inventory destination</option>
-                  {branchOptions.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.code} - {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {/* Modern Interactive Drag and Drop Zone */}
-              <div className="field">
-                <span className="text-sm font-semibold text-[#475569]">Spreadsheet (.xlsx)</span>
-                
-                {!selectedFile ? (
-                  <div
-                    className={`mt-1.5 flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-all duration-300 ${
-                      isDragOver
-                        ? "border-[#0f766e] bg-teal-50/30 scale-[0.98]"
-                        : "border-[#cbd5e1] bg-[#f8fafc] hover:border-[#0f766e] hover:bg-slate-50/50"
-                    }`}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setIsDragOver(true);
-                    }}
-                    onDragLeave={() => setIsDragOver(false)}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setIsDragOver(false);
-                      const file = e.dataTransfer.files?.[0];
-                      if (file && file.name.endsWith(".xlsx")) {
-                        setSelectedFile(file);
-                      }
-                    }}
-                    onClick={() => {
-                      const input = document.getElementById("file-upload-input");
-                      input?.click();
-                    }}
-                  >
-                    <input
-                      id="file-upload-input"
-                      className="hidden"
-                      type="file"
-                      accept=".xlsx"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) setSelectedFile(file);
-                      }}
-                    />
-                    <svg
-                      className={`mx-auto h-10 w-10 text-[#64748b] transition-transform duration-300 ${
-                        isDragOver ? "scale-110 text-[#0f766e]" : ""
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                      />
-                    </svg>
-                    <p className="mt-3 text-sm font-medium text-[#334155]">
-                      Drag and drop spreadsheet here
-                    </p>
-                    <p className="mt-1 text-xs text-[#64748b]">
-                      or <span className="text-[#0f766e] underline font-semibold cursor-pointer">browse your computer</span>
-                    </p>
-                    <p className="mt-2.5 rounded bg-slate-100 px-2 py-0.5 text-[10px] uppercase font-bold text-[#64748b] tracking-wider">
-                      Strictly XLSX limit 10MB
-                    </p>
-                  </div>
-                ) : (
-                  /* Premium Selected File Card */
-                  <div className="mt-1.5 flex items-center justify-between rounded-xl border border-teal-100 bg-teal-50/10 p-4 shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="grid h-10 w-10 place-items-center rounded-lg bg-teal-50 text-[#0f766e]">
-                        <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </div>
-                      <div className="overflow-hidden">
-                        <p className="truncate text-sm font-semibold text-[#1e293b]">{selectedFile.name}</p>
-                        <p className="text-xs text-[#64748b]">{(selectedFile.size / 1024).toFixed(1)} KB</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedFile(null);
-                      }}
-                      className="rounded-full p-1 text-[#94a3b8] hover:bg-slate-100 hover:text-[#ef4444] transition-colors"
-                    >
-                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Gorgeous Real-Time Progress Bar Component */}
-              {uploadProgress !== null && (
-                <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                  <div className="flex items-center justify-between text-xs font-semibold">
-                    <span className="text-[#334155] flex items-center gap-1.5">
-                      {ingestionStage === "uploading" ? (
-                        <>
-                          <svg className="animate-spin h-3.5 w-3.5 text-[#0f766e]" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                          Uploading directly to S3
-                        </>
-                      ) : (
-                        <>
-                          <svg className="animate-pulse h-3.5 w-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24">
-                            <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.2" />
-                            <circle cx="12" cy="12" r="6" fill="currentColor" />
-                          </svg>
-                          Validating & Staging rows...
-                        </>
-                      )}
-                    </span>
-                    <span className="font-bold text-[#0f766e]">{uploadProgress}%</span>
-                  </div>
-                  <div className="mt-2 h-2 w-full rounded-full bg-slate-100 shadow-inner overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_rgba(20,184,166,0.4)]"
-                      style={{ width: `${uploadProgress}%` }}
-                    />
-                  </div>
-                  <p className="mt-2 text-[10px] text-[#64748b] leading-relaxed">
-                    {ingestionStage === "uploading"
-                      ? "Uploading multipart spreadsheet binary to S3 signed gateway."
-                      : "File safely received by AWS. Step Functions executing validations."}
-                  </p>
-                </div>
-              )}
-
-              {uploadImportDirect.error ? (
-                <div className="flex gap-2 rounded-lg bg-rose-50 p-3 text-xs text-[#ef4444] border border-rose-100">
-                  <svg className="h-4 w-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <p>{messageFromError(uploadImportDirect.error)}</p>
-                </div>
-              ) : null}
-
               <button
-                className="button-primary w-full py-2.5 rounded-lg flex items-center justify-center gap-2 hover:shadow-lg transition-all"
-                disabled={uploadImportDirect.isPending || !selectedFile || !importBranchId}
-                type="submit"
+                onClick={() => setIsUploadModalOpen(true)}
+                className="button-primary px-5"
+                type="button"
               >
-                {uploadImportDirect.isPending ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    <span>Processing Pipeline...</span>
-                  </>
-                ) : (
-                  <span>Begin Cloud Ingestion</span>
-                )}
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Ingest Spreadsheet</span>
               </button>
-            </form>
-
-            <div className="grid gap-4">
-              <ImportJobsTable
-                isLoading={importsQuery.isLoading}
-                items={importsQuery.data ?? []}
-                selectedId={selectedImportId}
-                onSelect={setSelectedImportId}
-              />
-              <ImportPreview
-                isLoading={previewQuery.isLoading}
-                rows={previewQuery.data ?? []}
-                canConfirm={Boolean(selectedImportId)}
-                onConfirm={() => selectedImportId && confirmImport.mutate(selectedImportId)}
-                isConfirming={confirmImport.isPending}
-              />
             </div>
+
+            {/* Ingestion Glassmorphic Modal Dialog */}
+            {isUploadModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-md animate-macbook-backdrop">
+                <div className="relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/70 bg-white p-6 shadow-2xl shadow-slate-950/20 animate-macbook-modal">
+                  {/* Close Modal Button */}
+                  <button
+                    onClick={() => {
+                      setIsUploadModalOpen(false);
+                      setSelectedFile(null);
+                      setUploadProgress(null);
+                      setIngestionStage(null);
+                    }}
+                    className="absolute top-4 right-4 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                    type="button"
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+
+                  <form className="grid gap-5" onSubmit={handleUpload}>
+                    <div className="flex items-center justify-between border-b border-[#f1f5f9] pb-3">
+                      <h2 className="m-0 text-lg font-bold text-[#172033]">Ingest Spreadsheet</h2>
+                      <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-[10px] font-semibold text-[#0f766e] tracking-wider uppercase">
+                        S3 Direct
+                      </span>
+                    </div>
+
+                    <label className="field">
+                      <span className="text-sm font-semibold text-[#475569]">Target Branch</span>
+                      <select
+                        className="input mt-1.5 border-[#cbd5e1] focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e] rounded-lg transition-all"
+                        onChange={(event) => setImportBranchId(event.target.value)}
+                        required
+                        value={importBranchId}
+                      >
+                        <option value="">Select branch for inventory destination</option>
+                        {branchOptions.map((branch) => (
+                          <option key={branch.id} value={branch.id}>
+                            {branch.code} - {branch.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    {/* Drag and Drop Zone */}
+                    <div className="field">
+                      <span className="text-sm font-semibold text-[#475569]">Spreadsheet (.xlsx)</span>
+                      {!selectedFile ? (
+                        <div
+                          className={`mt-1.5 flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-all duration-300 ${
+                            isDragOver
+                              ? "border-[#0f766e] bg-teal-50/30 scale-[0.98]"
+                              : "border-[#cbd5e1] bg-[#f8fafc] hover:border-[#0f766e] hover:bg-slate-50/50"
+                          }`}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setIsDragOver(true);
+                          }}
+                          onDragLeave={() => setIsDragOver(false)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            setIsDragOver(false);
+                            const file = e.dataTransfer.files?.[0];
+                            if (file && file.name.endsWith(".xlsx")) {
+                              setSelectedFile(file);
+                            }
+                          }}
+                          onClick={() => {
+                            const input = document.getElementById("file-upload-input");
+                            input?.click();
+                          }}
+                        >
+                          <input
+                            id="file-upload-input"
+                            className="hidden"
+                            type="file"
+                            accept=".xlsx"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) setSelectedFile(file);
+                            }}
+                          />
+                          <svg className="mx-auto h-8 w-8 text-[#64748b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                          <p className="mt-2 text-xs font-semibold text-[#334155]">Drag and drop spreadsheet here</p>
+                          <p className="mt-1 text-[11px] text-[#64748b]">
+                            or <span className="text-[#0f766e] underline font-semibold cursor-pointer">browse your computer</span>
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="mt-1.5 flex items-center justify-between rounded-xl border border-teal-100 bg-teal-50/10 p-4 shadow-sm">
+                          <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-teal-50 text-[#0f766e]">
+                              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </div>
+                            <div className="overflow-hidden">
+                              <p className="truncate text-xs font-semibold text-[#1e293b]">{selectedFile.name}</p>
+                              <p className="text-[10px] text-[#64748b]">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedFile(null);
+                            }}
+                            className="rounded-full p-1 text-[#94a3b8] hover:bg-slate-100 hover:text-[#ef4444] transition-colors"
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Progress Bar */}
+                    {uploadProgress !== null && (
+                      <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+                        <div className="flex items-center justify-between text-xs font-semibold">
+                          <span className="text-[#334155] flex items-center gap-1.5 font-semibold">
+                            {ingestionStage === "uploading" ? "Uploading to S3..." : "Validating database staging..."}
+                          </span>
+                          <span className="font-bold text-[#0f766e]">{uploadProgress}%</span>
+                        </div>
+                        <div className="mt-2 h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                          <div
+                            className="h-full bg-teal-600 rounded-full transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {uploadImportDirect.error && (
+                      <div className="flex gap-2 rounded-lg bg-rose-50 p-3 text-xs text-[#ef4444] border border-rose-100">
+                        <p>{messageFromError(uploadImportDirect.error)}</p>
+                      </div>
+                    )}
+
+                    <button
+                      className="button-primary w-full py-2.5"
+                      disabled={uploadImportDirect.isPending || !selectedFile || !importBranchId}
+                      type="submit"
+                    >
+                      {uploadImportDirect.isPending ? "Processing Pipeline..." : "Begin Ingestion"}
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            <ImportJobsTable
+              isLoading={importsQuery.isLoading}
+              items={importJobs}
+              selectedId={selectedImportId}
+              onSelect={(id) => {
+                setPreviewPage(1);
+                setSelectedImportId(id);
+              }}
+              currentPage={importsPage}
+              onPageChange={setImportsPage}
+            />
+
+            {selectedImportId ? (
+              <ImportPreviewModal
+                job={selectedImportJob}
+                onClose={() => setSelectedImportId("")}
+              >
+                <ImportPreview
+                  isLoading={previewQuery.isLoading}
+                  rows={previewQuery.data ?? []}
+                  canConfirm={Boolean(selectedImportJob?.status === "PREVIEW_READY")}
+                  onConfirm={() => selectedImportId && confirmImport.mutate(selectedImportId)}
+                  isConfirming={confirmImport.isPending}
+                  currentPage={previewPage}
+                  onPageChange={setPreviewPage}
+                />
+              </ImportPreviewModal>
+            ) : null}
           </section>
         ) : null}
       </div>
@@ -788,15 +800,29 @@ export default function DashboardPage() {
 
 function ShellMessage({ children }: { children: ReactNode }) {
   return (
-    <main className="mx-auto min-h-screen w-[calc(100%_-_48px)] max-w-[960px] py-16 max-md:w-[calc(100%_-_32px)] max-md:py-8">
-      <section className="rounded-lg border border-border bg-white p-7">{children}</section>
+    <main className="mx-auto min-h-screen w-[calc(100%_-_48px)] max-w-[960px] py-16 max-md:w-[calc(100%_-_32px)] max-md:py-8 animate-fade-in">
+      <section className="rounded-xl border border-border bg-white p-7 shadow-sm">{children}</section>
     </main>
   );
 }
 
-function InventoryTable({ items, isLoading }: { items: InventoryItem[]; isLoading: boolean }) {
+function InventoryTable({
+  items,
+  isLoading,
+  currentPage,
+  onPageChange,
+}: {
+  items: InventoryItem[];
+  isLoading: boolean;
+  currentPage: number;
+  onPageChange: (page: number) => void;
+}) {
+  const pageSize = 8;
+  const totalPages = Math.ceil(items.length / pageSize);
+  const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
-    <section className="rounded-lg border border-border bg-white">
+    <section className="surface overflow-hidden">
       <TableHeader title="Inventory list" count={items.length} />
       <div className="overflow-x-auto">
         <table className="data-table">
@@ -816,27 +842,49 @@ function InventoryTable({ items, isLoading }: { items: InventoryItem[]; isLoadin
             {!isLoading && items.length === 0 ? (
               <TableState colSpan={7} text="No inventory found." />
             ) : null}
-            {items.map((item) => (
-              <tr key={`${item.branchId}-${item.componentId}`}>
-                <td className="font-bold">{item.component.sku}</td>
-                <td>{item.component.name}</td>
-                <td>{item.component.category}</td>
-                <td>{item.branch.code}</td>
-                <td>{item.quantity}</td>
-                <td>{item.reservedQuantity}</td>
-                <td>{item.minStockThreshold}</td>
-              </tr>
-            ))}
+            {!isLoading &&
+              paginatedItems.map((item) => (
+                <tr key={`${item.branchId}-${item.componentId}`}>
+                  <td className="font-bold">{item.component.sku}</td>
+                  <td>{item.component.name}</td>
+                  <td>{item.component.category}</td>
+                  <td>{item.branch.code}</td>
+                  <td>{item.quantity}</td>
+                  <td>{item.reservedQuantity}</td>
+                  <td>{item.minStockThreshold}</td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+        totalItems={items.length}
+        pageSize={pageSize}
+      />
     </section>
   );
 }
 
-function LowStockReport({ items, isLoading }: { items: InventoryItem[]; isLoading: boolean }) {
+function LowStockReport({
+  items,
+  isLoading,
+  currentPage,
+  onPageChange,
+}: {
+  items: InventoryItem[];
+  isLoading: boolean;
+  currentPage: number;
+  onPageChange: (page: number) => void;
+}) {
+  const pageSize = 8;
+  const totalPages = Math.ceil(items.length / pageSize);
+  const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
-    <section className="rounded-lg border border-border bg-white">
+    <section className="surface overflow-hidden">
       <TableHeader title="Low stock report" count={items.length} />
       <div className="overflow-x-auto">
         <table className="data-table">
@@ -855,21 +903,29 @@ function LowStockReport({ items, isLoading }: { items: InventoryItem[]; isLoadin
             {!isLoading && items.length === 0 ? (
               <TableState colSpan={6} text="No low-stock items." />
             ) : null}
-            {items.map((item) => (
-              <tr key={`${item.branchId}-${item.componentId}`}>
-                <td className="font-bold">{item.component.sku}</td>
-                <td>{item.component.name}</td>
-                <td>{item.branch.code}</td>
-                <td>{item.quantity}</td>
-                <td>{item.minStockThreshold}</td>
-                <td className="font-bold text-red-700">
-                  {Math.max(item.minStockThreshold - item.quantity, 0)}
-                </td>
-              </tr>
-            ))}
+            {!isLoading &&
+              paginatedItems.map((item) => (
+                <tr key={`${item.branchId}-${item.componentId}`}>
+                  <td className="font-bold">{item.component.sku}</td>
+                  <td>{item.component.name}</td>
+                  <td>{item.branch.code}</td>
+                  <td>{item.quantity}</td>
+                  <td>{item.minStockThreshold}</td>
+                  <td className="font-bold text-red-700">
+                    {Math.max(item.minStockThreshold - item.quantity, 0)}
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+        totalItems={items.length}
+        pageSize={pageSize}
+      />
     </section>
   );
 }
@@ -880,15 +936,23 @@ function TransferList({
   isAdmin,
   onApprove,
   onReject,
+  currentPage,
+  onPageChange,
 }: {
   items: Transfer[];
   isLoading: boolean;
   isAdmin: boolean;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
+  currentPage: number;
+  onPageChange: (page: number) => void;
 }) {
+  const pageSize = 8;
+  const totalPages = Math.ceil(items.length / pageSize);
+  const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
-    <section className="rounded-lg border border-border bg-white">
+    <section className="surface overflow-hidden">
       <TableHeader title="Transfer requests" count={items.length} />
       <div className="overflow-x-auto">
         <table className="data-table">
@@ -906,45 +970,53 @@ function TransferList({
             {!isLoading && items.length === 0 ? (
               <TableState colSpan={5} text="No transfer requests." />
             ) : null}
-            {items.map((item) => (
-              <tr key={item.id}>
-                <td>
-                  <StatusPill status={item.status} />
-                </td>
-                <td>
-                  {item.fromBranch.code} to {item.toBranch.code}
-                </td>
-                <td>
-                  {item.items.map((line) => `${line.component.sku} x${line.quantity}`).join(", ")}
-                </td>
-                <td>{item.rejectReason ?? item.note ?? "-"}</td>
-                <td>
-                  {isAdmin && item.status === "PENDING" ? (
-                    <div className="flex gap-2">
-                      <button
-                        className="button-small-primary"
-                        onClick={() => onApprove(item.id)}
-                        type="button"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        className="button-small-secondary"
-                        onClick={() => onReject(item.id)}
-                        type="button"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  ) : (
-                    "-"
-                  )}
-                </td>
-              </tr>
-            ))}
+            {!isLoading &&
+              paginatedItems.map((item) => (
+                <tr key={item.id}>
+                  <td>
+                    <StatusPill status={item.status} />
+                  </td>
+                  <td>
+                    {item.fromBranch.code} to {item.toBranch.code}
+                  </td>
+                  <td>
+                    {item.items.map((line) => `${line.component.sku} x${line.quantity}`).join(", ")}
+                  </td>
+                  <td>{item.rejectReason ?? item.note ?? "-"}</td>
+                  <td>
+                    {isAdmin && item.status === "PENDING" ? (
+                      <div className="flex gap-2">
+                        <button
+                          className="button-small-primary"
+                          onClick={() => onApprove(item.id)}
+                          type="button"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          className="button-small-secondary"
+                          onClick={() => onReject(item.id)}
+                          type="button"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+        totalItems={items.length}
+        pageSize={pageSize}
+      />
     </section>
   );
 }
@@ -954,14 +1026,22 @@ function ImportJobsTable({
   isLoading,
   selectedId,
   onSelect,
+  currentPage,
+  onPageChange,
 }: {
   items: ImportJob[];
   isLoading: boolean;
   selectedId: string;
   onSelect: (id: string) => void;
+  currentPage: number;
+  onPageChange: (page: number) => void;
 }) {
+  const pageSize = 8;
+  const totalPages = Math.ceil(items.length / pageSize);
+  const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
-    <section className="rounded-lg border border-border bg-white">
+    <section className="surface overflow-hidden">
       <TableHeader title="Import jobs" count={items.length} />
       <div className="overflow-x-auto">
         <table className="data-table">
@@ -969,43 +1049,98 @@ function ImportJobsTable({
             <tr>
               <th>File</th>
               <th>Branch</th>
+              <th>Upload Time</th>
               <th>Status</th>
               <th>Rows</th>
               <th>Open</th>
             </tr>
           </thead>
           <tbody>
-            {isLoading ? <TableState colSpan={5} text="Loading imports..." /> : null}
+            {isLoading ? <TableState colSpan={6} text="Loading imports..." /> : null}
             {!isLoading && items.length === 0 ? (
-              <TableState colSpan={5} text="No imports yet." />
+              <TableState colSpan={6} text="No imports yet." />
             ) : null}
-            {items.map((item) => (
-              <tr key={item.id}>
-                <td className="font-bold">{item.fileName ?? "Untitled"}</td>
-                <td>{item.branch.code}</td>
-                <td>
-                  <StatusPill status={item.status} />
-                </td>
-                <td>
-                  {item.validRows} valid / {item.invalidRows} invalid
-                </td>
-                <td>
-                  <button
-                    className={
-                      selectedId === item.id ? "button-small-primary" : "button-small-secondary"
-                    }
-                    onClick={() => onSelect(item.id)}
-                    type="button"
-                  >
-                    Preview
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {!isLoading &&
+              paginatedItems.map((item) => {
+                const isProcessing = item.status === "UPLOADED" || item.status === "VALIDATING";
+                return (
+                  <tr key={item.id}>
+                    <td className="font-bold">{item.fileName ?? "Untitled"}</td>
+                    <td>{item.branch.code}</td>
+                    <td className="text-xs text-[#5c667a]">
+                      {new Date(item.createdAt).toLocaleString("vi-VN", { hour12: false })}
+                    </td>
+                    <td>
+                      <StatusPill status={item.status} />
+                    </td>
+                    <td>
+                      {isProcessing ? (
+                        <span className="text-xs italic text-muted">Processing...</span>
+                      ) : (
+                        `${item.validRows} valid / ${item.invalidRows} invalid`
+                      )}
+                    </td>
+                    <td>
+                      <button
+                        className={
+                          isProcessing
+                            ? "button-small-secondary opacity-50 cursor-not-allowed"
+                            : selectedId === item.id
+                              ? "button-small-primary"
+                              : "button-small-secondary"
+                        }
+                        onClick={() => !isProcessing && onSelect(item.id)}
+                        type="button"
+                        disabled={isProcessing}
+                        title={isProcessing ? "File is still processing in cloud" : "Click to preview staged rows"}
+                      >
+                        {item.status === "VALIDATING" ? "Parsing..." : "Preview"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+        totalItems={items.length}
+        pageSize={pageSize}
+      />
     </section>
+  );
+}
+
+function ImportPreviewModal({
+  job,
+  onClose,
+  children,
+}: {
+  job: ImportJob | undefined;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-md animate-macbook-backdrop">
+      <div className="relative grid max-h-[90vh] w-full max-w-[1120px] overflow-hidden rounded-2xl border border-white/70 bg-white shadow-2xl shadow-slate-950/25 animate-macbook-modal">
+        <div className="flex items-center justify-between gap-4 border-b border-border bg-slate-50/80 px-5 py-4">
+          <div className="min-w-0">
+            <p className="m-0 text-xs font-black uppercase tracking-[0.16em] text-[#0f766e]">Import preview</p>
+            <h2 className="m-0 mt-1 truncate text-lg font-black text-[#172033]">{job?.fileName ?? "Spreadsheet preview"}</h2>
+          </div>
+          <button className="button-secondary min-h-9 px-3" onClick={onClose} type="button" aria-label="Close preview">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Close
+          </button>
+        </div>
+        <div className="overflow-y-auto p-4">{children}</div>
+      </div>
+    </div>
   );
 }
 
@@ -1015,59 +1150,243 @@ function ImportPreview({
   canConfirm,
   isConfirming,
   onConfirm,
+  currentPage,
+  onPageChange,
 }: {
   rows: ImportPreviewRow[];
   isLoading: boolean;
   canConfirm: boolean;
   isConfirming: boolean;
   onConfirm: () => void;
+  currentPage: number;
+  onPageChange: (page: number) => void;
 }) {
-  const invalidCount = rows.filter((row) => row.validationStatus === "INVALID").length;
+  const pageSize = 6;
+  const totalPages = Math.ceil(rows.length / pageSize);
+  const paginatedRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const validCount = rows.filter((row) => row.validationStatus === "VALID").length;
+  const invalidCount = rows.length - validCount;
 
   return (
-    <section className="rounded-lg border border-border bg-white">
-      <div className="flex items-center justify-between gap-3 border-b border-border p-4 max-md:flex-col max-md:items-start">
-        <TableHeader title="Preview rows" count={rows.length} compact />
-        <button
-          className="button-primary"
-          disabled={!canConfirm || invalidCount > 0 || isConfirming}
-          onClick={onConfirm}
-          type="button"
-        >
-          {isConfirming ? "Confirming..." : "Confirm import"}
-        </button>
+    <section className="overflow-hidden rounded-xl border border-border bg-white">
+      {/* Spacious Widescreen Header */}
+      <div className="flex items-center justify-between gap-4 border-b border-border p-4 max-md:flex-col max-md:items-start bg-slate-50/70">
+        <div>
+          <h2 className="m-0 text-lg font-black text-[#172033] tracking-tight uppercase flex items-center gap-2">
+            <svg className="h-5 w-5 text-[#0f766e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Ingestion Details & Audit Workspace
+          </h2>
+          <p className="text-xs text-[#5c667a] mt-0.5 font-medium">Verify spreadsheet layout staging before final cloud write</p>
+        </div>
+        
+        {rows.length > 0 ? (
+          canConfirm ? (
+            <button
+              className="button-primary bg-[#0f766e] text-white font-bold px-5 py-2.5 rounded-lg flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.01]"
+              disabled={validCount === 0 || isConfirming}
+              onClick={onConfirm}
+              type="button"
+            >
+              {isConfirming ? "Confirming..." : "Confirm import"}
+            </button>
+          ) : (
+            <span className="text-xs font-bold text-[#0f766e] bg-teal-50 border border-teal-200/50 px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm animate-pulse">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+              Ingested & Synced
+            </span>
+          )
+        ) : null}
       </div>
+
+      {rows.length > 0 ? (
+        /* Spacious Stats Cards Section */
+        <div className="grid grid-cols-1 gap-3 border-b border-border bg-slate-50/20 p-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold uppercase text-[#64748b] tracking-wider">Total Rows Staged</span>
+              <p className="text-2xl font-black text-[#1e293b] mt-1">{rows.length}</p>
+            </div>
+            <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50/10 p-4 shadow-sm flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold uppercase text-emerald-600 tracking-wider">Valid Rows</span>
+              <p className="text-2xl font-black text-emerald-700 mt-1">{validCount}</p>
+            </div>
+            <div className="rounded-lg bg-emerald-100/50 p-2 text-emerald-700">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-rose-100 bg-rose-50/10 p-4 shadow-sm flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold uppercase text-rose-600 tracking-wider">Invalid / Failed Rows</span>
+              <p className="text-2xl font-black text-rose-700 mt-1">{invalidCount}</p>
+            </div>
+            <div className="rounded-lg bg-rose-100/50 p-2 text-rose-700">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="overflow-x-auto">
         <table className="data-table">
           <thead>
             <tr>
-              <th>Row</th>
-              <th>SKU</th>
-              <th>Name</th>
-              <th>Status</th>
-              <th>Error</th>
+              <th className="w-20">Row</th>
+              <th className="w-40">SKU</th>
+              <th>Name / Details</th>
+              <th className="w-32">Status</th>
+              <th>Validation Errors / Notes</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? <TableState colSpan={5} text="Loading preview..." /> : null}
             {!isLoading && rows.length === 0 ? (
-              <TableState colSpan={5} text="Select an import job to preview." />
+              <TableState colSpan={5} text="Select an import job to display interactive audit logs." />
             ) : null}
-            {rows.map((row) => (
-              <tr key={row.id}>
-                <td>{row.rowNumber}</td>
-                <td className="font-bold">{row.sku ?? "-"}</td>
-                <td>{String(row.normalizedData?.name ?? "-")}</td>
-                <td>
-                  <StatusPill status={row.validationStatus} />
-                </td>
-                <td className="max-w-[340px] whitespace-normal">{row.errorMessage ?? "-"}</td>
-              </tr>
-            ))}
+            {!isLoading &&
+              paginatedRows.map((row) => (
+                <tr key={row.id} className="hover:bg-slate-50/50 transition-colors duration-150">
+                  <td className="font-semibold text-slate-500">{row.rowNumber}</td>
+                  <td className="font-bold text-[#1e293b]">{row.sku ?? "-"}</td>
+                  <td className="font-medium text-[#334155]">{String(row.normalizedData?.name ?? "-")}</td>
+                  <td>
+                    <StatusPill status={row.validationStatus} />
+                  </td>
+                  <td className="max-w-[450px] whitespace-normal text-xs text-rose-700 font-semibold leading-relaxed">
+                    {row.errorMessage ? (
+                      <span className="flex items-center gap-1.5">
+                        <svg className="h-4 w-4 shrink-0 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        {row.errorMessage}
+                      </span>
+                    ) : (
+                      <span className="text-emerald-700 font-medium flex items-center gap-1.5">
+                        <svg className="h-4 w-4 shrink-0 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4" />
+                        </svg>
+                        Ready for Cloud Storage
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+        totalItems={rows.length}
+        pageSize={pageSize}
+      />
     </section>
+  );
+}
+
+function Pagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+  totalItems,
+  pageSize,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  totalItems: number;
+  pageSize: number;
+}) {
+  if (totalPages <= 1) return null;
+
+  const startIdx = (currentPage - 1) * pageSize + 1;
+  const endIdx = Math.min(currentPage * pageSize, totalItems);
+
+  return (
+    <div className="flex items-center justify-between border-t border-[#e2e8f0] bg-white px-4 py-3 sm:px-6 rounded-b-lg">
+      <div className="flex flex-1 justify-between sm:hidden">
+        <button
+          disabled={currentPage === 1}
+          onClick={() => onPageChange(currentPage - 1)}
+          className="relative inline-flex items-center rounded-md border border-[#cbd5e1] bg-white px-4 py-2 text-xs font-medium text-[#334155] hover:bg-slate-50 disabled:opacity-50"
+        >
+          Previous
+        </button>
+        <button
+          disabled={currentPage === totalPages}
+          onClick={() => onPageChange(currentPage + 1)}
+          className="relative ml-3 inline-flex items-center rounded-md border border-[#cbd5e1] bg-white px-4 py-2 text-xs font-medium text-[#334155] hover:bg-slate-50 disabled:opacity-50"
+        >
+          Next
+        </button>
+      </div>
+      <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs text-[#64748b] font-medium">
+            Showing <span className="font-bold text-[#1e293b]">{startIdx}</span> to{" "}
+            <span className="font-bold text-[#1e293b]">{endIdx}</span> of{" "}
+            <span className="font-bold text-[#1e293b]">{totalItems}</span> results
+          </p>
+        </div>
+        <div>
+          <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+            <button
+              disabled={currentPage === 1}
+              onClick={() => onPageChange(currentPage - 1)}
+              className="relative inline-flex items-center rounded-l-md px-2 py-1.5 text-[#64748b] ring-1 ring-inset ring-[#e2e8f0] hover:bg-slate-50 disabled:opacity-40"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+              </svg>
+            </button>
+            {Array.from({ length: totalPages }).map((_, idx) => {
+              const p = idx + 1;
+              const isCurrent = p === currentPage;
+              return (
+                <button
+                  key={p}
+                  onClick={() => onPageChange(p)}
+                  aria-current={isCurrent ? "page" : undefined}
+                  className={`relative inline-flex items-center px-3 py-1.5 text-xs font-semibold focus:z-20 ${
+                    isCurrent
+                      ? "z-10 bg-[#0f766e] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0f766e]"
+                      : "text-[#334155] ring-1 ring-inset ring-[#e2e8f0] hover:bg-slate-50 focus:outline-offset-0"
+                  }`}
+                >
+                  {p}
+                </button>
+              );
+            })}
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => onPageChange(currentPage + 1)}
+              className="relative inline-flex items-center rounded-r-md px-2 py-1.5 text-[#64748b] ring-1 ring-inset ring-[#e2e8f0] hover:bg-slate-50 disabled:opacity-40"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </nav>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1083,11 +1402,11 @@ function TableHeader({
   return (
     <div
       className={
-        compact ? "" : "flex items-center justify-between gap-3 border-b border-border p-4"
+        compact ? "" : "flex items-center justify-between gap-3 border-b border-border p-4 bg-slate-50/50"
       }
     >
-      <h2 className="m-0 text-lg font-bold">{title}</h2>
-      <span className="text-sm font-bold text-muted">{count} rows</span>
+      <h2 className="m-0 text-sm font-extrabold text-[#172033] tracking-tight uppercase">{title}</h2>
+      <span className="text-xs font-bold text-[#5c667a] bg-slate-100 px-2 py-0.5 rounded-full">{count} items</span>
     </div>
   );
 }
@@ -1103,15 +1422,18 @@ function TableState({ colSpan, text }: { colSpan: number; text: string }) {
 }
 
 function StatusPill({ status }: { status: string }) {
-  const tone =
-    status === "VALID" || status === "COMPLETED"
-      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-      : status === "INVALID" || status === "REJECTED" || status === "FAILED"
-        ? "bg-red-50 text-red-700 border-red-200"
-        : "bg-slate-50 text-slate-700 border-slate-200";
+  let tone = "bg-slate-50 text-slate-700 border-slate-200";
+  
+  if (status === "VALID" || status === "COMPLETED" || status === "APPROVED") {
+    tone = "bg-emerald-50 text-emerald-700 border-emerald-200/50";
+  } else if (status === "INVALID" || status === "REJECTED" || status === "FAILED") {
+    tone = "bg-rose-50 text-rose-700 border-rose-200/50";
+  } else if (status === "PROCESSING" || status === "VALIDATING" || status === "COMMITTING" || status === "PENDING") {
+    tone = "bg-amber-50 text-amber-700 border-amber-200/50";
+  }
 
   return (
-    <span className={`inline-flex rounded-md border px-2 py-1 text-xs font-bold ${tone}`}>
+    <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${tone}`}>
       {status}
     </span>
   );

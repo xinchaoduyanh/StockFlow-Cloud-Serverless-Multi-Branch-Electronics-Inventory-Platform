@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { Injectable } from "@nestjs/common";
+import { Injectable, OnModuleInit } from "@nestjs/common";
 import { ImportRowStatus, ImportStatus, Prisma, StockMovementType } from "@prisma/client";
 import ExcelJS from "exceljs";
 import { ApiErrors } from "../common/errors/api-error";
@@ -25,11 +25,45 @@ type PreparedImportRow = {
 };
 
 @Injectable()
-export class ImportsService {
+export class ImportsService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly s3Service: S3Service,
   ) {}
+
+  onModuleInit() {
+    setInterval(() => {
+      this.autoApprovePendingJobs().catch((err) => {
+        console.error("[Auto-Approve] Polling error:", err);
+      });
+    }, 15000);
+  }
+
+  private async autoApprovePendingJobs() {
+    const pendingJobs = await this.prisma.importJob.findMany({
+      where: {
+        status: ImportStatus.PREVIEW_READY,
+        awsTaskToken: { not: null },
+      },
+    });
+
+    for (const job of pendingJobs) {
+      console.log(`[Auto-Approve] Triggering auto-confirm for Job ${job.id}`);
+      await this.confirm(job.id).catch(async (err) => {
+        console.error(`[Auto-Approve] Failed to auto-confirm Job ${job.id}:`, err.message);
+        
+        // If the task token is expired, invalid or the execution is already terminated, clear the token so we don't loop endlessly
+        const msg = (err.message || "").toLowerCase();
+        if (msg.includes("does not exist") || msg.includes("invalid token") || msg.includes("timed out") || err.name === "TaskDoesNotExist" || err.name === "InvalidToken") {
+          console.log(`[Auto-Approve] Clearing invalid/expired token for Job ${job.id}`);
+          await this.prisma.importJob.update({
+            where: { id: job.id },
+            data: { awsTaskToken: null },
+          });
+        }
+      });
+    }
+  }
 
   async getPresignedPost(input: PresignedPostRequest, actorId?: string) {
     const job = await this.prisma.importJob.create({
@@ -216,6 +250,34 @@ export class ImportsService {
       throw ApiErrors.badRequest("Import job is not ready to confirm");
     }
 
+    if (job.awsTaskToken) {
+      const { SFNClient, SendTaskSuccessCommand } = await import("@aws-sdk/client-sfn");
+      const sfnClient = new SFNClient({});
+
+      try {
+        await sfnClient.send(
+          new SendTaskSuccessCommand({
+            taskToken: job.awsTaskToken,
+            output: JSON.stringify({
+              importJobId: id,
+              action: "CONFIRM",
+            }),
+          }),
+        );
+
+        return this.prisma.importJob.update({
+          where: { id },
+          data: {
+            status: ImportStatus.COMMITTING,
+            awsTaskToken: null,
+          },
+          include: { branch: true, rows: { orderBy: { rowNumber: "asc" } } },
+        });
+      } catch (err: any) {
+        throw ApiErrors.badRequest(`Failed to resume serverless ingestion pipeline: ${err.message}`);
+      }
+    }
+
     const rows = await this.prisma.importJobRow.findMany({
       where: {
         importJobId: id,
@@ -307,7 +369,35 @@ export class ImportsService {
   }
 
   async cancel(id: string) {
-    await this.assertJob(id);
+    const job = await this.assertJob(id);
+
+    if (job.awsTaskToken) {
+      const { SFNClient, SendTaskSuccessCommand } = await import("@aws-sdk/client-sfn");
+      const sfnClient = new SFNClient({});
+
+      try {
+        await sfnClient.send(
+          new SendTaskSuccessCommand({
+            taskToken: job.awsTaskToken,
+            output: JSON.stringify({
+              importJobId: id,
+              action: "CANCEL",
+            }),
+          }),
+        );
+
+        return this.prisma.importJob.update({
+          where: { id },
+          data: {
+            status: ImportStatus.CANCELLED,
+            awsTaskToken: null,
+          },
+        });
+      } catch (err: any) {
+        throw ApiErrors.badRequest(`Failed to cancel serverless ingestion pipeline: ${err.message}`);
+      }
+    }
+
     return this.prisma.importJob.update({
       where: { id },
       data: { status: ImportStatus.CANCELLED },

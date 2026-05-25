@@ -1,7 +1,8 @@
-import { Module } from "@nestjs/common";
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { AuthModule } from "./auth/auth.module";
+import { HttpLoggerMiddleware } from "./common/middleware/http-logger.middleware";
 import { EnvModule } from "./config/env.module";
 import { PrismaModule } from "./database/prisma.module";
 import { ImportsModule } from "./imports/imports.module";
@@ -13,4 +14,8 @@ import { TransfersModule } from "./transfers/transfers.module";
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(HttpLoggerMiddleware).forRoutes("*");
+  }
+}
