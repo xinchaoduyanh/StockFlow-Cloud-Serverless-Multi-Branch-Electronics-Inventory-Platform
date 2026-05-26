@@ -21,6 +21,7 @@ Globals:
     Environment:
       Variables:
         DATABASE_URL: !Ref DatabaseUrl
+        S3_BUCKET: !Sub stockflow-imports-${AWS::AccountId}-${AWS::Region}
 
 Resources:
   # -----------------------------------------------------------------
@@ -49,7 +50,7 @@ Resources:
             MaxAge: 3000
 
   # -----------------------------------------------------------------
-  # 2. Serverless Lambda Functions
+  # 2. Serverless Lambda Functions — Import Pipeline
   # -----------------------------------------------------------------
   ImportValidatorFunction:
     Type: AWS::Serverless::Function
@@ -105,7 +106,62 @@ Resources:
       Description: Marks job status as FAILED in the database upon state machine runtime failures.
 
   # -----------------------------------------------------------------
-  # 3. AWS Step Functions State Machine Orchestrator
+  # 3. Serverless Lambda Functions — Operations & Reporting
+  # -----------------------------------------------------------------
+  ReportExporterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      CodeUri: ../../dist/lambdas/report-exporter/
+      Timeout: 120 # 2 minutes for large dataset CSV generation
+      MemorySize: 512
+      Description: Generates CSV reports (inventory, low-stock, transfers, import-history, stock-movements) and uploads to S3.
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+              Resource: !Sub arn:aws:s3:::stockflow-imports-${AWS::AccountId}-${AWS::Region}/reports/*
+
+  DlqReplayFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      CodeUri: ../../dist/lambdas/dlq-replay/
+      Timeout: 120
+      Description: Replays failed import jobs by resetting status and re-triggering Step Functions execution.
+      Environment:
+        Variables:
+          DATABASE_URL: !Ref DatabaseUrl
+          S3_BUCKET: !Sub stockflow-imports-${AWS::AccountId}-${AWS::Region}
+          STATE_MACHINE_ARN: !Ref StockFlowIngestionStateMachine
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - states:StartExecution
+              Resource: !Ref StockFlowIngestionStateMachine
+
+  ReconciliationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      CodeUri: ../../dist/lambdas/reconciliation/
+      Timeout: 300 # 5 minutes for full inventory scan
+      MemorySize: 512
+      Description: Daily stock reconciliation — compares inventory quantities against stock movement ledger sums.
+      Events:
+        DailySchedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 2 * * ? *) # Runs daily at 02:00 UTC
+            Description: Daily inventory reconciliation job
+            Input: '{"dryRun": false}'
+
+  # -----------------------------------------------------------------
+  # 4. AWS Step Functions State Machine Orchestrator
   # -----------------------------------------------------------------
   StockFlowIngestionStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -199,3 +255,13 @@ Outputs:
   StateMachineArn:
     Description: Orchestrator State Machine ARN
     Value: !Ref StockFlowIngestionStateMachine
+  ReportExporterFunctionArn:
+    Description: Report Exporter Lambda ARN
+    Value: !GetAtt ReportExporterFunction.Arn
+  DlqReplayFunctionArn:
+    Description: DLQ Replay Lambda ARN
+    Value: !GetAtt DlqReplayFunction.Arn
+  ReconciliationFunctionArn:
+    Description: Daily Reconciliation Lambda ARN
+    Value: !GetAtt ReconciliationFunction.Arn
+

@@ -8,6 +8,9 @@ const entryPoints = [
   "apps/lambdas/import-writer/index.ts",
   "apps/lambdas/import-approval-token-register/index.ts",
   "apps/lambdas/import-job-fail-handler/index.ts",
+  "apps/lambdas/report-exporter/index.ts",
+  "apps/lambdas/dlq-replay/index.ts",
+  "apps/lambdas/reconciliation/index.ts",
 ];
 
 build({
@@ -37,7 +40,10 @@ build({
       "import-parser",
       "import-writer",
       "import-approval-token-register",
-      "import-job-fail-handler"
+      "import-job-fail-handler",
+      "report-exporter",
+      "dlq-replay",
+      "reconciliation",
     ];
 
     lambdaDirs.forEach((dir) => {

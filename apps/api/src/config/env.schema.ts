@@ -25,6 +25,9 @@ export const envSchema = z.object({
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
   AWS_S3_BUCKET: z.string().default("stockflow-imports-dev"),
   AWS_S3_ENDPOINT: z.string().optional(),
+  REPORT_EXPORTER_LAMBDA_ARN: z.string().optional(),
+  DLQ_REPLAY_LAMBDA_ARN: z.string().optional(),
+  RECONCILIATION_LAMBDA_ARN: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

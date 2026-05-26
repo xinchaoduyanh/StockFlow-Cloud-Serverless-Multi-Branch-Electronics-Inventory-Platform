@@ -69,6 +69,32 @@ type ImportPreviewRow = {
   normalizedData: Record<string, unknown> | null;
 };
 
+type ExportJob = {
+  id: string;
+  reportType: string;
+  status: string;
+  fileName: string | null;
+  totalRecords: number | null;
+  errorMessage: string | null;
+  createdAt: string;
+  completedAt: string | null;
+};
+
+type DlqJob = ImportJob;
+
+type ReconciliationIssue = {
+  id: string;
+  expectedQuantity: number;
+  actualQuantity: number;
+  difference: number;
+  status: string;
+  runId: string | null;
+  detectedAt: string;
+  resolvedAt: string | null;
+  branch: { code: string; name: string };
+  component: { sku: string; name: string };
+};
+
 const categories: ComponentCategory[] = [
   "RAM",
   "CPU",
@@ -85,6 +111,9 @@ const tabs = [
   { id: "transfers", label: "Transfers" },
   { id: "imports", label: "Imports" },
   { id: "low-stock", label: "Low stock" },
+  { id: "reports", label: "Reports" },
+  { id: "dlq", label: "DLQ Admin", adminOnly: true },
+  { id: "reconciliation", label: "Reconciliation", adminOnly: true },
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
@@ -131,6 +160,10 @@ export default function DashboardPage() {
   const [transfersPage, setTransfersPage] = useState(1);
   const [importsPage, setImportsPage] = useState(1);
   const [previewPage, setPreviewPage] = useState(1);
+  const [reportsPage, setReportsPage] = useState(1);
+  const [dlqPage, setDlqPage] = useState(1);
+  const [reconPage, setReconPage] = useState(1);
+  const [reconStatusFilter, setReconStatusFilter] = useState("");
 
   // Reset pages when filters change
   useEffect(() => {
@@ -327,6 +360,77 @@ export default function DashboardPage() {
     },
   });
 
+  // --- Reports ---
+  const exportsQuery = useQuery({
+    queryKey: ["exports"],
+    queryFn: () => apiRequest<ExportJob[]>("/reports/exports"),
+    enabled: Boolean(user),
+  });
+
+  const createExport = useMutation({
+    mutationFn: (reportType: string) =>
+      apiRequest<ExportJob>("/reports/export", {
+        method: "POST",
+        body: JSON.stringify({
+          reportType,
+          filters: branchId ? { branchId } : undefined,
+        }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["exports"] });
+    },
+  });
+
+  // --- DLQ Admin ---
+  const dlqQuery = useQuery({
+    queryKey: ["dlq-imports"],
+    queryFn: () => apiRequest<DlqJob[]>("/admin/dlq/imports"),
+    enabled: Boolean(user) && user?.role === "ADMIN",
+  });
+
+  const replayDlq = useMutation({
+    mutationFn: (id: string) =>
+      apiRequest(`/admin/dlq/imports/${id}/replay`, { method: "POST" }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["dlq-imports"] });
+      void queryClient.invalidateQueries({ queryKey: ["imports"] });
+    },
+  });
+
+  const discardDlq = useMutation({
+    mutationFn: (id: string) =>
+      apiRequest(`/admin/dlq/imports/${id}/discard`, { method: "POST" }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["dlq-imports"] });
+    },
+  });
+
+  // --- Reconciliation ---
+  const reconQuery = useQuery({
+    queryKey: ["reconciliation", reconStatusFilter],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (reconStatusFilter) params.set("status", reconStatusFilter);
+      return apiRequest<ReconciliationIssue[]>(`/reconciliation/issues?${params.toString()}`);
+    },
+    enabled: Boolean(user) && user?.role === "ADMIN",
+  });
+
+  const runRecon = useMutation({
+    mutationFn: () => apiRequest("/reconciliation/run", { method: "POST" }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["reconciliation"] });
+    },
+  });
+
+  const resolveIssue = useMutation({
+    mutationFn: (id: string) =>
+      apiRequest(`/reconciliation/issues/${id}/resolve`, { method: "POST" }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["reconciliation"] });
+    },
+  });
+
   const branchOptions = branchesQuery.data ?? [];
   const inventoryItems = inventoryQuery.data ?? [];
   const lowStockItems = lowStockQuery.data ?? [];
@@ -465,7 +569,9 @@ export default function DashboardPage() {
           </div>
 
           <nav className="flex flex-wrap gap-2 rounded-xl border border-[#d7dce5] bg-slate-50 p-1">
-            {tabs.map((tab) => (
+            {tabs
+              .filter((tab) => !("adminOnly" in tab && tab.adminOnly && user?.role !== "ADMIN"))
+              .map((tab) => (
               <button
                 className={tab.id === activeTab ? "tab-active" : "tab"}
                 key={tab.id}
@@ -797,6 +903,43 @@ export default function DashboardPage() {
               </ImportPreviewModal>
             ) : null}
           </section>
+        ) : null}
+
+        {activeTab === "reports" ? (
+          <ReportsTab
+            exports={exportsQuery.data ?? []}
+            isLoading={exportsQuery.isLoading}
+            onCreateExport={(type) => createExport.mutate(type)}
+            isCreating={createExport.isPending}
+            currentPage={reportsPage}
+            onPageChange={setReportsPage}
+          />
+        ) : null}
+
+        {activeTab === "dlq" && user?.role === "ADMIN" ? (
+          <DlqTab
+            items={dlqQuery.data ?? []}
+            isLoading={dlqQuery.isLoading}
+            onReplay={(id) => replayDlq.mutate(id)}
+            onDiscard={(id) => discardDlq.mutate(id)}
+            isReplaying={replayDlq.isPending}
+            currentPage={dlqPage}
+            onPageChange={setDlqPage}
+          />
+        ) : null}
+
+        {activeTab === "reconciliation" && user?.role === "ADMIN" ? (
+          <ReconciliationTab
+            issues={reconQuery.data ?? []}
+            isLoading={reconQuery.isLoading}
+            onRun={() => runRecon.mutate()}
+            onResolve={(id) => resolveIssue.mutate(id)}
+            isRunning={runRecon.isPending}
+            statusFilter={reconStatusFilter}
+            onStatusFilterChange={setReconStatusFilter}
+            currentPage={reconPage}
+            onPageChange={setReconPage}
+          />
         ) : null}
       </div>
     </main>
@@ -1447,3 +1590,372 @@ function StatusPill({ status }: { status: string }) {
 function messageFromError(error: Error) {
   return error.message || "Request failed";
 }
+
+const reportTypes = [
+  { id: "inventory", label: "Full Inventory", icon: "📦" },
+  { id: "low-stock", label: "Low Stock Alert", icon: "⚠️" },
+  { id: "transfers", label: "Transfer History", icon: "🔄" },
+  { id: "import-history", label: "Import Jobs", icon: "📥" },
+  { id: "stock-movements", label: "Stock Movements", icon: "📊" },
+] as const;
+
+function ReportsTab({
+  exports: exportJobs,
+  isLoading,
+  onCreateExport,
+  isCreating,
+  currentPage,
+  onPageChange,
+}: {
+  exports: ExportJob[];
+  isLoading: boolean;
+  onCreateExport: (type: string) => void;
+  isCreating: boolean;
+  currentPage: number;
+  onPageChange: (page: number) => void;
+}) {
+  const pageSize = 8;
+  const totalPages = Math.ceil(exportJobs.length / pageSize);
+  const paginatedItems = exportJobs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  return (
+    <section className="grid gap-4">
+      <div className="surface p-5">
+        <div className="mb-4">
+          <h2 className="m-0 text-lg font-black tracking-tight text-[#172033]">Export Reports</h2>
+          <p className="m-0 mt-1 text-xs font-medium text-[#5c667a]">Generate CSV reports from inventory data and download from S3.</p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          {reportTypes.map((report) => (
+            <button
+              key={report.id}
+              className="flex items-center gap-2 rounded-lg border border-[#d7dce5] bg-[#f8fafc] p-3 text-left transition hover:border-[#0f766e] hover:bg-teal-50/30 active:scale-[0.98]"
+              onClick={() => onCreateExport(report.id)}
+              disabled={isCreating}
+              type="button"
+            >
+              <span className="text-lg">{report.icon}</span>
+              <span className="text-xs font-bold text-[#172033]">{report.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="surface overflow-hidden">
+        <TableHeader title="Export history" count={exportJobs.length} />
+        <div className="overflow-x-auto">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Report Type</th>
+                <th>Status</th>
+                <th>Records</th>
+                <th>File</th>
+                <th>Created</th>
+                <th>Download</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? <TableState colSpan={6} text="Loading exports..." /> : null}
+              {!isLoading && exportJobs.length === 0 ? (
+                <TableState colSpan={6} text="No exports yet. Click a report type above to generate." />
+              ) : null}
+              {!isLoading &&
+                paginatedItems.map((job) => (
+                  <tr key={job.id}>
+                    <td className="font-bold">{job.reportType}</td>
+                    <td>
+                      <StatusPill status={job.status} />
+                    </td>
+                    <td>{job.totalRecords ?? "-"}</td>
+                    <td className="text-xs text-[#5c667a]">{job.fileName ?? "-"}</td>
+                    <td className="text-xs text-[#5c667a]">
+                      {new Date(job.createdAt).toLocaleString("vi-VN", { hour12: false })}
+                    </td>
+                    <td>
+                      {job.status === "COMPLETED" ? (
+                        <a
+                          href={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api"}/reports/export/${job.id}/download`}
+                          className="button-small-primary no-underline"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Download
+                        </a>
+                      ) : job.status === "FAILED" ? (
+                        <span className="text-xs text-red-600" title={job.errorMessage ?? ""}>
+                          Failed
+                        </span>
+                      ) : (
+                        <span className="text-xs italic text-muted">Processing...</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+          totalItems={exportJobs.length}
+          pageSize={pageSize}
+        />
+      </div>
+    </section>
+  );
+}
+
+function DlqTab({
+  items,
+  isLoading,
+  onReplay,
+  onDiscard,
+  isReplaying,
+  currentPage,
+  onPageChange,
+}: {
+  items: DlqJob[];
+  isLoading: boolean;
+  onReplay: (id: string) => void;
+  onDiscard: (id: string) => void;
+  isReplaying: boolean;
+  currentPage: number;
+  onPageChange: (page: number) => void;
+}) {
+  const pageSize = 8;
+  const totalPages = Math.ceil(items.length / pageSize);
+  const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  return (
+    <section className="grid gap-4">
+      <div className="surface p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="m-0 text-lg font-black tracking-tight text-[#172033]">Dead Letter Queue</h2>
+            <p className="m-0 mt-1 text-xs font-medium text-[#5c667a]">
+              Failed import jobs that can be replayed or discarded. {items.length} failed job{items.length !== 1 ? "s" : ""}.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700 border border-rose-200/50">
+              {items.length} failed
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="surface overflow-hidden">
+        <TableHeader title="Failed imports" count={items.length} />
+        <div className="overflow-x-auto">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>File</th>
+                <th>Branch</th>
+                <th>Status</th>
+                <th>Rows</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? <TableState colSpan={6} text="Loading failed jobs..." /> : null}
+              {!isLoading && items.length === 0 ? (
+                <TableState colSpan={6} text="No failed import jobs. All clean! ✅" />
+              ) : null}
+              {!isLoading &&
+                paginatedItems.map((item) => (
+                  <tr key={item.id}>
+                    <td className="font-bold">{item.fileName ?? "Untitled"}</td>
+                    <td>{item.branch.code}</td>
+                    <td>
+                      <StatusPill status={item.status} />
+                    </td>
+                    <td>
+                      {item.validRows} valid / {item.invalidRows} invalid
+                    </td>
+                    <td className="text-xs text-[#5c667a]">
+                      {new Date(item.createdAt).toLocaleString("vi-VN", { hour12: false })}
+                    </td>
+                    <td>
+                      <div className="flex gap-2">
+                        <button
+                          className="button-small-primary"
+                          onClick={() => onReplay(item.id)}
+                          disabled={isReplaying}
+                          type="button"
+                          title="Reset and re-run import pipeline"
+                        >
+                          Replay
+                        </button>
+                        <button
+                          className="button-small-secondary"
+                          onClick={() => onDiscard(item.id)}
+                          type="button"
+                          title="Mark as cancelled"
+                        >
+                          Discard
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+          totalItems={items.length}
+          pageSize={pageSize}
+        />
+      </div>
+    </section>
+  );
+}
+
+function ReconciliationTab({
+  issues,
+  isLoading,
+  onRun,
+  onResolve,
+  isRunning,
+  statusFilter,
+  onStatusFilterChange,
+  currentPage,
+  onPageChange,
+}: {
+  issues: ReconciliationIssue[];
+  isLoading: boolean;
+  onRun: () => void;
+  onResolve: (id: string) => void;
+  isRunning: boolean;
+  statusFilter: string;
+  onStatusFilterChange: (v: string) => void;
+  currentPage: number;
+  onPageChange: (page: number) => void;
+}) {
+  const pageSize = 8;
+  const totalPages = Math.ceil(issues.length / pageSize);
+  const paginatedItems = issues.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  return (
+    <section className="grid gap-4">
+      <div className="surface p-5">
+        <div className="flex items-center justify-between gap-4 max-sm:flex-col max-sm:items-start">
+          <div>
+            <h2 className="m-0 text-lg font-black tracking-tight text-[#172033]">Stock Reconciliation</h2>
+            <p className="m-0 mt-1 text-xs font-medium text-[#5c667a]">
+              Compares inventory quantities against stock movement ledger to detect mismatches.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <select
+              className="input max-w-[160px] text-xs"
+              value={statusFilter}
+              onChange={(e) => onStatusFilterChange(e.target.value)}
+            >
+              <option value="">All statuses</option>
+              <option value="OPEN">Open</option>
+              <option value="RESOLVED">Resolved</option>
+              <option value="IGNORED">Ignored</option>
+            </select>
+            <button
+              className="button-primary px-5"
+              onClick={onRun}
+              disabled={isRunning}
+              type="button"
+            >
+              {isRunning ? "Running..." : "Run Now"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="surface overflow-hidden">
+        <TableHeader title="Reconciliation issues" count={issues.length} />
+        <div className="overflow-x-auto">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Branch</th>
+                <th>SKU</th>
+                <th>Component</th>
+                <th>Expected</th>
+                <th>Actual</th>
+                <th>Difference</th>
+                <th>Status</th>
+                <th>Detected</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? <TableState colSpan={9} text="Loading reconciliation issues..." /> : null}
+              {!isLoading && issues.length === 0 ? (
+                <TableState colSpan={9} text="No reconciliation issues found. Inventory is consistent! ✅" />
+              ) : null}
+              {!isLoading &&
+                paginatedItems.map((issue) => (
+                  <tr key={issue.id}>
+                    <td className="font-bold">{issue.branch.code}</td>
+                    <td className="font-bold">{issue.component.sku}</td>
+                    <td className="text-xs">{issue.component.name}</td>
+                    <td>{issue.expectedQuantity}</td>
+                    <td>{issue.actualQuantity}</td>
+                    <td>
+                      <span
+                        className={`font-bold ${
+                          issue.difference > 0
+                            ? "text-emerald-700"
+                            : issue.difference < 0
+                              ? "text-rose-700"
+                              : "text-slate-500"
+                        }`}
+                      >
+                        {issue.difference > 0 ? "+" : ""}
+                        {issue.difference}
+                      </span>
+                    </td>
+                    <td>
+                      <StatusPill status={issue.status} />
+                    </td>
+                    <td className="text-xs text-[#5c667a]">
+                      {new Date(issue.detectedAt).toLocaleString("vi-VN", { hour12: false })}
+                    </td>
+                    <td>
+                      {issue.status === "OPEN" ? (
+                        <button
+                          className="button-small-primary"
+                          onClick={() => onResolve(issue.id)}
+                          type="button"
+                        >
+                          Resolve
+                        </button>
+                      ) : (
+                        <span className="text-xs text-muted">
+                          {issue.resolvedAt
+                            ? new Date(issue.resolvedAt).toLocaleDateString("vi-VN")
+                            : "-"}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+          totalItems={issues.length}
+          pageSize={pageSize}
+        />
+      </div>
+    </section>
+  );
+}
+

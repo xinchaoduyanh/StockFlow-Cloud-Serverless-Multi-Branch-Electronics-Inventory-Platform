@@ -109,6 +109,7 @@ model Branch {
   transfersFrom Transfer[] @relation("TransferFromBranch")
   transfersTo   Transfer[] @relation("TransferToBranch")
   stockMovements StockMovement[]
+  reconciliationIssues ReconciliationIssue[]
 
   @@map("branches")
 }
@@ -129,6 +130,7 @@ model Component {
   inventory Inventory[]
   transferItems TransferItem[]
   stockMovements StockMovement[]
+  reconciliationIssues ReconciliationIssue[]
 
   @@map("components")
 }
@@ -247,4 +249,54 @@ model StockMovement {
   @@index([branchId, componentId])
   @@index([referenceType, referenceId])
   @@map("stock_movements")
+}
+
+enum ReconciliationStatus {
+  OPEN
+  RESOLVED
+  IGNORED
+}
+
+model ReconciliationIssue {
+  id               String               @id @default(uuid()) @db.Uuid
+  branchId         String               @map("branch_id") @db.Uuid
+  componentId      String               @map("component_id") @db.Uuid
+  expectedQuantity Int                  @map("expected_quantity")
+  actualQuantity   Int                  @map("actual_quantity")
+  difference       Int
+  status           ReconciliationStatus @default(OPEN)
+  runId            String?              @map("run_id") @db.VarChar(100)
+  detectedAt       DateTime             @default(now()) @map("detected_at")
+  resolvedAt       DateTime?            @map("resolved_at")
+
+  branch    Branch    @relation(fields: [branchId], references: [id])
+  component Component @relation(fields: [componentId], references: [id])
+
+  @@index([branchId, componentId])
+  @@index([status])
+  @@map("reconciliation_issues")
+}
+
+enum ExportJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model ExportJob {
+  id          String          @id @default(uuid()) @db.Uuid
+  reportType  String          @map("report_type") @db.VarChar(50)
+  status      ExportJobStatus @default(PENDING)
+  filters     Json?
+  s3Key       String?         @map("s3_key")
+  fileName    String?         @map("file_name") @db.VarChar(255)
+  totalRecords Int?           @map("total_records")
+  errorMessage String?        @map("error_message")
+  createdBy   String?         @map("created_by") @db.Uuid
+  createdAt   DateTime        @default(now()) @map("created_at")
+  completedAt DateTime?       @map("completed_at")
+
+  @@index([status])
+  @@map("export_jobs")
 }
