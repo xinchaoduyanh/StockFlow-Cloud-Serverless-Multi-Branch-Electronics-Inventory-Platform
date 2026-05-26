@@ -29,6 +29,8 @@ type PreparedImportRow = {
 
 @Injectable()
 export class ImportsService implements OnModuleInit {
+  private lastCleanupTime = 0;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly s3Service: S3Service,
@@ -42,6 +44,14 @@ export class ImportsService implements OnModuleInit {
     let nextDelay = 10000;
 
     try {
+      // Trigger cleanup check at most once every 1 minute to save DB performance
+      if (Date.now() - this.lastCleanupTime > 60000) {
+        this.lastCleanupTime = Date.now();
+        await this.cleanupStuckJobs().catch((err) => {
+          console.error("[Import-Cleanup] Error during stuck jobs cleanup:", err);
+        });
+      }
+
       // 1. Check if there are any jobs currently in-progress
       const activeJobsCount = await this.prisma.importJob.count({
         where: {
@@ -96,6 +106,53 @@ export class ImportsService implements OnModuleInit {
           });
         }
       });
+    }
+  }
+
+  private async cleanupStuckJobs(): Promise<void> {
+    const now = new Date();
+    const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    // 1. Clean up active processing jobs that are stuck (> 30 mins)
+    const stuckJobs = await this.prisma.importJob.updateMany({
+      where: {
+        status: {
+          in: [
+            ImportStatus.PARSING,
+            ImportStatus.VALIDATING,
+            ImportStatus.CONFIRMING,
+            ImportStatus.COMMITTING,
+          ],
+        },
+        updatedAt: { lt: thirtyMinutesAgo },
+      },
+      data: {
+        status: ImportStatus.FAILED,
+        errorMessage: "Import job timed out during processing (exceeded 30 minutes limit).",
+      },
+    });
+
+    if (stuckJobs.count > 0) {
+      console.log(`[Import-Cleanup] Marked ${stuckJobs.count} stuck processing jobs as FAILED.`);
+    }
+
+    // 2. Clean up inactive jobs that have expired (> 24 hours)
+    const expiredJobs = await this.prisma.importJob.updateMany({
+      where: {
+        status: {
+          in: [ImportStatus.UPLOADED, ImportStatus.PREVIEW_READY],
+        },
+        updatedAt: { lt: twentyFourHoursAgo },
+      },
+      data: {
+        status: ImportStatus.CANCELLED,
+        errorMessage: "Import job expired after 24 hours of inactivity.",
+      },
+    });
+
+    if (expiredJobs.count > 0) {
+      console.log(`[Import-Cleanup] Marked ${expiredJobs.count} expired/stale jobs as CANCELLED.`);
     }
   }
 
