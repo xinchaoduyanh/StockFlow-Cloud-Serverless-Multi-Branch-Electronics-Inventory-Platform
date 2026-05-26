@@ -21,7 +21,7 @@ const externalReportTypeByPrisma: Record<PrismaReportType, ExternalReportType> =
  *
  * Input event: { exportJobId: string }
  */
-export const handler = async (event: any) => {
+const handler = async (event: any) => {
   console.log("Report exporter event received:", JSON.stringify(event));
 
   const { exportJobId } = event;
@@ -127,6 +127,8 @@ export const handler = async (event: any) => {
     await prisma.$disconnect();
   }
 };
+
+module.exports = { handler };
 
 // ---------------------------------------------------------------------------
 // Report Generators

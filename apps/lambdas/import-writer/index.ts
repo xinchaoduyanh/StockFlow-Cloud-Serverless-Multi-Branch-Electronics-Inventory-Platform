@@ -3,7 +3,7 @@ import { PrismaClient, ImportStatus, ImportRowStatus, StockMovementType } from "
 
 const prisma = new PrismaClient();
 
-export const handler = async (event: any) => {
+const handler = async (event: any) => {
   console.log("Writer event received:", JSON.stringify(event));
 
   const { importJobId, action } = event;
@@ -223,3 +223,5 @@ export const handler = async (event: any) => {
     await prisma.$disconnect();
   }
 };
+
+module.exports = { handler };

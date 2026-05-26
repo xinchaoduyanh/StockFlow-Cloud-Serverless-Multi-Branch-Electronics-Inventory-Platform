@@ -16,7 +16,7 @@ const prisma = new PrismaClient();
  *   - Batch replay:   { importJobIds: string[] }
  *   - Auto mode:      { mode: "auto" }  — replays all FAILED jobs that still have an s3Key
  */
-export const handler = async (event: any) => {
+const handler = async (event: any) => {
   console.log("DLQ replay event received:", JSON.stringify(event));
 
   const stateMachineArn = process.env.STATE_MACHINE_ARN;
@@ -150,3 +150,5 @@ export const handler = async (event: any) => {
     await prisma.$disconnect();
   }
 };
+
+module.exports = { handler };

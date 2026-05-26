@@ -1,12 +1,12 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { PrismaClient, ImportStatus, ImportRowStatus, Prisma } from "@prisma/client";
 import * as ExcelJS from "exceljs";
-import { importRowInputSchema } from "../../api/src/imports/imports.schemas";
+import { importRowInputSchema } from "@stockflow/shared";
 
 const s3Client = new S3Client({});
 const prisma = new PrismaClient();
 
-export const handler = async (event: any) => {
+const handler = async (event: any) => {
   console.log("Parser event received:", JSON.stringify(event));
 
   const { importJobId, bucket, key } = event;
@@ -28,7 +28,7 @@ export const handler = async (event: any) => {
       new GetObjectCommand({
         Bucket: bucket,
         Key: key,
-      })
+      }),
     );
 
     const inputStream = response.Body as NodeJS.ReadableStream;
@@ -50,7 +50,7 @@ export const handler = async (event: any) => {
     for await (const worksheetReader of workbookReader) {
       for await (const row of worksheetReader) {
         const rawValues = Array.isArray(row.values) ? row.values : Object.values(row.values);
-        
+
         // Remove ExcelJS 1-based offset empty item if present
         if (Array.isArray(row.values) && rawValues[0] === undefined) {
           rawValues.shift();
@@ -64,12 +64,18 @@ export const handler = async (event: any) => {
         });
 
         // Skip completely empty lines
-        if (cleanValues.every((v: any) => v === null || v === undefined || String(v).trim() === "")) {
+        if (
+          cleanValues.every((v: any) => v === null || v === undefined || String(v).trim() === "")
+        ) {
           continue;
         }
 
         if (headers.length === 0) {
-          headers = cleanValues.map((v: any) => String(v ?? "").trim().toLowerCase());
+          headers = cleanValues.map((v: any) =>
+            String(v ?? "")
+              .trim()
+              .toLowerCase(),
+          );
           continue;
         }
 
@@ -92,17 +98,28 @@ export const handler = async (event: any) => {
           brand: rowData.brand ? String(rowData.brand).trim() : undefined,
           category: rowData.category ? String(rowData.category).toUpperCase().trim() : undefined,
           supplier: rowData.supplier ? String(rowData.supplier).trim() : undefined,
-          ddrGeneration: rowData.ddrgeneration ? String(rowData.ddrgeneration).toUpperCase().trim() : undefined,
+          ddrGeneration: rowData.ddrgeneration
+            ? String(rowData.ddrgeneration).toUpperCase().trim()
+            : undefined,
           interface: rowData.interface ? String(rowData.interface).trim() : undefined,
           formFactor: rowData.formfactor ? String(rowData.formfactor).trim() : undefined,
           chipset: rowData.chipset ? String(rowData.chipset).trim() : undefined,
           socket: rowData.socket ? String(rowData.socket).trim() : undefined,
-          efficiencyRating: rowData.efficiencyrating ? String(rowData.efficiencyrating).trim() : undefined,
-          modular: rowData.modular !== undefined && rowData.modular !== null ? String(rowData.modular).trim() : undefined,
+          efficiencyRating: rowData.efficiencyrating
+            ? String(rowData.efficiencyrating).trim()
+            : undefined,
+          modular:
+            rowData.modular !== undefined && rowData.modular !== null
+              ? String(rowData.modular).trim()
+              : undefined,
           caseSize: rowData.casesize ? String(rowData.casesize).trim() : undefined,
-          supportedMainboard: rowData.supportedmainboard ? String(rowData.supportedmainboard).trim() : undefined,
+          supportedMainboard: rowData.supportedmainboard
+            ? String(rowData.supportedmainboard).trim()
+            : undefined,
           coolerType: rowData.coolertype ? String(rowData.coolertype).trim() : undefined,
-          supportedSocket: rowData.supportedsocket ? String(rowData.supportedsocket).trim() : undefined,
+          supportedSocket: rowData.supportedsocket
+            ? String(rowData.supportedsocket).trim()
+            : undefined,
         };
 
         const numericFields = [
@@ -118,7 +135,11 @@ export const handler = async (event: any) => {
         ];
 
         numericFields.forEach((field) => {
-          if (rowData[field.key] !== undefined && rowData[field.key] !== null && rowData[field.key] !== "") {
+          if (
+            rowData[field.key] !== undefined &&
+            rowData[field.key] !== null &&
+            rowData[field.key] !== ""
+          ) {
             const num = Number(rowData[field.key]);
             normalizedInput[field.dest] = isNaN(num) ? rowData[field.key] : num;
           }
@@ -184,7 +205,9 @@ export const handler = async (event: any) => {
       },
     });
 
-    console.log(`Parsing finished. Total: ${totalRows}, Valid: ${validRows}, Invalid: ${invalidRows}`);
+    console.log(
+      `Parsing finished. Total: ${totalRows}, Valid: ${validRows}, Invalid: ${invalidRows}`,
+    );
 
     return {
       importJobId,
@@ -211,3 +234,5 @@ export const handler = async (event: any) => {
     await prisma.$disconnect();
   }
 };
+
+module.exports = { handler };

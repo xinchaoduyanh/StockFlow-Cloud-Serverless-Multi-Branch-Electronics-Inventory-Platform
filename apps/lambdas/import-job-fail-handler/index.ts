@@ -2,7 +2,7 @@ import { PrismaClient, ImportStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export const handler = async (event: any) => {
+const handler = async (event: any) => {
   console.log("Job failure handler event received:", JSON.stringify(event));
 
   // Step Functions error objects often contain Error and Cause
@@ -18,7 +18,11 @@ export const handler = async (event: any) => {
   }
 
   const errorName = event.Error || (event.errorInfo && event.errorInfo.Error) || "UnknownError";
-  const errorMessage = event.Cause || event.Message || (event.errorInfo && event.errorInfo.Cause) || "State machine execution failure";
+  const errorMessage =
+    event.Cause ||
+    event.Message ||
+    (event.errorInfo && event.errorInfo.Cause) ||
+    "State machine execution failure";
 
   if (!importJobId) {
     console.error("No importJobId found in the failure event payload.");
@@ -50,3 +54,5 @@ export const handler = async (event: any) => {
     await prisma.$disconnect();
   }
 };
+
+module.exports = { handler };

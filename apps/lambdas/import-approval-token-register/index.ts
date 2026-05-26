@@ -2,7 +2,7 @@ import { PrismaClient, ImportStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export const handler = async (event: any) => {
+const handler = async (event: any) => {
   console.log("Approval token register event received:", JSON.stringify(event));
 
   const { importJobId, taskToken } = event;
@@ -38,3 +38,5 @@ export const handler = async (event: any) => {
     await prisma.$disconnect();
   }
 };
+
+module.exports = { handler };

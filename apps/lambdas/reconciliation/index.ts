@@ -16,7 +16,7 @@ const prisma = new PrismaClient();
  *
  * Input event: { dryRun?: boolean }
  */
-export const handler = async (event: any) => {
+const handler = async (event: any) => {
   console.log("Reconciliation event received:", JSON.stringify(event));
 
   const dryRun = event?.dryRun === true;
@@ -78,7 +78,7 @@ export const handler = async (event: any) => {
 
         console.warn(
           `MISMATCH: ${record.branch.code}/${record.component.sku} — ` +
-          `expected: ${expectedQuantity}, actual: ${actualQuantity}, diff: ${difference}`
+            `expected: ${expectedQuantity}, actual: ${actualQuantity}, diff: ${difference}`,
         );
       } else {
         matchedCount++;
@@ -111,7 +111,7 @@ export const handler = async (event: any) => {
 
       console.warn(
         `ORPHAN: branch=${orphan.branch_id}, component=${orphan.component_id} — ` +
-        `movements sum to ${expectedQty} but no inventory record exists`
+          `movements sum to ${expectedQty} but no inventory record exists`,
       );
     }
 
@@ -214,3 +214,5 @@ export const handler = async (event: any) => {
     await prisma.$disconnect();
   }
 };
+
+module.exports = { handler };

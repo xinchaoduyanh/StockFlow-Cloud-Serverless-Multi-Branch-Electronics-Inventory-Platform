@@ -18,10 +18,14 @@ Globals:
     Runtime: nodejs20.x
     Architectures:
       - arm64
+    Tracing: Active
+    Layers:
+      - !Sub arn:aws:lambda:${AWS::Region}:901920570463:layer:aws-otel-nodejs-arm64-ver-1-30-2:1
     Environment:
       Variables:
         DATABASE_URL: !Ref DatabaseUrl
         S3_BUCKET: !Sub stockflow-imports-${AWS::AccountId}-${AWS::Region}
+        AWS_LAMBDA_EXEC_WRAPPER: /opt/otel-handler
 
 Resources:
   # -----------------------------------------------------------------
@@ -166,6 +170,8 @@ Resources:
   StockFlowIngestionStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
+      Tracing:
+        Enabled: true
       Definition:
         Comment: StockFlow Electronics Serverless Batch Ingestion Pipeline Orchestrator
         StartAt: ValidateFileStructure
@@ -247,6 +253,15 @@ Resources:
                 - !GetAtt ImportApprovalTokenRegisterFunction.Arn
                 - !GetAtt ImportWriterFunction.Arn
                 - !GetAtt ImportJobFailHandlerFunction.Arn
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - xray:PutTraceSegments
+                - xray:PutTelemetryRecords
+                - xray:GetSamplingRules
+                - xray:GetSamplingTargets
+              Resource: "*"
 
 Outputs:
   IncomingS3Bucket:

@@ -5,12 +5,12 @@ import * as ExcelJS from "exceljs";
 const s3Client = new S3Client({});
 const prisma = new PrismaClient();
 
-export const handler = async (event: any) => {
+const handler = async (event: any) => {
   console.log("Validator event received:", JSON.stringify(event));
 
-  let bucket = "";
-  let key = "";
-  let size = 0;
+  let bucket: string;
+  let key: string;
+  let size: number;
 
   if (event.Records && event.Records.length > 0) {
     const record = event.Records[0];
@@ -69,7 +69,7 @@ export const handler = async (event: any) => {
       new GetObjectCommand({
         Bucket: bucket,
         Key: key,
-      })
+      }),
     );
 
     const inputStream = response.Body as NodeJS.ReadableStream;
@@ -132,3 +132,5 @@ export const handler = async (event: any) => {
     await prisma.$disconnect();
   }
 };
+
+module.exports = { handler };
