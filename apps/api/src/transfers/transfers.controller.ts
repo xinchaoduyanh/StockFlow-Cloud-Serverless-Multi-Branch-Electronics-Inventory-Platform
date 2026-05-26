@@ -1,8 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiTags } from "@nestjs/swagger";
-import { AuthenticatedRequest, JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
-import { uuidParamSchema } from "../common/schemas/params.schema";
 import {
   CreateTransferBody,
   createTransferBodySchema,
@@ -10,7 +7,11 @@ import {
   rejectTransferBodySchema,
   TransferListQuery,
   transferListQuerySchema,
-} from "./transfers.schemas";
+  TransferDTO,
+} from "@stockflow/shared";
+import { AuthenticatedRequest, JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
+import { uuidParamSchema } from "../common/schemas/params.schema";
 import { TransfersService } from "./transfers.service";
 
 @ApiTags("transfers")
@@ -26,19 +27,21 @@ export class TransfersController {
   create(
     @Body(new ZodValidationPipe(createTransferBodySchema)) body: CreateTransferBody,
     @Req() request: AuthenticatedRequest,
-  ) {
+  ): Promise<TransferDTO> {
     return this.transfersService.create(body, request.user.sub);
   }
 
   @Get()
   @ApiOkResponse({ description: "List transfer requests." })
-  list(@Query(new ZodValidationPipe(transferListQuerySchema)) query: TransferListQuery) {
+  list(
+    @Query(new ZodValidationPipe(transferListQuerySchema)) query: TransferListQuery,
+  ): Promise<TransferDTO[]> {
     return this.transfersService.list(query);
   }
 
   @Get(":id")
   @ApiOkResponse({ description: "Get one transfer request." })
-  get(@Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string }) {
+  get(@Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string }): Promise<TransferDTO> {
     return this.transfersService.get(params.id);
   }
 
@@ -47,7 +50,7 @@ export class TransfersController {
   approve(
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
     @Req() request: AuthenticatedRequest,
-  ) {
+  ): Promise<TransferDTO> {
     return this.transfersService.approve(params.id, request.user.sub);
   }
 
@@ -64,7 +67,7 @@ export class TransfersController {
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
     @Body(new ZodValidationPipe(rejectTransferBodySchema)) body: RejectTransferBody,
     @Req() request: AuthenticatedRequest,
-  ) {
+  ): Promise<TransferDTO> {
     return this.transfersService.reject(params.id, body, request.user.sub);
   }
 
@@ -73,7 +76,7 @@ export class TransfersController {
   cancel(
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
     @Req() request: AuthenticatedRequest,
-  ) {
+  ): Promise<TransferDTO> {
     return this.transfersService.cancel(params.id, request.user.sub);
   }
 }

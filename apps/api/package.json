@@ -26,7 +26,7 @@
     "@nestjs/platform-express": "latest",
     "@nestjs/swagger": "^11.4.2",
     "@prisma/client": "^6.19.3",
-    "@stockflow/shared": "0.1.0",
+    "@stockflow/shared": "*",
     "@types/multer": "^2.1.0",
     "exceljs": "^4.4.0",
     "reflect-metadata": "latest",

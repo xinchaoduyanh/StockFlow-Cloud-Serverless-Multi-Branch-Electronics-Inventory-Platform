@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { paginationQuerySchema } from "../common/schemas/pagination.schema";
+import { paginationQuerySchema } from "./reconciliation";
 
 export const dlqListQuerySchema = paginationQuerySchema.extend({
   branchId: z.string().uuid().optional(),

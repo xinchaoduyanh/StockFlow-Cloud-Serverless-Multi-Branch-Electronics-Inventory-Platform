@@ -1,14 +1,16 @@
 import { Body, Controller, Get, Param, Patch, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiTags } from "@nestjs/swagger";
-import { branchIdParamSchema, skuParamSchema } from "../common/schemas/params.schema";
-import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
-import { AuthenticatedRequest, JwtAuthGuard } from "../auth/jwt-auth.guard";
 import {
   AdjustInventoryBody,
   adjustInventoryBodySchema,
   InventoryQuery,
   inventoryQuerySchema,
-} from "./inventory.schemas";
+  InventoryItem,
+  Branch,
+} from "@stockflow/shared";
+import { branchIdParamSchema, skuParamSchema } from "../common/schemas/params.schema";
+import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
+import { AuthenticatedRequest, JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { InventoryService } from "./inventory.service";
 
 @ApiTags("inventory")
@@ -20,19 +22,23 @@ export class InventoryController {
 
   @Get("inventory")
   @ApiOkResponse({ description: "List inventory across branches." })
-  list(@Query(new ZodValidationPipe(inventoryQuerySchema)) query: InventoryQuery) {
+  list(
+    @Query(new ZodValidationPipe(inventoryQuerySchema)) query: InventoryQuery,
+  ): Promise<InventoryItem[]> {
     return this.inventoryService.list(query);
   }
 
   @Get("inventory/:sku")
   @ApiOkResponse({ description: "List inventory records for a SKU." })
-  getBySku(@Param(new ZodValidationPipe(skuParamSchema)) params: { sku: string }) {
+  getBySku(
+    @Param(new ZodValidationPipe(skuParamSchema)) params: { sku: string },
+  ): Promise<InventoryItem[]> {
     return this.inventoryService.getBySku(params.sku);
   }
 
   @Get("branches")
   @ApiOkResponse({ description: "List branches for inventory workflows." })
-  listBranches() {
+  listBranches(): Promise<Branch[]> {
     return this.inventoryService.listBranches();
   }
 
@@ -42,7 +48,7 @@ export class InventoryController {
     @Param(new ZodValidationPipe(branchIdParamSchema)) params: { branchId: string },
     @Query(new ZodValidationPipe(inventoryQuerySchema.omit({ branchId: true })))
     query: Omit<InventoryQuery, "branchId">,
-  ) {
+  ): Promise<InventoryItem[]> {
     return this.inventoryService.listByBranch(params.branchId, query);
   }
 
@@ -64,7 +70,7 @@ export class InventoryController {
     @Body(new ZodValidationPipe(adjustInventoryBodySchema))
     body: AdjustInventoryBody,
     @Req() request: AuthenticatedRequest,
-  ) {
+  ): Promise<InventoryItem> {
     return this.inventoryService.adjust(body, request.user.sub);
   }
 }

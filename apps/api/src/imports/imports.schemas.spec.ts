@@ -1,5 +1,4 @@
-import { ComponentCategory } from "@prisma/client";
-import { importRowInputSchema } from "./imports.schemas";
+import { importRowInputSchema, ComponentCategory } from "@stockflow/shared";
 
 describe("Imports Schemas Validation", () => {
   describe("importRowInputSchema", () => {

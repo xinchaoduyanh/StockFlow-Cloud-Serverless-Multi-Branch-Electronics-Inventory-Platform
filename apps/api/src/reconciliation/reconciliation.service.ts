@@ -1,10 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { ReconciliationStatus } from "@prisma/client";
+import {
+  ReconciliationListQuery,
+  ReconciliationIssue,
+  ReconciliationRunResponse,
+  ReconciliationStatus,
+} from "@stockflow/shared";
 import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
 import { EnvService } from "../config/env.service";
 import { PrismaService } from "../database/prisma.service";
-import { ReconciliationListQuery } from "./reconciliation.schemas";
 
 @Injectable()
 export class ReconciliationService {
@@ -15,7 +19,7 @@ export class ReconciliationService {
     private readonly envService: EnvService,
   ) {}
 
-  async listIssues(query: ReconciliationListQuery) {
+  async listIssues(query: ReconciliationListQuery): Promise<ReconciliationIssue[]> {
     const { skip, take } = toPagination(query);
 
     return this.prisma.reconciliationIssue.findMany({
@@ -27,10 +31,10 @@ export class ReconciliationService {
         component: { select: { sku: true, name: true } },
       },
       orderBy: { detectedAt: "desc" },
-    });
+    }) as unknown as Promise<ReconciliationIssue[]>;
   }
 
-  async run() {
+  async run(): Promise<ReconciliationRunResponse> {
     const lambdaArn = this.envService.get("RECONCILIATION_LAMBDA_ARN");
 
     if (lambdaArn) {
@@ -44,7 +48,7 @@ export class ReconciliationService {
     return this.runSync();
   }
 
-  async resolve(id: string) {
+  async resolve(id: string): Promise<ReconciliationIssue> {
     const issue = await this.prisma.reconciliationIssue.findUnique({ where: { id } });
 
     if (!issue) {
@@ -65,10 +69,10 @@ export class ReconciliationService {
         branch: { select: { code: true, name: true } },
         component: { select: { sku: true, name: true } },
       },
-    });
+    }) as unknown as Promise<ReconciliationIssue>;
   }
 
-  private async runSync() {
+  private async runSync(): Promise<ReconciliationRunResponse> {
     const runId = `recon-sync-${Date.now()}`;
     const inventoryRecords = await this.prisma.inventory.findMany({
       include: {

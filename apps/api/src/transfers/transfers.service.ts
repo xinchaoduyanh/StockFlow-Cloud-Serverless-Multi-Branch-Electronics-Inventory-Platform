@@ -1,16 +1,21 @@
-import { StockMovementReferenceType } from "@stockflow/shared";
+import {
+  StockMovementReferenceType,
+  CreateTransferBody,
+  RejectTransferBody,
+  TransferListQuery,
+  TransferDTO,
+} from "@stockflow/shared";
 import { Injectable } from "@nestjs/common";
 import { StockMovementType, TransferStatus } from "@prisma/client";
 import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
 import { PrismaService } from "../database/prisma.service";
-import { CreateTransferBody, RejectTransferBody, TransferListQuery } from "./transfers.schemas";
 
 @Injectable()
 export class TransfersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  list(query: TransferListQuery) {
+  list(query: TransferListQuery): Promise<TransferDTO[]> {
     const { skip, take } = toPagination(query);
 
     return this.prisma.transfer.findMany({
@@ -27,10 +32,10 @@ export class TransfersService {
         items: { include: { component: true } },
       },
       orderBy: { createdAt: "desc" },
-    });
+    }) as any;
   }
 
-  async get(id: string) {
+  async get(id: string): Promise<TransferDTO> {
     const transfer = await this.prisma.transfer.findUnique({
       where: { id },
       include: {
@@ -44,10 +49,10 @@ export class TransfersService {
       throw ApiErrors.notFound("Transfer not found");
     }
 
-    return transfer;
+    return transfer as any;
   }
 
-  async create(input: CreateTransferBody, actorId?: string) {
+  async create(input: CreateTransferBody, actorId?: string): Promise<TransferDTO> {
     return this.prisma.$transaction(async (tx) => {
       for (const item of input.items) {
         const inventory = await tx.inventory.findUnique({
@@ -97,7 +102,11 @@ export class TransfersService {
             })),
           },
         },
-        include: { items: true },
+        include: {
+          fromBranch: true,
+          toBranch: true,
+          items: { include: { component: true } },
+        },
       });
 
       await tx.stockMovement.createMany({
@@ -113,10 +122,10 @@ export class TransfersService {
       });
 
       return transfer;
-    });
+    }) as any;
   }
 
-  async approve(id: string, actorId?: string) {
+  async approve(id: string, actorId?: string): Promise<TransferDTO> {
     return this.prisma.$transaction(async (tx) => {
       const transfer = await tx.transfer.findUnique({
         where: { id },
@@ -211,16 +220,20 @@ export class TransfersService {
           approvedAt: new Date(),
           completedAt: new Date(),
         },
-        include: { items: true },
-      });
+        include: {
+          fromBranch: true,
+          toBranch: true,
+          items: { include: { component: true } },
+        },
+      }) as any;
     });
   }
 
-  async reject(id: string, input: RejectTransferBody, actorId?: string) {
+  async reject(id: string, input: RejectTransferBody, actorId?: string): Promise<TransferDTO> {
     return this.releaseReservation(id, TransferStatus.REJECTED, actorId, input.reason);
   }
 
-  async cancel(id: string, actorId?: string) {
+  async cancel(id: string, actorId?: string): Promise<TransferDTO> {
     return this.releaseReservation(id, TransferStatus.CANCELLED, actorId);
   }
 
@@ -229,7 +242,7 @@ export class TransfersService {
     nextStatus: typeof TransferStatus.REJECTED | typeof TransferStatus.CANCELLED,
     actorId?: string,
     rejectReason?: string,
-  ) {
+  ): Promise<TransferDTO> {
     return this.prisma.$transaction(async (tx) => {
       const transfer = await tx.transfer.findUnique({
         where: { id },
@@ -279,8 +292,12 @@ export class TransfersService {
           rejectedAt: nextStatus === TransferStatus.REJECTED ? new Date() : undefined,
           rejectReason,
         },
-        include: { items: true },
-      });
+        include: {
+          fromBranch: true,
+          toBranch: true,
+          items: { include: { component: true } },
+        },
+      }) as any;
     });
   }
 }

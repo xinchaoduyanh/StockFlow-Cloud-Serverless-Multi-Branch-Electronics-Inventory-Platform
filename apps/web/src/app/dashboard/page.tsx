@@ -10,6 +10,7 @@ import {
   ReportType,
   TransferStatus,
   UserRole,
+  ReconciliationIssue,
 } from "@stockflow/shared";
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -90,19 +91,6 @@ type ExportJob = {
 };
 
 type DlqJob = ImportJob;
-
-type ReconciliationIssue = {
-  id: string;
-  expectedQuantity: number;
-  actualQuantity: number;
-  difference: number;
-  status: ReconciliationStatus;
-  runId: string | null;
-  detectedAt: string;
-  resolvedAt: string | null;
-  branch: { code: string; name: string };
-  component: { sku: string; name: string };
-};
 
 const categories = COMPONENT_CATEGORIES;
 

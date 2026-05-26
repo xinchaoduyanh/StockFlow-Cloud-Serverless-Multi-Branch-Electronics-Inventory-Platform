@@ -9,7 +9,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@stockflow/shared": "0.1.0",
+    "@stockflow/shared": "*",
     "@tanstack/react-query": "^5.100.10",
     "next": "latest",
     "react": "latest",

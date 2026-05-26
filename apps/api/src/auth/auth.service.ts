@@ -1,10 +1,10 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { UserStatus } from "@prisma/client";
+import { RegisterBody, LoginBody } from "@stockflow/shared";
 import { PrismaService } from "../database/prisma.service";
-import { LoginBody } from "./auth.schemas";
 import { AuthUser, JwtPayload } from "./auth.types";
-import { verifyPassword } from "./password";
+import { verifyPassword, hashPassword } from "./password";
 
 @Injectable()
 export class AuthService {
@@ -12,6 +12,30 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
   ) {}
+
+  async register(input: RegisterBody): Promise<AuthUser> {
+    const existing = await this.prisma.user.findUnique({
+      where: { email: input.email },
+    });
+
+    if (existing) {
+      throw new UnauthorizedException("Email is already registered");
+    }
+
+    const passwordHash = await hashPassword(input.password);
+    const user = await this.prisma.user.create({
+      data: {
+        email: input.email,
+        passwordHash,
+        fullName: input.fullName,
+        role: input.role as any,
+        branchId: input.branchId,
+        status: UserStatus.ACTIVE,
+      },
+    });
+
+    return this.toAuthUser(user);
+  }
 
   async login(input: LoginBody) {
     const email = input.email;

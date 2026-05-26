@@ -1,4 +1,4 @@
-import { ReportType } from "@stockflow/shared";
+import { ReportType, CreateExportBody, ExportListQuery, ExportJobDTO } from "@stockflow/shared";
 import { Injectable, Logger } from "@nestjs/common";
 import { ExportJobStatus, ReportType as PrismaReportType, type ExportJob } from "@prisma/client";
 import { ApiErrors } from "../common/errors/api-error";
@@ -6,7 +6,6 @@ import { toPagination } from "../common/schemas/pagination.schema";
 import { EnvService } from "../config/env.service";
 import { PrismaService } from "../database/prisma.service";
 import { S3Service } from "../imports/s3.service";
-import { CreateExportBody, ExportListQuery } from "./reports.schemas";
 
 const prismaReportTypeByExternal: Record<ReportType, PrismaReportType> = {
   [ReportType.INVENTORY]: PrismaReportType.INVENTORY,
@@ -24,8 +23,6 @@ const externalReportTypeByPrisma: Record<PrismaReportType, ReportType> = {
   [PrismaReportType.STOCK_MOVEMENTS]: ReportType.STOCK_MOVEMENTS,
 };
 
-type SerializedExportJob = Omit<ExportJob, "reportType"> & { reportType: ReportType };
-
 @Injectable()
 export class ReportsService {
   private readonly logger = new Logger(ReportsService.name);
@@ -36,7 +33,7 @@ export class ReportsService {
     private readonly s3Service: S3Service,
   ) {}
 
-  async createExport(input: CreateExportBody, actorId?: string) {
+  async createExport(input: CreateExportBody, actorId?: string): Promise<ExportJobDTO> {
     const job = await this.prisma.exportJob.create({
       data: {
         reportType: prismaReportTypeByExternal[input.reportType],
@@ -61,20 +58,20 @@ export class ReportsService {
     return this.getExport(job.id);
   }
 
-  async listExports(query: ExportListQuery) {
+  async listExports(query: ExportListQuery): Promise<ExportJobDTO[]> {
     const { skip, take } = toPagination(query);
     const jobs = await this.prisma.exportJob.findMany({
       skip,
       take,
       orderBy: { createdAt: "desc" },
     });
-    return jobs.map((job) => this.serializeExportJob(job));
+    return jobs.map((job) => this.serializeExportJob(job)) as any;
   }
 
-  async getExport(id: string) {
+  async getExport(id: string): Promise<ExportJobDTO> {
     const job = await this.prisma.exportJob.findUnique({ where: { id } });
     if (!job) throw ApiErrors.notFound("Export job not found");
-    return this.serializeExportJob(job);
+    return this.serializeExportJob(job) as any;
   }
 
   async getDownloadUrl(id: string) {
@@ -109,7 +106,7 @@ export class ReportsService {
     return { url, fileName: job.fileName };
   }
 
-  private serializeExportJob(job: ExportJob): SerializedExportJob {
+  private serializeExportJob(job: ExportJob): any {
     return { ...job, reportType: this.toExternalReportType(job.reportType) };
   }
 

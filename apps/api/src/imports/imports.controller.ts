@@ -12,9 +12,6 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOkResponse, ApiTags } from "@nestjs/swagger";
-import { AuthenticatedRequest, JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
-import { uuidParamSchema } from "../common/schemas/params.schema";
 import {
   ImportListQuery,
   importListQuerySchema,
@@ -26,7 +23,13 @@ import {
   uploadImportBodySchema,
   PresignedPostRequest,
   presignedPostRequestSchema,
-} from "./imports.schemas";
+  PresignedPostResponse,
+  ImportJobDTO,
+  ImportPreviewRowDTO,
+} from "@stockflow/shared";
+import { AuthenticatedRequest, JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
+import { uuidParamSchema } from "../common/schemas/params.schema";
 import { ImportsService } from "./imports.service";
 
 @ApiTags("imports")
@@ -42,7 +45,7 @@ export class ImportsController {
   presignedPost(
     @Body(new ZodValidationPipe(presignedPostRequestSchema)) body: PresignedPostRequest,
     @Req() request: AuthenticatedRequest,
-  ) {
+  ): Promise<PresignedPostResponse> {
     return this.importsService.getPresignedPost(body, request.user.sub);
   }
 
@@ -52,7 +55,7 @@ export class ImportsController {
   init(
     @Body(new ZodValidationPipe(initImportBodySchema)) body: InitImportBody,
     @Req() request: AuthenticatedRequest,
-  ) {
+  ): Promise<ImportJobDTO> {
     return this.importsService.init(body, request.user.sub);
   }
 
@@ -74,7 +77,7 @@ export class ImportsController {
     @Body(new ZodValidationPipe(uploadImportBodySchema)) body: UploadImportBody,
     @UploadedFile() file: Express.Multer.File,
     @Req() request: AuthenticatedRequest,
-  ) {
+  ): Promise<ImportJobDTO> {
     return this.importsService.upload(body.branchId, file, request.user.sub);
   }
 
@@ -84,37 +87,45 @@ export class ImportsController {
   start(
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
     @Body(new ZodValidationPipe(startImportBodySchema)) body: StartImportBody,
-  ) {
+  ): Promise<ImportJobDTO> {
     return this.importsService.start(params.id, body);
   }
 
   @Get()
   @ApiOkResponse({ description: "List import jobs." })
-  list(@Query(new ZodValidationPipe(importListQuerySchema)) query: ImportListQuery) {
+  list(
+    @Query(new ZodValidationPipe(importListQuerySchema)) query: ImportListQuery,
+  ): Promise<ImportJobDTO[]> {
     return this.importsService.list(query);
   }
 
   @Get(":id")
   @ApiOkResponse({ description: "Get one import job." })
-  get(@Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string }) {
+  get(
+    @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
+  ): Promise<ImportJobDTO> {
     return this.importsService.get(params.id);
   }
 
   @Get(":id/progress")
   @ApiOkResponse({ description: "Get import progress counters." })
-  progress(@Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string }) {
+  progress(@Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string }): Promise<any> {
     return this.importsService.progress(params.id);
   }
 
   @Get(":id/errors")
   @ApiOkResponse({ description: "Get invalid import rows." })
-  errors(@Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string }) {
+  errors(
+    @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
+  ): Promise<ImportPreviewRowDTO[]> {
     return this.importsService.errors(params.id);
   }
 
   @Get(":id/preview")
   @ApiOkResponse({ description: "Get import preview rows." })
-  preview(@Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string }) {
+  preview(
+    @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
+  ): Promise<ImportPreviewRowDTO[]> {
     return this.importsService.preview(params.id);
   }
 
@@ -123,19 +134,23 @@ export class ImportsController {
   confirm(
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
     @Req() request: AuthenticatedRequest,
-  ) {
+  ): Promise<ImportJobDTO> {
     return this.importsService.confirm(params.id, request.user.sub);
   }
 
   @Post(":id/cancel")
   @ApiOkResponse({ description: "Cancel import job." })
-  cancel(@Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string }) {
+  cancel(
+    @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
+  ): Promise<ImportJobDTO> {
     return this.importsService.cancel(params.id);
   }
 
   @Post(":id/retry-failed-rows")
   @ApiOkResponse({ description: "Placeholder for future DLQ/SQS retry integration." })
-  retryFailedRows(@Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string }) {
+  retryFailedRows(
+    @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
+  ): Promise<any> {
     return this.importsService.progress(params.id);
   }
 }

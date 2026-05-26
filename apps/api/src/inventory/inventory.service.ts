@@ -1,21 +1,26 @@
-import { StockMovementReferenceType } from "@stockflow/shared";
+import {
+  StockMovementReferenceType,
+  AdjustInventoryBody,
+  InventoryQuery,
+  InventoryItem,
+  Branch,
+} from "@stockflow/shared";
 import { Injectable } from "@nestjs/common";
 import { Prisma, StockMovementType } from "@prisma/client";
 import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
 import { PrismaService } from "../database/prisma.service";
-import { AdjustInventoryBody, InventoryQuery } from "./inventory.schemas";
 
 @Injectable()
 export class InventoryService {
   constructor(private readonly prisma: PrismaService) {}
 
-  list(query: InventoryQuery) {
+  list(query: InventoryQuery): Promise<InventoryItem[]> {
     const { skip, take } = toPagination(query);
     const where: Prisma.InventoryWhereInput = {
       ...(query.branchId ? { branchId: query.branchId } : {}),
       component: {
-        ...(query.category ? { category: query.category } : {}),
+        ...(query.category ? { category: query.category as any } : {}),
         ...(query.search
           ? {
               OR: [
@@ -39,7 +44,7 @@ export class InventoryService {
         })
         .then((items) =>
           items.filter((item) => item.quantity <= item.minStockThreshold).slice(skip, skip + take),
-        );
+        ) as any;
     }
 
     return this.prisma.inventory.findMany({
@@ -51,10 +56,10 @@ export class InventoryService {
         component: true,
       },
       orderBy: [{ branch: { code: "asc" } }, { component: { sku: "asc" } }],
-    });
+    }) as any;
   }
 
-  getBySku(sku: string) {
+  getBySku(sku: string): Promise<InventoryItem[]> {
     return this.prisma.inventory.findMany({
       where: {
         component: {
@@ -66,20 +71,23 @@ export class InventoryService {
         component: true,
       },
       orderBy: { branch: { code: "asc" } },
-    });
+    }) as any;
   }
 
-  listByBranch(branchId: string, query: Omit<InventoryQuery, "branchId">) {
+  listByBranch(
+    branchId: string,
+    query: Omit<InventoryQuery, "branchId">,
+  ): Promise<InventoryItem[]> {
     return this.list({ ...query, branchId });
   }
 
-  listBranches() {
+  listBranches(): Promise<Branch[]> {
     return this.prisma.branch.findMany({
       orderBy: { code: "asc" },
-    });
+    }) as any;
   }
 
-  async adjust(input: AdjustInventoryBody, actorId?: string) {
+  async adjust(input: AdjustInventoryBody, actorId?: string): Promise<InventoryItem> {
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.inventory.findUnique({
         where: {
@@ -133,6 +141,6 @@ export class InventoryService {
       });
 
       return inventory;
-    });
+    }) as any;
   }
 }

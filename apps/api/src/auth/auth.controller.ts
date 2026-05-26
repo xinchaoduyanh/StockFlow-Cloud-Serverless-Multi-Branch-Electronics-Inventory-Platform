@@ -6,8 +6,16 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
+import {
+  LoginBody,
+  loginBodySchema,
+  RegisterBody,
+  registerBodySchema,
+  RefreshBody,
+  refreshBodySchema,
+  UserDTO,
+} from "@stockflow/shared";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
-import { LoginBody, loginBodySchema, RefreshBody, refreshBodySchema } from "./auth.schemas";
 import { AuthService } from "./auth.service";
 import { AuthenticatedRequest, JwtAuthGuard } from "./jwt-auth.guard";
 
@@ -16,21 +24,21 @@ import { AuthenticatedRequest, JwtAuthGuard } from "./jwt-auth.guard";
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Post("register")
+  @ApiBody({ type: Object, description: "Register a new user." })
+  @ApiOkResponse({ description: "Registered successfully." })
+  register(@Body(new ZodValidationPipe(registerBodySchema)) body: RegisterBody): Promise<UserDTO> {
+    return this.authService.register(body) as any;
+  }
+
   @Post("login")
-  @ApiBody({
-    schema: {
-      type: "object",
-      required: ["email", "password"],
-      properties: {
-        email: { type: "string", format: "email" },
-        password: { type: "string", minLength: 8 },
-      },
-    },
-  })
-  @ApiOkResponse({ description: "Returns an access token and current user." })
+  @ApiBody({ type: Object, description: "Log in with email & password." })
+  @ApiOkResponse({ description: "Logged in successfully, returns JWT token." })
   @ApiUnauthorizedResponse({ description: "Invalid credentials." })
-  login(@Body(new ZodValidationPipe(loginBodySchema)) body: LoginBody) {
-    return this.authService.login(body);
+  login(
+    @Body(new ZodValidationPipe(loginBodySchema)) body: LoginBody,
+  ): Promise<{ accessToken: string; user: UserDTO }> {
+    return this.authService.login(body) as any;
   }
 
   @Post("refresh")
@@ -45,7 +53,7 @@ export class AuthController {
   })
   @ApiOkResponse({ description: "Returns a new access token and refresh token." })
   @ApiUnauthorizedResponse({ description: "Invalid or expired refresh token." })
-  refresh(@Body(new ZodValidationPipe(refreshBodySchema)) body: RefreshBody) {
+  refresh(@Body(new ZodValidationPipe(refreshBodySchema)) body: RefreshBody): Promise<any> {
     return this.authService.refresh(body.refreshToken);
   }
 
@@ -54,7 +62,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOkResponse({ description: "Returns the current authenticated user." })
   @ApiUnauthorizedResponse({ description: "Missing or invalid bearer token." })
-  me(@Req() request: AuthenticatedRequest) {
-    return this.authService.getCurrentUser(request.user);
+  me(@Req() request: AuthenticatedRequest): Promise<UserDTO> {
+    return this.authService.getCurrentUser(request.user) as any;
   }
 }

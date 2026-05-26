@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { paginationQuerySchema } from "../common/schemas/pagination.schema";
+import { paginationQuerySchema } from "./reconciliation";
 
 export const transferItemSchema = z.object({
   componentId: z.string().uuid(),
@@ -29,3 +29,33 @@ export const transferListQuerySchema = paginationQuerySchema.extend({
 export type CreateTransferBody = z.infer<typeof createTransferBodySchema>;
 export type RejectTransferBody = z.infer<typeof rejectTransferBodySchema>;
 export type TransferListQuery = z.infer<typeof transferListQuerySchema>;
+
+// Output DTOs
+export interface TransferItemDTO {
+  transferId: string;
+  componentId: string;
+  quantity: number;
+  component: {
+    id: string;
+    sku: string;
+    name: string;
+    brand: string | null;
+    category: string;
+  };
+}
+
+export interface TransferDTO {
+  id: string;
+  fromBranchId: string;
+  toBranchId: string;
+  status: string;
+  createdBy: string | null;
+  reviewedBy: string | null;
+  rejectionReason: string | null;
+  note: string | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  fromBranch: { id: string; code: string; name: string };
+  toBranch: { id: string; code: string; name: string };
+  items: TransferItemDTO[];
+}

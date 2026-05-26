@@ -1,4 +1,13 @@
-import { ImportPipelineAction, StockMovementReferenceType } from "@stockflow/shared";
+import {
+  ImportPipelineAction,
+  StockMovementReferenceType,
+  ImportListQuery,
+  ImportRowInput,
+  importRowInputSchema,
+  InitImportBody,
+  StartImportBody,
+  PresignedPostRequest,
+} from "@stockflow/shared";
 import { createHash } from "node:crypto";
 import { Injectable, OnModuleInit } from "@nestjs/common";
 import { ImportRowStatus, ImportStatus, Prisma, StockMovementType } from "@prisma/client";
@@ -6,14 +15,6 @@ import ExcelJS from "exceljs";
 import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
 import { PrismaService } from "../database/prisma.service";
-import {
-  ImportListQuery,
-  ImportRowInput,
-  importRowInputSchema,
-  InitImportBody,
-  StartImportBody,
-  PresignedPostRequest,
-} from "./imports.schemas";
 import { S3Service } from "./s3.service";
 
 type PreparedImportRow = {

@@ -1,10 +1,10 @@
+import { DlqListQuery, ImportJobDTO } from "@stockflow/shared";
 import { Injectable, Logger } from "@nestjs/common";
 import { ImportStatus } from "@prisma/client";
 import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
 import { EnvService } from "../config/env.service";
 import { PrismaService } from "../database/prisma.service";
-import { DlqListQuery } from "./dlq.schemas";
 
 @Injectable()
 export class DlqService {
@@ -15,7 +15,7 @@ export class DlqService {
     private readonly envService: EnvService,
   ) {}
 
-  async listFailedJobs(query: DlqListQuery) {
+  async listFailedJobs(query: DlqListQuery): Promise<ImportJobDTO[]> {
     const { skip, take } = toPagination(query);
 
     return this.prisma.importJob.findMany({
@@ -27,7 +27,7 @@ export class DlqService {
       },
       include: { branch: true },
       orderBy: { createdAt: "desc" },
-    });
+    }) as any;
   }
 
   async replay(id: string) {
@@ -37,10 +37,7 @@ export class DlqService {
       throw ApiErrors.notFound("Import job not found");
     }
 
-    if (
-      job.status !== ImportStatus.FAILED &&
-      job.status !== ImportStatus.PARTIAL_FAILED
-    ) {
+    if (job.status !== ImportStatus.FAILED && job.status !== ImportStatus.PARTIAL_FAILED) {
       throw ApiErrors.badRequest(`Job status is ${job.status}, not FAILED/PARTIAL_FAILED`);
     }
 
@@ -78,10 +75,7 @@ export class DlqService {
       throw ApiErrors.notFound("Import job not found");
     }
 
-    if (
-      job.status !== ImportStatus.FAILED &&
-      job.status !== ImportStatus.PARTIAL_FAILED
-    ) {
+    if (job.status !== ImportStatus.FAILED && job.status !== ImportStatus.PARTIAL_FAILED) {
       throw ApiErrors.badRequest(`Job status is ${job.status}, cannot discard`);
     }
 
