@@ -10,6 +10,7 @@ import {
 } from "@stockflow/shared";
 import { createHash } from "node:crypto";
 import { Injectable, OnModuleInit } from "@nestjs/common";
+import { SFNClient, SendTaskSuccessCommand } from "@aws-sdk/client-sfn";
 import { ImportRowStatus, ImportStatus, Prisma, StockMovementType } from "@prisma/client";
 import ExcelJS from "exceljs";
 import { ApiErrors } from "../common/errors/api-error";
@@ -284,7 +285,6 @@ export class ImportsService implements OnModuleInit {
     }
 
     if (job.awsTaskToken) {
-      const { SFNClient, SendTaskSuccessCommand } = await import("@aws-sdk/client-sfn");
       const sfnClient = new SFNClient({});
 
       try {
@@ -407,7 +407,6 @@ export class ImportsService implements OnModuleInit {
     const job = await this.assertJob(id);
 
     if (job.awsTaskToken) {
-      const { SFNClient, SendTaskSuccessCommand } = await import("@aws-sdk/client-sfn");
       const sfnClient = new SFNClient({});
 
       try {

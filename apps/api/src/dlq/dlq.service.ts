@@ -1,5 +1,6 @@
 import { DlqListQuery, ImportJobDTO } from "@stockflow/shared";
 import { Injectable, Logger } from "@nestjs/common";
+import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 import { ImportStatus } from "@prisma/client";
 import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
@@ -87,7 +88,6 @@ export class DlqService {
   }
 
   private async invokeLambda(arn: string, payload: Record<string, unknown>) {
-    const { LambdaClient, InvokeCommand } = await import("@aws-sdk/client-lambda");
     const region = this.envService.get("AWS_REGION");
     const client = new LambdaClient({ region });
 

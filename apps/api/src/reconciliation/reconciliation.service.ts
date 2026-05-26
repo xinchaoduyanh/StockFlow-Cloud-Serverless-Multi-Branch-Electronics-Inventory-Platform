@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 import {
   ReconciliationListQuery,
   ReconciliationIssue,
@@ -142,7 +143,6 @@ export class ReconciliationService {
   }
 
   private async invokeLambda(arn: string, payload: Record<string, unknown>) {
-    const { LambdaClient, InvokeCommand } = await import("@aws-sdk/client-lambda");
     const region = this.envService.get("AWS_REGION");
     const client = new LambdaClient({ region });
 

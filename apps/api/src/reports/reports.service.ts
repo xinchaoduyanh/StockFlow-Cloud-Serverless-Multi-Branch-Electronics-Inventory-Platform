@@ -1,6 +1,9 @@
 import { ReportType, CreateExportBody, ExportListQuery, ExportJobDTO } from "@stockflow/shared";
 import { Injectable, Logger } from "@nestjs/common";
 import { ExportJobStatus, ReportType as PrismaReportType, type ExportJob } from "@prisma/client";
+import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
 import { EnvService } from "../config/env.service";
@@ -81,9 +84,6 @@ export class ReportsService {
       throw ApiErrors.badRequest("Export is not ready for download");
     }
 
-    const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
-    const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
-
     const region = this.envService.get("AWS_REGION");
     const accessKeyId = this.envService.get("AWS_ACCESS_KEY_ID");
     const secretAccessKey = this.envService.get("AWS_SECRET_ACCESS_KEY");
@@ -115,7 +115,6 @@ export class ReportsService {
   }
 
   private async invokeLambda(arn: string, payload: Record<string, unknown>) {
-    const { LambdaClient, InvokeCommand } = await import("@aws-sdk/client-lambda");
     const region = this.envService.get("AWS_REGION");
     const client = new LambdaClient({ region });
 
