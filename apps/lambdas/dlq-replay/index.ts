@@ -1,3 +1,4 @@
+import { DlqReplayResultStatus } from "@stockflow/shared";
 import { SFNClient, StartExecutionCommand } from "@aws-sdk/client-sfn";
 import { PrismaClient, ImportStatus } from "@prisma/client";
 
@@ -59,27 +60,28 @@ export const handler = async (event: any) => {
         });
 
         if (!job) {
-          results.push({ importJobId: jobId, status: "NOT_FOUND", error: "Job not found" });
+          results.push({
+            importJobId: jobId,
+            status: DlqReplayResultStatus.NOT_FOUND,
+            error: "Job not found",
+          });
           continue;
         }
 
         if (!job.s3Key) {
           results.push({
             importJobId: jobId,
-            status: "SKIPPED",
+            status: DlqReplayResultStatus.SKIPPED,
             error: "No S3 key — cannot replay a non-S3 import",
           });
           continue;
         }
 
         // Only replay FAILED or PARTIAL_FAILED jobs
-        if (
-          job.status !== ImportStatus.FAILED &&
-          job.status !== ImportStatus.PARTIAL_FAILED
-        ) {
+        if (job.status !== ImportStatus.FAILED && job.status !== ImportStatus.PARTIAL_FAILED) {
           results.push({
             importJobId: jobId,
-            status: "SKIPPED",
+            status: DlqReplayResultStatus.SKIPPED,
             error: `Job status is ${job.status}, not FAILED/PARTIAL_FAILED`,
           });
           continue;
@@ -114,18 +116,22 @@ export const handler = async (event: any) => {
               key: job.s3Key,
               size: 0, // Size check will re-validate from S3
             }),
-          })
+          }),
         );
 
         console.log(`Successfully replayed job ${jobId}, execution: ${executionName}`);
-        results.push({ importJobId: jobId, status: "REPLAYED" });
+        results.push({ importJobId: jobId, status: DlqReplayResultStatus.REPLAYED });
       } catch (jobErr: any) {
         console.error(`Failed to replay job ${jobId}:`, jobErr.message);
-        results.push({ importJobId: jobId, status: "ERROR", error: jobErr.message });
+        results.push({
+          importJobId: jobId,
+          status: DlqReplayResultStatus.ERROR,
+          error: jobErr.message,
+        });
       }
     }
 
-    const replayed = results.filter((r) => r.status === "REPLAYED").length;
+    const replayed = results.filter((r) => r.status === DlqReplayResultStatus.REPLAYED).length;
     console.log(`Replay complete. ${replayed}/${jobIds.length} jobs replayed.`);
 
     return {

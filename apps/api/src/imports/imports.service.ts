@@ -1,3 +1,4 @@
+import { ImportPipelineAction, StockMovementReferenceType } from "@stockflow/shared";
 import { createHash } from "node:crypto";
 import { Injectable, OnModuleInit } from "@nestjs/common";
 import { ImportRowStatus, ImportStatus, Prisma, StockMovementType } from "@prisma/client";
@@ -36,7 +37,7 @@ export class ImportsService implements OnModuleInit {
   }
 
   private async runPollingLoop() {
-    let nextDelay = 10000; // Idle delay: 10 seconds
+    let nextDelay = 10000;
 
     try {
       // 1. Check if there are any jobs currently in-progress
@@ -50,16 +51,12 @@ export class ImportsService implements OnModuleInit {
 
       if (activeJobsCount > 0) {
         // Active job in progress! Poll fast (1 second) to auto-approve instantly
-        nextDelay = 1000;
         await this.autoApprovePendingJobs();
-      } else {
-        // Idle! Poll slowly (10 seconds)
-        nextDelay = 10000;
+        nextDelay = 1000;
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[Auto-Approve] Polling loop error:", msg);
-      nextDelay = 10000; // safe back-off
     } finally {
       // Schedule the next execution recursively
       setTimeout(() => {
@@ -80,10 +77,16 @@ export class ImportsService implements OnModuleInit {
       console.log(`[Auto-Approve] Triggering auto-confirm for Job ${job.id}`);
       await this.confirm(job.id).catch(async (err) => {
         console.error(`[Auto-Approve] Failed to auto-confirm Job ${job.id}:`, err.message);
-        
+
         // If the task token is expired, invalid or the execution is already terminated, clear the token so we don't loop endlessly
         const msg = (err.message || "").toLowerCase();
-        if (msg.includes("does not exist") || msg.includes("invalid token") || msg.includes("timed out") || err.name === "TaskDoesNotExist" || err.name === "InvalidToken") {
+        if (
+          msg.includes("does not exist") ||
+          msg.includes("invalid token") ||
+          msg.includes("timed out") ||
+          err.name === "TaskDoesNotExist" ||
+          err.name === "InvalidToken"
+        ) {
           console.log(`[Auto-Approve] Clearing invalid/expired token for Job ${job.id}`);
           await this.prisma.importJob.update({
             where: { id: job.id },
@@ -289,7 +292,7 @@ export class ImportsService implements OnModuleInit {
             taskToken: job.awsTaskToken,
             output: JSON.stringify({
               importJobId: id,
-              action: "CONFIRM",
+              action: ImportPipelineAction.CONFIRM,
             }),
           }),
         );
@@ -303,7 +306,9 @@ export class ImportsService implements OnModuleInit {
           include: { branch: true, rows: { orderBy: { rowNumber: "asc" } } },
         });
       } catch (err: any) {
-        throw ApiErrors.badRequest(`Failed to resume serverless ingestion pipeline: ${err.message}`);
+        throw ApiErrors.badRequest(
+          `Failed to resume serverless ingestion pipeline: ${err.message}`,
+        );
       }
     }
 
@@ -367,7 +372,7 @@ export class ImportsService implements OnModuleInit {
             componentId: component.id,
             movementType: StockMovementType.IMPORT_IN,
             quantityChange: data.quantity,
-            referenceType: "IMPORT_JOB",
+            referenceType: StockMovementReferenceType.IMPORT_JOB,
             referenceId: job.id,
             createdBy: actorId,
           },
@@ -410,7 +415,7 @@ export class ImportsService implements OnModuleInit {
             taskToken: job.awsTaskToken,
             output: JSON.stringify({
               importJobId: id,
-              action: "CANCEL",
+              action: ImportPipelineAction.CANCEL,
             }),
           }),
         );
@@ -423,7 +428,9 @@ export class ImportsService implements OnModuleInit {
           },
         });
       } catch (err: any) {
-        throw ApiErrors.badRequest(`Failed to cancel serverless ingestion pipeline: ${err.message}`);
+        throw ApiErrors.badRequest(
+          `Failed to cancel serverless ingestion pipeline: ${err.message}`,
+        );
       }
     }
 

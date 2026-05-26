@@ -1,3 +1,4 @@
+import { StockMovementReferenceType } from "@stockflow/shared";
 import { Injectable } from "@nestjs/common";
 import { StockMovementType, TransferStatus } from "@prisma/client";
 import { ApiErrors } from "../common/errors/api-error";
@@ -105,7 +106,7 @@ export class TransfersService {
           componentId: item.componentId,
           movementType: StockMovementType.RESERVATION_CREATED,
           quantityChange: item.quantity,
-          referenceType: "TRANSFER",
+          referenceType: StockMovementReferenceType.TRANSFER,
           referenceId: transfer.id,
           createdBy: actorId,
         })),
@@ -185,7 +186,7 @@ export class TransfersService {
               componentId: item.componentId,
               movementType: StockMovementType.TRANSFER_OUT,
               quantityChange: -item.quantity,
-              referenceType: "TRANSFER",
+              referenceType: StockMovementReferenceType.TRANSFER,
               referenceId: transfer.id,
               createdBy: actorId,
             },
@@ -194,7 +195,7 @@ export class TransfersService {
               componentId: item.componentId,
               movementType: StockMovementType.TRANSFER_IN,
               quantityChange: item.quantity,
-              referenceType: "TRANSFER",
+              referenceType: StockMovementReferenceType.TRANSFER,
               referenceId: transfer.id,
               createdBy: actorId,
             },
@@ -264,7 +265,7 @@ export class TransfersService {
           componentId: item.componentId,
           movementType: StockMovementType.RESERVATION_RELEASED,
           quantityChange: -item.quantity,
-          referenceType: "TRANSFER",
+          referenceType: StockMovementReferenceType.TRANSFER,
           referenceId: transfer.id,
           createdBy: actorId,
         })),

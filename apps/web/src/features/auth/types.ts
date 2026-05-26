@@ -1,4 +1,4 @@
-export type UserRole = "STORE_MANAGER" | "WAREHOUSE" | "ADMIN";
+import type { UserRole } from "@stockflow/shared";
 
 export type AuthUser = {
   id: string;

@@ -1,5 +1,16 @@
 "use client";
 
+import {
+  COMPONENT_CATEGORIES,
+  ComponentCategory,
+  ExportJobStatus,
+  ImportRowStatus,
+  ImportStatus,
+  ReconciliationStatus,
+  ReportType,
+  TransferStatus,
+  UserRole,
+} from "@stockflow/shared";
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -11,8 +22,6 @@ type Branch = {
   code: string;
   name: string;
 };
-
-type ComponentCategory = "RAM" | "CPU" | "SSD" | "GPU" | "MAINBOARD" | "PSU" | "CASE" | "COOLER";
 
 type InventoryItem = {
   branchId: string;
@@ -32,7 +41,7 @@ type InventoryItem = {
 
 type Transfer = {
   id: string;
-  status: "PENDING" | "APPROVED" | "REJECTED" | "COMPLETED" | "FAILED" | "CANCELLED";
+  status: TransferStatus;
   note: string | null;
   rejectReason: string | null;
   createdAt: string;
@@ -51,7 +60,7 @@ type Transfer = {
 type ImportJob = {
   id: string;
   fileName: string | null;
-  status: string;
+  status: ImportStatus;
   totalRows: number;
   validRows: number;
   invalidRows: number;
@@ -64,15 +73,15 @@ type ImportPreviewRow = {
   id: string;
   rowNumber: number;
   sku: string | null;
-  validationStatus: string;
+  validationStatus: ImportRowStatus;
   errorMessage: string | null;
   normalizedData: Record<string, unknown> | null;
 };
 
 type ExportJob = {
   id: string;
-  reportType: string;
-  status: string;
+  reportType: ReportType;
+  status: ExportJobStatus;
   fileName: string | null;
   totalRecords: number | null;
   errorMessage: string | null;
@@ -87,7 +96,7 @@ type ReconciliationIssue = {
   expectedQuantity: number;
   actualQuantity: number;
   difference: number;
-  status: string;
+  status: ReconciliationStatus;
   runId: string | null;
   detectedAt: string;
   resolvedAt: string | null;
@@ -95,16 +104,7 @@ type ReconciliationIssue = {
   component: { sku: string; name: string };
 };
 
-const categories: ComponentCategory[] = [
-  "RAM",
-  "CPU",
-  "SSD",
-  "GPU",
-  "MAINBOARD",
-  "PSU",
-  "CASE",
-  "COOLER",
-];
+const categories = COMPONENT_CATEGORIES;
 
 const tabs = [
   { id: "inventory", label: "Inventory" },
@@ -152,7 +152,7 @@ export default function DashboardPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [ingestionStage, setIngestionStage] = useState<"uploading" | "validating" | null>(null);
-  
+
   // High-end overhauls state variables
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [inventoryPage, setInventoryPage] = useState(1);
@@ -163,7 +163,7 @@ export default function DashboardPage() {
   const [reportsPage, setReportsPage] = useState(1);
   const [dlqPage, setDlqPage] = useState(1);
   const [reconPage, setReconPage] = useState(1);
-  const [reconStatusFilter, setReconStatusFilter] = useState("");
+  const [reconStatusFilter, setReconStatusFilter] = useState<ReconciliationStatus | "">("");
 
   // Reset pages when filters change
   useEffect(() => {
@@ -229,7 +229,7 @@ export default function DashboardPage() {
     enabled: Boolean(user),
     refetchInterval: (query) => {
       const hasActiveJobs = query.state.data?.some(
-        (job) => job.status === "UPLOADED" || job.status === "VALIDATING"
+        (job) => job.status === ImportStatus.UPLOADED || job.status === ImportStatus.VALIDATING,
       );
       return hasActiveJobs ? 1500 : false;
     },
@@ -314,7 +314,7 @@ export default function DashboardPage() {
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open("POST", response.presignedPost.url);
-        
+
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
             const pct = Math.round((e.loaded / e.total) * 100);
@@ -368,7 +368,7 @@ export default function DashboardPage() {
   });
 
   const createExport = useMutation({
-    mutationFn: (reportType: string) =>
+    mutationFn: (reportType: ReportType) =>
       apiRequest<ExportJob>("/reports/export", {
         method: "POST",
         body: JSON.stringify({
@@ -385,12 +385,11 @@ export default function DashboardPage() {
   const dlqQuery = useQuery({
     queryKey: ["dlq-imports"],
     queryFn: () => apiRequest<DlqJob[]>("/admin/dlq/imports"),
-    enabled: Boolean(user) && user?.role === "ADMIN",
+    enabled: Boolean(user) && user?.role === UserRole.ADMIN,
   });
 
   const replayDlq = useMutation({
-    mutationFn: (id: string) =>
-      apiRequest(`/admin/dlq/imports/${id}/replay`, { method: "POST" }),
+    mutationFn: (id: string) => apiRequest(`/admin/dlq/imports/${id}/replay`, { method: "POST" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["dlq-imports"] });
       void queryClient.invalidateQueries({ queryKey: ["imports"] });
@@ -398,8 +397,7 @@ export default function DashboardPage() {
   });
 
   const discardDlq = useMutation({
-    mutationFn: (id: string) =>
-      apiRequest(`/admin/dlq/imports/${id}/discard`, { method: "POST" }),
+    mutationFn: (id: string) => apiRequest(`/admin/dlq/imports/${id}/discard`, { method: "POST" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["dlq-imports"] });
     },
@@ -413,7 +411,7 @@ export default function DashboardPage() {
       if (reconStatusFilter) params.set("status", reconStatusFilter);
       return apiRequest<ReconciliationIssue[]>(`/reconciliation/issues?${params.toString()}`);
     },
-    enabled: Boolean(user) && user?.role === "ADMIN",
+    enabled: Boolean(user) && user?.role === UserRole.ADMIN,
   });
 
   const runRecon = useMutation({
@@ -450,7 +448,9 @@ export default function DashboardPage() {
   const inventorySummary = useMemo(() => {
     const totalUnits = inventoryItems.reduce((sum, item) => sum + item.quantity, 0);
     const reservedUnits = inventoryItems.reduce((sum, item) => sum + item.reservedQuantity, 0);
-    const pendingTransfers = transferItems.filter((item) => item.status === "PENDING").length;
+    const pendingTransfers = transferItems.filter(
+      (item) => item.status === TransferStatus.PENDING,
+    ).length;
 
     return [
       { label: "Total units", value: totalUnits.toLocaleString(), tone: "text-[#0f766e]" },
@@ -570,17 +570,19 @@ export default function DashboardPage() {
 
           <nav className="flex flex-wrap gap-2 rounded-xl border border-[#d7dce5] bg-slate-50 p-1">
             {tabs
-              .filter((tab) => !("adminOnly" in tab && tab.adminOnly && user?.role !== "ADMIN"))
+              .filter(
+                (tab) => !("adminOnly" in tab && tab.adminOnly && user?.role !== UserRole.ADMIN),
+              )
               .map((tab) => (
-              <button
-                className={tab.id === activeTab ? "tab-active" : "tab"}
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                type="button"
-              >
-                {tab.label}
-              </button>
-            ))}
+                <button
+                  className={tab.id === activeTab ? "tab-active" : "tab"}
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  type="button"
+                >
+                  {tab.label}
+                </button>
+              ))}
           </nav>
         </section>
 
@@ -604,11 +606,13 @@ export default function DashboardPage() {
 
         {activeTab === "transfers" ? (
           <section className="grid gap-4 lg:grid-cols-[340px_1fr]">
-            <form
-              className="surface grid h-fit gap-4 p-4"
-              onSubmit={handleCreateTransfer}
-            >
-              <div><p className="m-0 text-xs font-black uppercase tracking-[0.14em] text-[#0f766e]">Transfer</p><h2 className="m-0 mt-1 text-lg font-black">Create request</h2></div>
+            <form className="surface grid h-fit gap-4 p-4" onSubmit={handleCreateTransfer}>
+              <div>
+                <p className="m-0 text-xs font-black uppercase tracking-[0.14em] text-[#0f766e]">
+                  Transfer
+                </p>
+                <h2 className="m-0 mt-1 text-lg font-black">Create request</h2>
+              </div>
               <label className="field">
                 <span>From branch</span>
                 <select
@@ -687,7 +691,7 @@ export default function DashboardPage() {
                 />
               </label>
               <TransferList
-                isAdmin={user.role === "ADMIN"}
+                isAdmin={user.role === UserRole.ADMIN}
                 isLoading={transfersQuery.isLoading}
                 items={transferItems}
                 onApprove={(id) => approveTransfer.mutate(id)}
@@ -703,8 +707,12 @@ export default function DashboardPage() {
           <section className="grid gap-4">
             <div className="surface flex items-center justify-between gap-4 p-5 max-sm:flex-col max-sm:items-start">
               <div>
-                <h2 className="m-0 text-lg font-black tracking-tight text-[#172033]">Spreadsheet Ingestion</h2>
-                <p className="m-0 mt-1 text-xs font-medium text-[#5c667a]">Upload, audit, preview, and commit Excel inventory files.</p>
+                <h2 className="m-0 text-lg font-black tracking-tight text-[#172033]">
+                  Spreadsheet Ingestion
+                </h2>
+                <p className="m-0 mt-1 text-xs font-medium text-[#5c667a]">
+                  Upload, audit, preview, and commit Excel inventory files.
+                </p>
               </div>
               <button
                 onClick={() => setIsUploadModalOpen(true)}
@@ -712,7 +720,12 @@ export default function DashboardPage() {
                 type="button"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M12 4v16m8-8H4"
+                  />
                 </svg>
                 <span>Ingest Spreadsheet</span>
               </button>
@@ -734,7 +747,12 @@ export default function DashboardPage() {
                     type="button"
                   >
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
                     </svg>
                   </button>
 
@@ -765,7 +783,9 @@ export default function DashboardPage() {
 
                     {/* Drag and Drop Zone */}
                     <div className="field">
-                      <span className="text-sm font-semibold text-[#475569]">Spreadsheet (.xlsx)</span>
+                      <span className="text-sm font-semibold text-[#475569]">
+                        Spreadsheet (.xlsx)
+                      </span>
                       {!selectedFile ? (
                         <div
                           className={`mt-1.5 flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-all duration-300 ${
@@ -801,25 +821,54 @@ export default function DashboardPage() {
                               if (file) setSelectedFile(file);
                             }}
                           />
-                          <svg className="mx-auto h-8 w-8 text-[#64748b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          <svg
+                            className="mx-auto h-8 w-8 text-[#64748b]"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                            />
                           </svg>
-                          <p className="mt-2 text-xs font-semibold text-[#334155]">Drag and drop spreadsheet here</p>
+                          <p className="mt-2 text-xs font-semibold text-[#334155]">
+                            Drag and drop spreadsheet here
+                          </p>
                           <p className="mt-1 text-[11px] text-[#64748b]">
-                            or <span className="text-[#0f766e] underline font-semibold cursor-pointer">browse your computer</span>
+                            or{" "}
+                            <span className="text-[#0f766e] underline font-semibold cursor-pointer">
+                              browse your computer
+                            </span>
                           </p>
                         </div>
                       ) : (
                         <div className="mt-1.5 flex items-center justify-between rounded-xl border border-teal-100 bg-teal-50/10 p-4 shadow-sm">
                           <div className="flex items-center gap-3 overflow-hidden">
                             <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-teal-50 text-[#0f766e]">
-                              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              <svg
+                                className="h-5 w-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                />
                               </svg>
                             </div>
                             <div className="overflow-hidden">
-                              <p className="truncate text-xs font-semibold text-[#1e293b]">{selectedFile.name}</p>
-                              <p className="text-[10px] text-[#64748b]">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                              <p className="truncate text-xs font-semibold text-[#1e293b]">
+                                {selectedFile.name}
+                              </p>
+                              <p className="text-[10px] text-[#64748b]">
+                                {(selectedFile.size / 1024).toFixed(1)} KB
+                              </p>
                             </div>
                           </div>
                           <button
@@ -830,8 +879,18 @@ export default function DashboardPage() {
                             }}
                             className="rounded-full p-1 text-[#94a3b8] hover:bg-slate-100 hover:text-[#ef4444] transition-colors"
                           >
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            <svg
+                              className="h-4 w-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
                             </svg>
                           </button>
                         </div>
@@ -843,7 +902,9 @@ export default function DashboardPage() {
                       <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
                         <div className="flex items-center justify-between text-xs font-semibold">
                           <span className="text-[#334155] flex items-center gap-1.5 font-semibold">
-                            {ingestionStage === "uploading" ? "Uploading to S3..." : "Validating database staging..."}
+                            {ingestionStage === "uploading"
+                              ? "Uploading to S3..."
+                              : "Validating database staging..."}
                           </span>
                           <span className="font-bold text-[#0f766e]">{uploadProgress}%</span>
                         </div>
@@ -887,14 +948,11 @@ export default function DashboardPage() {
             />
 
             {selectedImportId ? (
-              <ImportPreviewModal
-                job={selectedImportJob}
-                onClose={() => setSelectedImportId("")}
-              >
+              <ImportPreviewModal job={selectedImportJob} onClose={() => setSelectedImportId("")}>
                 <ImportPreview
                   isLoading={previewQuery.isLoading}
                   rows={previewQuery.data ?? []}
-                  canConfirm={Boolean(selectedImportJob?.status === "PREVIEW_READY")}
+                  canConfirm={Boolean(selectedImportJob?.status === ImportStatus.PREVIEW_READY)}
                   onConfirm={() => selectedImportId && confirmImport.mutate(selectedImportId)}
                   isConfirming={confirmImport.isPending}
                   currentPage={previewPage}
@@ -916,7 +974,7 @@ export default function DashboardPage() {
           />
         ) : null}
 
-        {activeTab === "dlq" && user?.role === "ADMIN" ? (
+        {activeTab === "dlq" && user?.role === UserRole.ADMIN ? (
           <DlqTab
             items={dlqQuery.data ?? []}
             isLoading={dlqQuery.isLoading}
@@ -928,7 +986,7 @@ export default function DashboardPage() {
           />
         ) : null}
 
-        {activeTab === "reconciliation" && user?.role === "ADMIN" ? (
+        {activeTab === "reconciliation" && user?.role === UserRole.ADMIN ? (
           <ReconciliationTab
             issues={reconQuery.data ?? []}
             isLoading={reconQuery.isLoading}
@@ -949,7 +1007,9 @@ export default function DashboardPage() {
 function ShellMessage({ children }: { children: ReactNode }) {
   return (
     <main className="mx-auto min-h-screen w-[calc(100%_-_48px)] max-w-[960px] py-16 max-md:w-[calc(100%_-_32px)] max-md:py-8 animate-fade-in">
-      <section className="rounded-xl border border-border bg-white p-7 shadow-sm">{children}</section>
+      <section className="rounded-xl border border-border bg-white p-7 shadow-sm">
+        {children}
+      </section>
     </main>
   );
 }
@@ -1132,7 +1192,7 @@ function TransferList({
                   </td>
                   <td>{item.rejectReason ?? item.note ?? "-"}</td>
                   <td>
-                    {isAdmin && item.status === "PENDING" ? (
+                    {isAdmin && item.status === TransferStatus.PENDING ? (
                       <div className="flex gap-2">
                         <button
                           className="button-small-primary"
@@ -1210,7 +1270,8 @@ function ImportJobsTable({
             ) : null}
             {!isLoading &&
               paginatedItems.map((item) => {
-                const isProcessing = item.status === "UPLOADED" || item.status === "VALIDATING";
+                const isProcessing =
+                  item.status === ImportStatus.UPLOADED || item.status === ImportStatus.VALIDATING;
                 return (
                   <tr key={item.id}>
                     <td className="font-bold">{item.fileName ?? "Untitled"}</td>
@@ -1240,9 +1301,13 @@ function ImportJobsTable({
                         onClick={() => !isProcessing && onSelect(item.id)}
                         type="button"
                         disabled={isProcessing}
-                        title={isProcessing ? "File is still processing in cloud" : "Click to preview staged rows"}
+                        title={
+                          isProcessing
+                            ? "File is still processing in cloud"
+                            : "Click to preview staged rows"
+                        }
                       >
-                        {item.status === "VALIDATING" ? "Parsing..." : "Preview"}
+                        {item.status === ImportStatus.VALIDATING ? "Parsing..." : "Preview"}
                       </button>
                     </td>
                   </tr>
@@ -1276,12 +1341,26 @@ function ImportPreviewModal({
       <div className="relative grid max-h-[90vh] w-full max-w-[1120px] overflow-hidden rounded-2xl border border-white/70 bg-white shadow-2xl shadow-slate-950/25 animate-macbook-modal">
         <div className="flex items-center justify-between gap-4 border-b border-border bg-slate-50/80 px-5 py-4">
           <div className="min-w-0">
-            <p className="m-0 text-xs font-black uppercase tracking-[0.16em] text-[#0f766e]">Import preview</p>
-            <h2 className="m-0 mt-1 truncate text-lg font-black text-[#172033]">{job?.fileName ?? "Spreadsheet preview"}</h2>
+            <p className="m-0 text-xs font-black uppercase tracking-[0.16em] text-[#0f766e]">
+              Import preview
+            </p>
+            <h2 className="m-0 mt-1 truncate text-lg font-black text-[#172033]">
+              {job?.fileName ?? "Spreadsheet preview"}
+            </h2>
           </div>
-          <button className="button-secondary min-h-9 px-3" onClick={onClose} type="button" aria-label="Close preview">
+          <button
+            className="button-secondary min-h-9 px-3"
+            onClick={onClose}
+            type="button"
+            aria-label="Close preview"
+          >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
             Close
           </button>
@@ -1312,7 +1391,7 @@ function ImportPreview({
   const pageSize = 6;
   const totalPages = Math.ceil(rows.length / pageSize);
   const paginatedRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const validCount = rows.filter((row) => row.validationStatus === "VALID").length;
+  const validCount = rows.filter((row) => row.validationStatus === ImportRowStatus.VALID).length;
   const invalidCount = rows.length - validCount;
 
   return (
@@ -1321,14 +1400,26 @@ function ImportPreview({
       <div className="flex items-center justify-between gap-4 border-b border-border p-4 max-md:flex-col max-md:items-start bg-slate-50/70">
         <div>
           <h2 className="m-0 text-lg font-black text-[#172033] tracking-tight uppercase flex items-center gap-2">
-            <svg className="h-5 w-5 text-[#0f766e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <svg
+              className="h-5 w-5 text-[#0f766e]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
             </svg>
             Ingestion Details & Audit Workspace
           </h2>
-          <p className="text-xs text-[#5c667a] mt-0.5 font-medium">Verify spreadsheet layout staging before final cloud write</p>
+          <p className="text-xs text-[#5c667a] mt-0.5 font-medium">
+            Verify spreadsheet layout staging before final cloud write
+          </p>
         </div>
-        
+
         {rows.length > 0 ? (
           canConfirm ? (
             <button
@@ -1342,7 +1433,12 @@ function ImportPreview({
           ) : (
             <span className="text-xs font-bold text-[#0f766e] bg-teal-50 border border-teal-200/50 px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm animate-pulse">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2.5}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
               Ingested & Synced
             </span>
@@ -1355,36 +1451,57 @@ function ImportPreview({
         <div className="grid grid-cols-1 gap-3 border-b border-border bg-slate-50/20 p-4 sm:grid-cols-3">
           <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm flex items-center justify-between">
             <div>
-              <span className="text-[10px] font-bold uppercase text-[#64748b] tracking-wider">Total Rows Staged</span>
+              <span className="text-[10px] font-bold uppercase text-[#64748b] tracking-wider">
+                Total Rows Staged
+              </span>
               <p className="text-2xl font-black text-[#1e293b] mt-1">{rows.length}</p>
             </div>
             <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6h16M4 10h16M4 14h16M4 18h16"
+                />
               </svg>
             </div>
           </div>
 
           <div className="rounded-xl border border-emerald-100 bg-emerald-50/10 p-4 shadow-sm flex items-center justify-between">
             <div>
-              <span className="text-[10px] font-bold uppercase text-emerald-600 tracking-wider">Valid Rows</span>
+              <span className="text-[10px] font-bold uppercase text-emerald-600 tracking-wider">
+                Valid Rows
+              </span>
               <p className="text-2xl font-black text-emerald-700 mt-1">{validCount}</p>
             </div>
             <div className="rounded-lg bg-emerald-100/50 p-2 text-emerald-700">
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
           </div>
 
           <div className="rounded-xl border border-rose-100 bg-rose-50/10 p-4 shadow-sm flex items-center justify-between">
             <div>
-              <span className="text-[10px] font-bold uppercase text-rose-600 tracking-wider">Invalid / Failed Rows</span>
+              <span className="text-[10px] font-bold uppercase text-rose-600 tracking-wider">
+                Invalid / Failed Rows
+              </span>
               <p className="text-2xl font-black text-rose-700 mt-1">{invalidCount}</p>
             </div>
             <div className="rounded-lg bg-rose-100/50 p-2 text-rose-700">
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
               </svg>
             </div>
           </div>
@@ -1405,29 +1522,54 @@ function ImportPreview({
           <tbody>
             {isLoading ? <TableState colSpan={5} text="Loading preview..." /> : null}
             {!isLoading && rows.length === 0 ? (
-              <TableState colSpan={5} text="Select an import job to display interactive audit logs." />
+              <TableState
+                colSpan={5}
+                text="Select an import job to display interactive audit logs."
+              />
             ) : null}
             {!isLoading &&
               paginatedRows.map((row) => (
                 <tr key={row.id} className="hover:bg-slate-50/50 transition-colors duration-150">
                   <td className="font-semibold text-slate-500">{row.rowNumber}</td>
                   <td className="font-bold text-[#1e293b]">{row.sku ?? "-"}</td>
-                  <td className="font-medium text-[#334155]">{String(row.normalizedData?.name ?? "-")}</td>
+                  <td className="font-medium text-[#334155]">
+                    {String(row.normalizedData?.name ?? "-")}
+                  </td>
                   <td>
                     <StatusPill status={row.validationStatus} />
                   </td>
                   <td className="max-w-[450px] whitespace-normal text-xs text-rose-700 font-semibold leading-relaxed">
                     {row.errorMessage ? (
                       <span className="flex items-center gap-1.5">
-                        <svg className="h-4 w-4 shrink-0 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        <svg
+                          className="h-4 w-4 shrink-0 text-rose-500"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2.5}
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                          />
                         </svg>
                         {row.errorMessage}
                       </span>
                     ) : (
                       <span className="text-emerald-700 font-medium flex items-center gap-1.5">
-                        <svg className="h-4 w-4 shrink-0 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4" />
+                        <svg
+                          className="h-4 w-4 shrink-0 text-emerald-500"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2.5}
+                            d="M9 12l2 2 4-4"
+                          />
                         </svg>
                         Ready for Cloud Storage
                       </span>
@@ -1494,14 +1636,21 @@ function Pagination({
           </p>
         </div>
         <div>
-          <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+          <nav
+            className="isolate inline-flex -space-x-px rounded-md shadow-sm"
+            aria-label="Pagination"
+          >
             <button
               disabled={currentPage === 1}
               onClick={() => onPageChange(currentPage - 1)}
               className="relative inline-flex items-center rounded-l-md px-2 py-1.5 text-[#64748b] ring-1 ring-inset ring-[#e2e8f0] hover:bg-slate-50 disabled:opacity-40"
             >
               <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
+                  clipRule="evenodd"
+                />
               </svg>
             </button>
             {Array.from({ length: totalPages }).map((_, idx) => {
@@ -1528,7 +1677,11 @@ function Pagination({
               className="relative inline-flex items-center rounded-r-md px-2 py-1.5 text-[#64748b] ring-1 ring-inset ring-[#e2e8f0] hover:bg-slate-50 disabled:opacity-40"
             >
               <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+                  clipRule="evenodd"
+                />
               </svg>
             </button>
           </nav>
@@ -1550,11 +1703,17 @@ function TableHeader({
   return (
     <div
       className={
-        compact ? "" : "flex items-center justify-between gap-3 border-b border-border p-4 bg-slate-50/50"
+        compact
+          ? ""
+          : "flex items-center justify-between gap-3 border-b border-border p-4 bg-slate-50/50"
       }
     >
-      <h2 className="m-0 text-sm font-extrabold text-[#172033] tracking-tight uppercase">{title}</h2>
-      <span className="text-xs font-bold text-[#5c667a] bg-slate-100 px-2 py-0.5 rounded-full">{count} items</span>
+      <h2 className="m-0 text-sm font-extrabold text-[#172033] tracking-tight uppercase">
+        {title}
+      </h2>
+      <span className="text-xs font-bold text-[#5c667a] bg-slate-100 px-2 py-0.5 rounded-full">
+        {count} items
+      </span>
     </div>
   );
 }
@@ -1571,17 +1730,32 @@ function TableState({ colSpan, text }: { colSpan: number; text: string }) {
 
 function StatusPill({ status }: { status: string }) {
   let tone = "bg-slate-50 text-slate-700 border-slate-200";
-  
-  if (status === "VALID" || status === "COMPLETED" || status === "APPROVED") {
+
+  if (
+    status === ImportRowStatus.VALID ||
+    status === ExportJobStatus.COMPLETED ||
+    status === TransferStatus.APPROVED
+  ) {
     tone = "bg-emerald-50 text-emerald-700 border-emerald-200/50";
-  } else if (status === "INVALID" || status === "REJECTED" || status === "FAILED") {
+  } else if (
+    status === ImportRowStatus.INVALID ||
+    status === TransferStatus.REJECTED ||
+    status === ExportJobStatus.FAILED
+  ) {
     tone = "bg-rose-50 text-rose-700 border-rose-200/50";
-  } else if (status === "PROCESSING" || status === "VALIDATING" || status === "COMMITTING" || status === "PENDING") {
+  } else if (
+    status === ExportJobStatus.PROCESSING ||
+    status === ImportStatus.VALIDATING ||
+    status === ImportStatus.COMMITTING ||
+    status === TransferStatus.PENDING
+  ) {
     tone = "bg-amber-50 text-amber-700 border-amber-200/50";
   }
 
   return (
-    <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${tone}`}>
+    <span
+      className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${tone}`}
+    >
       {status}
     </span>
   );
@@ -1592,11 +1766,11 @@ function messageFromError(error: Error) {
 }
 
 const reportTypes = [
-  { id: "inventory", label: "Full Inventory", icon: "📦" },
-  { id: "low-stock", label: "Low Stock Alert", icon: "⚠️" },
-  { id: "transfers", label: "Transfer History", icon: "🔄" },
-  { id: "import-history", label: "Import Jobs", icon: "📥" },
-  { id: "stock-movements", label: "Stock Movements", icon: "📊" },
+  { id: ReportType.INVENTORY, label: "Full Inventory", icon: "📦" },
+  { id: ReportType.LOW_STOCK, label: "Low Stock Alert", icon: "⚠️" },
+  { id: ReportType.TRANSFERS, label: "Transfer History", icon: "🔄" },
+  { id: ReportType.IMPORT_HISTORY, label: "Import Jobs", icon: "📥" },
+  { id: ReportType.STOCK_MOVEMENTS, label: "Stock Movements", icon: "📊" },
 ] as const;
 
 function ReportsTab({
@@ -1609,7 +1783,7 @@ function ReportsTab({
 }: {
   exports: ExportJob[];
   isLoading: boolean;
-  onCreateExport: (type: string) => void;
+  onCreateExport: (type: ReportType) => void;
   isCreating: boolean;
   currentPage: number;
   onPageChange: (page: number) => void;
@@ -1623,7 +1797,9 @@ function ReportsTab({
       <div className="surface p-5">
         <div className="mb-4">
           <h2 className="m-0 text-lg font-black tracking-tight text-[#172033]">Export Reports</h2>
-          <p className="m-0 mt-1 text-xs font-medium text-[#5c667a]">Generate CSV reports from inventory data and download from S3.</p>
+          <p className="m-0 mt-1 text-xs font-medium text-[#5c667a]">
+            Generate CSV reports from inventory data and download from S3.
+          </p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           {reportTypes.map((report) => (
@@ -1658,7 +1834,10 @@ function ReportsTab({
             <tbody>
               {isLoading ? <TableState colSpan={6} text="Loading exports..." /> : null}
               {!isLoading && exportJobs.length === 0 ? (
-                <TableState colSpan={6} text="No exports yet. Click a report type above to generate." />
+                <TableState
+                  colSpan={6}
+                  text="No exports yet. Click a report type above to generate."
+                />
               ) : null}
               {!isLoading &&
                 paginatedItems.map((job) => (
@@ -1673,7 +1852,7 @@ function ReportsTab({
                       {new Date(job.createdAt).toLocaleString("vi-VN", { hour12: false })}
                     </td>
                     <td>
-                      {job.status === "COMPLETED" ? (
+                      {job.status === ExportJobStatus.COMPLETED ? (
                         <a
                           href={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api"}/reports/export/${job.id}/download`}
                           className="button-small-primary no-underline"
@@ -1682,7 +1861,7 @@ function ReportsTab({
                         >
                           Download
                         </a>
-                      ) : job.status === "FAILED" ? (
+                      ) : job.status === ExportJobStatus.FAILED ? (
                         <span className="text-xs text-red-600" title={job.errorMessage ?? ""}>
                           Failed
                         </span>
@@ -1733,9 +1912,12 @@ function DlqTab({
       <div className="surface p-5">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="m-0 text-lg font-black tracking-tight text-[#172033]">Dead Letter Queue</h2>
+            <h2 className="m-0 text-lg font-black tracking-tight text-[#172033]">
+              Dead Letter Queue
+            </h2>
             <p className="m-0 mt-1 text-xs font-medium text-[#5c667a]">
-              Failed import jobs that can be replayed or discarded. {items.length} failed job{items.length !== 1 ? "s" : ""}.
+              Failed import jobs that can be replayed or discarded. {items.length} failed job
+              {items.length !== 1 ? "s" : ""}.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -1833,8 +2015,8 @@ function ReconciliationTab({
   onRun: () => void;
   onResolve: (id: string) => void;
   isRunning: boolean;
-  statusFilter: string;
-  onStatusFilterChange: (v: string) => void;
+  statusFilter: ReconciliationStatus | "";
+  onStatusFilterChange: (v: ReconciliationStatus | "") => void;
   currentPage: number;
   onPageChange: (page: number) => void;
 }) {
@@ -1847,7 +2029,9 @@ function ReconciliationTab({
       <div className="surface p-5">
         <div className="flex items-center justify-between gap-4 max-sm:flex-col max-sm:items-start">
           <div>
-            <h2 className="m-0 text-lg font-black tracking-tight text-[#172033]">Stock Reconciliation</h2>
+            <h2 className="m-0 text-lg font-black tracking-tight text-[#172033]">
+              Stock Reconciliation
+            </h2>
             <p className="m-0 mt-1 text-xs font-medium text-[#5c667a]">
               Compares inventory quantities against stock movement ledger to detect mismatches.
             </p>
@@ -1856,12 +2040,12 @@ function ReconciliationTab({
             <select
               className="input max-w-[160px] text-xs"
               value={statusFilter}
-              onChange={(e) => onStatusFilterChange(e.target.value)}
+              onChange={(e) => onStatusFilterChange(e.target.value as ReconciliationStatus | "")}
             >
               <option value="">All statuses</option>
-              <option value="OPEN">Open</option>
-              <option value="RESOLVED">Resolved</option>
-              <option value="IGNORED">Ignored</option>
+              <option value={ReconciliationStatus.OPEN}>Open</option>
+              <option value={ReconciliationStatus.RESOLVED}>Resolved</option>
+              <option value={ReconciliationStatus.IGNORED}>Ignored</option>
             </select>
             <button
               className="button-primary px-5"
@@ -1893,9 +2077,14 @@ function ReconciliationTab({
               </tr>
             </thead>
             <tbody>
-              {isLoading ? <TableState colSpan={9} text="Loading reconciliation issues..." /> : null}
+              {isLoading ? (
+                <TableState colSpan={9} text="Loading reconciliation issues..." />
+              ) : null}
               {!isLoading && issues.length === 0 ? (
-                <TableState colSpan={9} text="No reconciliation issues found. Inventory is consistent! ✅" />
+                <TableState
+                  colSpan={9}
+                  text="No reconciliation issues found. Inventory is consistent! ✅"
+                />
               ) : null}
               {!isLoading &&
                 paginatedItems.map((issue) => (
@@ -1926,7 +2115,7 @@ function ReconciliationTab({
                       {new Date(issue.detectedAt).toLocaleString("vi-VN", { hour12: false })}
                     </td>
                     <td>
-                      {issue.status === "OPEN" ? (
+                      {issue.status === ReconciliationStatus.OPEN ? (
                         <button
                           className="button-small-primary"
                           onClick={() => onResolve(issue.id)}
@@ -1958,4 +2147,3 @@ function ReconciliationTab({
     </section>
   );
 }
-

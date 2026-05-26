@@ -1,8 +1,9 @@
+import { REPORT_TYPES } from "@stockflow/shared";
 import { z } from "zod";
 import { paginationQuerySchema } from "../common/schemas/pagination.schema";
 
 export const createExportBodySchema = z.object({
-  reportType: z.enum(["inventory", "low-stock", "transfers", "import-history", "stock-movements"]),
+  reportType: z.enum(REPORT_TYPES),
   filters: z
     .object({
       branchId: z.string().uuid().optional(),

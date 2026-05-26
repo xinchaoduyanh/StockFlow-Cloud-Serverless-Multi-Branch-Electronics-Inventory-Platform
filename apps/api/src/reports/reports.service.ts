@@ -1,11 +1,30 @@
+import { ReportType } from "@stockflow/shared";
 import { Injectable, Logger } from "@nestjs/common";
-import { ExportJobStatus } from "@prisma/client";
+import { ExportJobStatus, ReportType as PrismaReportType, type ExportJob } from "@prisma/client";
 import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
 import { EnvService } from "../config/env.service";
 import { PrismaService } from "../database/prisma.service";
 import { S3Service } from "../imports/s3.service";
 import { CreateExportBody, ExportListQuery } from "./reports.schemas";
+
+const prismaReportTypeByExternal: Record<ReportType, PrismaReportType> = {
+  [ReportType.INVENTORY]: PrismaReportType.INVENTORY,
+  [ReportType.LOW_STOCK]: PrismaReportType.LOW_STOCK,
+  [ReportType.TRANSFERS]: PrismaReportType.TRANSFERS,
+  [ReportType.IMPORT_HISTORY]: PrismaReportType.IMPORT_HISTORY,
+  [ReportType.STOCK_MOVEMENTS]: PrismaReportType.STOCK_MOVEMENTS,
+};
+
+const externalReportTypeByPrisma: Record<PrismaReportType, ReportType> = {
+  [PrismaReportType.INVENTORY]: ReportType.INVENTORY,
+  [PrismaReportType.LOW_STOCK]: ReportType.LOW_STOCK,
+  [PrismaReportType.TRANSFERS]: ReportType.TRANSFERS,
+  [PrismaReportType.IMPORT_HISTORY]: ReportType.IMPORT_HISTORY,
+  [PrismaReportType.STOCK_MOVEMENTS]: ReportType.STOCK_MOVEMENTS,
+};
+
+type SerializedExportJob = Omit<ExportJob, "reportType"> & { reportType: ReportType };
 
 @Injectable()
 export class ReportsService {
@@ -20,7 +39,7 @@ export class ReportsService {
   async createExport(input: CreateExportBody, actorId?: string) {
     const job = await this.prisma.exportJob.create({
       data: {
-        reportType: input.reportType,
+        reportType: prismaReportTypeByExternal[input.reportType],
         status: ExportJobStatus.PENDING,
         filters: input.filters ?? undefined,
         createdBy: actorId,
@@ -44,17 +63,18 @@ export class ReportsService {
 
   async listExports(query: ExportListQuery) {
     const { skip, take } = toPagination(query);
-    return this.prisma.exportJob.findMany({
+    const jobs = await this.prisma.exportJob.findMany({
       skip,
       take,
       orderBy: { createdAt: "desc" },
     });
+    return jobs.map((job) => this.serializeExportJob(job));
   }
 
   async getExport(id: string) {
     const job = await this.prisma.exportJob.findUnique({ where: { id } });
     if (!job) throw ApiErrors.notFound("Export job not found");
-    return job;
+    return this.serializeExportJob(job);
   }
 
   async getDownloadUrl(id: string) {
@@ -74,8 +94,7 @@ export class ReportsService {
 
     const s3Client = new S3Client({
       region,
-      credentials:
-        accessKeyId && secretAccessKey ? { accessKeyId, secretAccessKey } : undefined,
+      credentials: accessKeyId && secretAccessKey ? { accessKeyId, secretAccessKey } : undefined,
       endpoint: endpoint || undefined,
       forcePathStyle: endpoint ? true : undefined,
     });
@@ -88,6 +107,14 @@ export class ReportsService {
     const url = await getSignedUrl(s3Client, command, { expiresIn: 600 });
 
     return { url, fileName: job.fileName };
+  }
+
+  private serializeExportJob(job: ExportJob): SerializedExportJob {
+    return { ...job, reportType: this.toExternalReportType(job.reportType) };
+  }
+
+  private toExternalReportType(reportType: PrismaReportType): ReportType {
+    return externalReportTypeByPrisma[reportType];
   }
 
   private async invokeLambda(arn: string, payload: Record<string, unknown>) {
@@ -119,10 +146,10 @@ export class ReportsService {
       let totalRecords: number;
 
       switch (job.reportType) {
-        case "inventory":
+        case PrismaReportType.INVENTORY:
           ({ csv: csvContent, total: totalRecords } = await this.generateInventoryReport(filters));
           break;
-        case "low-stock":
+        case PrismaReportType.LOW_STOCK:
           ({ csv: csvContent, total: totalRecords } = await this.generateLowStockReport(filters));
           break;
         default:
@@ -135,7 +162,7 @@ export class ReportsService {
         data: {
           status: ExportJobStatus.COMPLETED,
           totalRecords,
-          fileName: `${job.reportType}-${Date.now()}.csv`,
+          fileName: `${this.toExternalReportType(job.reportType)}-${Date.now()}.csv`,
           completedAt: new Date(),
         },
       });

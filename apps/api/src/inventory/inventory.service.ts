@@ -1,3 +1,4 @@
+import { StockMovementReferenceType } from "@stockflow/shared";
 import { Injectable } from "@nestjs/common";
 import { Prisma, StockMovementType } from "@prisma/client";
 import { ApiErrors } from "../common/errors/api-error";
@@ -126,7 +127,7 @@ export class InventoryService {
               ? StockMovementType.ADJUSTMENT_IN
               : StockMovementType.ADJUSTMENT_OUT,
           quantityChange: input.quantityChange,
-          referenceType: "INVENTORY_ADJUSTMENT",
+          referenceType: StockMovementReferenceType.INVENTORY_ADJUSTMENT,
           createdBy: actorId,
         },
       });

@@ -1,3 +1,4 @@
+import { ImportPipelineAction, StockMovementReferenceType } from "@stockflow/shared";
 import { PrismaClient, ImportStatus, ImportRowStatus, StockMovementType } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -23,7 +24,7 @@ export const handler = async (event: any) => {
     }
 
     // 1. Check for CANCEL action
-    if (action === "CANCEL" || job.status === ImportStatus.CANCELLED) {
+    if (action === ImportPipelineAction.CANCEL || job.status === ImportStatus.CANCELLED) {
       await prisma.importJob.update({
         where: { id: importJobId },
         data: { status: ImportStatus.CANCELLED },
@@ -77,90 +78,94 @@ export const handler = async (event: any) => {
     // 4. Batch transaction commit loop
     for (let i = 0; i < stagedRows.length; i += CHUNK_SIZE) {
       const chunk = stagedRows.slice(i, i + CHUNK_SIZE);
-      console.log(`Processing chunk ${i / CHUNK_SIZE + 1} of ${Math.ceil(stagedRows.length / CHUNK_SIZE)}`);
+      console.log(
+        `Processing chunk ${i / CHUNK_SIZE + 1} of ${Math.ceil(stagedRows.length / CHUNK_SIZE)}`,
+      );
 
       try {
-        await prisma.$transaction(async (tx) => {
-          for (const row of chunk) {
-            const data = row.normalizedData as any;
+        await prisma.$transaction(
+          async (tx) => {
+            for (const row of chunk) {
+              const data = row.normalizedData as any;
 
-            // Upsert the core component record
-            const component = await tx.component.upsert({
-              where: { sku: data.sku },
-              update: {
-                name: data.name,
-                brand: data.brand,
-                category: data.category,
-                specs: toSpecs(data),
-                unitPrice: data.unitPrice,
-                supplier: data.supplier,
-                warrantyMonths: data.warrantyMonths,
-              },
-              create: {
-                sku: data.sku,
-                name: data.name,
-                brand: data.brand,
-                category: data.category,
-                specs: toSpecs(data),
-                unitPrice: data.unitPrice,
-                supplier: data.supplier,
-                warrantyMonths: data.warrantyMonths,
-              },
-            });
+              // Upsert the core component record
+              const component = await tx.component.upsert({
+                where: { sku: data.sku },
+                update: {
+                  name: data.name,
+                  brand: data.brand,
+                  category: data.category,
+                  specs: toSpecs(data),
+                  unitPrice: data.unitPrice,
+                  supplier: data.supplier,
+                  warrantyMonths: data.warrantyMonths,
+                },
+                create: {
+                  sku: data.sku,
+                  name: data.name,
+                  brand: data.brand,
+                  category: data.category,
+                  specs: toSpecs(data),
+                  unitPrice: data.unitPrice,
+                  supplier: data.supplier,
+                  warrantyMonths: data.warrantyMonths,
+                },
+              });
 
-            // Upsert the inventory stock balance
-            await tx.inventory.upsert({
-              where: {
-                branchId_componentId: {
+              // Upsert the inventory stock balance
+              await tx.inventory.upsert({
+                where: {
+                  branchId_componentId: {
+                    branchId: job.branchId,
+                    componentId: component.id,
+                  },
+                },
+                update: {
+                  quantity: { increment: data.quantity },
+                  version: { increment: 1 },
+                },
+                create: {
                   branchId: job.branchId,
                   componentId: component.id,
+                  quantity: data.quantity,
                 },
-              },
-              update: {
-                quantity: { increment: data.quantity },
-                version: { increment: 1 },
-              },
-              create: {
-                branchId: job.branchId,
-                componentId: component.id,
-                quantity: data.quantity,
-              },
-            });
+              });
 
-            // Create stock movement ledger audit entry
-            await tx.stockMovement.create({
-              data: {
-                branchId: job.branchId,
-                componentId: component.id,
-                movementType: StockMovementType.IMPORT_IN,
-                quantityChange: data.quantity,
-                referenceType: "IMPORT_JOB",
-                referenceId: job.id,
-                createdBy: job.createdBy,
-              },
-            });
+              // Create stock movement ledger audit entry
+              await tx.stockMovement.create({
+                data: {
+                  branchId: job.branchId,
+                  componentId: component.id,
+                  movementType: StockMovementType.IMPORT_IN,
+                  quantityChange: data.quantity,
+                  referenceType: StockMovementReferenceType.IMPORT_JOB,
+                  referenceId: job.id,
+                  createdBy: job.createdBy,
+                },
+              });
 
-            // Update staged row state to COMMITTED
-            await tx.importJobRow.update({
-              where: { id: row.id },
-              data: {
-                validationStatus: ImportRowStatus.COMMITTED,
-                processedAt: new Date(),
-              },
-            });
-          }
-        }, {
-          timeout: 20000 // 20s timeout limit to protect Neon pgBouncer pool
-        });
+              // Update staged row state to COMMITTED
+              await tx.importJobRow.update({
+                where: { id: row.id },
+                data: {
+                  validationStatus: ImportRowStatus.COMMITTED,
+                  processedAt: new Date(),
+                },
+              });
+            }
+          },
+          {
+            timeout: 20000, // 20s timeout limit to protect Neon pgBouncer pool
+          },
+        );
 
         committedRows += chunk.length;
         console.log(`Successfully committed chunk. Progressive total: ${committedRows}`);
-
       } catch (chunkErr: any) {
         console.error(`Chunk transaction failed: ${chunkErr.message}`);
-        
+
         // Mark only the failed rows in this chunk as FAILED so remaining batches aren't locked out
-        const chunkIds = chunk.map(r => r.id);
+        const chunkIds = chunk.map((r) => r.id);
         await prisma.importJobRow.updateMany({
           where: { id: { in: chunkIds } },
           data: {
@@ -178,9 +183,12 @@ export const handler = async (event: any) => {
     }
 
     // 5. Finalize Parent Job Status
-    const finalStatus = committedRows === stagedRows.length 
-      ? ImportStatus.COMPLETED 
-      : (committedRows > 0 ? ImportStatus.PARTIAL_FAILED : ImportStatus.FAILED);
+    const finalStatus =
+      committedRows === stagedRows.length
+        ? ImportStatus.COMPLETED
+        : committedRows > 0
+          ? ImportStatus.PARTIAL_FAILED
+          : ImportStatus.FAILED;
 
     await prisma.importJob.update({
       where: { id: importJobId },
@@ -197,7 +205,6 @@ export const handler = async (event: any) => {
       importJobId,
       committedRows,
     };
-
   } catch (err: any) {
     console.error("Critical writer execution exception:", err);
     await prisma.importJob.update({

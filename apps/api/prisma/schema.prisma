@@ -77,6 +77,13 @@ enum StockMovementType {
   RECONCILIATION_ADJUSTMENT
 }
 
+enum StockMovementReferenceType {
+  TRANSFER
+  IMPORT_JOB
+  INVENTORY_ADJUSTMENT
+  SYSTEM_SEED
+}
+
 model User {
   id        String     @id @default(uuid()) @db.Uuid
   email     String     @unique @db.VarChar(255)
@@ -238,7 +245,7 @@ model StockMovement {
   componentId   String            @map("component_id") @db.Uuid
   movementType  StockMovementType @map("movement_type")
   quantityChange Int              @map("quantity_change")
-  referenceType String?           @map("reference_type") @db.VarChar(50)
+  referenceType StockMovementReferenceType? @map("reference_type")
   referenceId   String?           @map("reference_id") @db.Uuid
   createdBy     String?           @map("created_by") @db.Uuid
   createdAt     DateTime          @default(now()) @map("created_at")
@@ -284,9 +291,17 @@ enum ExportJobStatus {
   FAILED
 }
 
+enum ReportType {
+  INVENTORY @map("inventory")
+  LOW_STOCK @map("low-stock")
+  TRANSFERS @map("transfers")
+  IMPORT_HISTORY @map("import-history")
+  STOCK_MOVEMENTS @map("stock-movements")
+}
+
 model ExportJob {
   id          String          @id @default(uuid()) @db.Uuid
-  reportType  String          @map("report_type") @db.VarChar(50)
+  reportType  ReportType      @map("report_type")
   status      ExportJobStatus @default(PENDING)
   filters     Json?
   s3Key       String?         @map("s3_key")

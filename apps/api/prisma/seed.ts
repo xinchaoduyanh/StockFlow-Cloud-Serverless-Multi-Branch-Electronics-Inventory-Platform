@@ -1,4 +1,13 @@
-import { ComponentCategory, ImportRowStatus, ImportStatus, PrismaClient, StockMovementType, TransferStatus, UserRole } from "@prisma/client";
+import {
+  ComponentCategory,
+  ImportRowStatus,
+  ImportStatus,
+  PrismaClient,
+  StockMovementReferenceType,
+  StockMovementType,
+  TransferStatus,
+  UserRole,
+} from "@prisma/client";
 import { hashPassword } from "../src/auth/password";
 
 const prisma = new PrismaClient();
@@ -101,7 +110,7 @@ async function main() {
 
   // 3. Seed Components (Electronics items with specific specs)
   console.log("💻 Seeding components...");
-  
+
   // CPUs
   const cpuIntel = await prisma.component.upsert({
     where: { sku: "CPU-INTEL-I5-12400F" },
@@ -301,19 +310,37 @@ async function main() {
     { branchId: branchHN.id, componentId: cpuIntel.id, quantity: 45, reserved: 3, minStock: 5 },
     { branchId: branchHN.id, componentId: cpuAMD.id, quantity: 20, reserved: 0, minStock: 5 },
     { branchId: branchHN.id, componentId: cpuIntel9.id, quantity: 4, reserved: 1, minStock: 5 }, // Low stock shortage (actual 4 < minStock 5)
-    { branchId: branchHN.id, componentId: ramKingston.id, quantity: 120, reserved: 10, minStock: 15 },
+    {
+      branchId: branchHN.id,
+      componentId: ramKingston.id,
+      quantity: 120,
+      reserved: 10,
+      minStock: 15,
+    },
     { branchId: branchHN.id, componentId: ramCorsair.id, quantity: 50, reserved: 0, minStock: 10 },
     { branchId: branchHN.id, componentId: ssdSamsung.id, quantity: 80, reserved: 5, minStock: 10 },
     { branchId: branchHN.id, componentId: ssdKingston.id, quantity: 3, reserved: 0, minStock: 10 }, // Low stock shortage
     { branchId: branchHN.id, componentId: gpuAsus.id, quantity: 15, reserved: 2, minStock: 3 },
     { branchId: branchHN.id, componentId: gpuMsi.id, quantity: 2, reserved: 0, minStock: 8 }, // Low stock shortage
-    { branchId: branchHN.id, componentId: mainboardAsus.id, quantity: 30, reserved: 0, minStock: 8 },
+    {
+      branchId: branchHN.id,
+      componentId: mainboardAsus.id,
+      quantity: 30,
+      reserved: 0,
+      minStock: 8,
+    },
 
     // Branch TP.HCM (BR002)
     { branchId: branchHCM.id, componentId: cpuIntel.id, quantity: 30, reserved: 0, minStock: 5 },
     { branchId: branchHCM.id, componentId: cpuAMD.id, quantity: 25, reserved: 2, minStock: 5 },
     { branchId: branchHCM.id, componentId: cpuIntel9.id, quantity: 8, reserved: 0, minStock: 3 },
-    { branchId: branchHCM.id, componentId: ramKingston.id, quantity: 90, reserved: 0, minStock: 15 },
+    {
+      branchId: branchHCM.id,
+      componentId: ramKingston.id,
+      quantity: 90,
+      reserved: 0,
+      minStock: 15,
+    },
     { branchId: branchHCM.id, componentId: ramCorsair.id, quantity: 1, reserved: 0, minStock: 5 }, // Low stock shortage
     { branchId: branchHCM.id, componentId: ssdSamsung.id, quantity: 40, reserved: 0, minStock: 10 },
     { branchId: branchHCM.id, componentId: gpuAsus.id, quantity: 6, reserved: 0, minStock: 3 },
@@ -350,7 +377,7 @@ async function main() {
         componentId: stock.componentId,
         movementType: StockMovementType.IMPORT_IN,
         quantityChange: stock.quantity,
-        referenceType: "SYSTEM_SEED",
+        referenceType: StockMovementReferenceType.SYSTEM_SEED,
         createdBy: userAdmin.id,
       },
     });
@@ -396,7 +423,7 @@ async function main() {
       },
     },
   });
-  
+
   // Records stock movements for Transfer 2 completed
   await prisma.stockMovement.createMany({
     data: [
@@ -405,7 +432,7 @@ async function main() {
         componentId: gpuMsi.id,
         movementType: StockMovementType.TRANSFER_OUT,
         quantityChange: -4,
-        referenceType: "TRANSFER",
+        referenceType: StockMovementReferenceType.TRANSFER,
         referenceId: transfer2.id,
         createdBy: userAdmin.id,
         createdAt: transfer2.completedAt!,
@@ -415,7 +442,7 @@ async function main() {
         componentId: gpuMsi.id,
         movementType: StockMovementType.TRANSFER_IN,
         quantityChange: 4,
-        referenceType: "TRANSFER",
+        referenceType: StockMovementReferenceType.TRANSFER,
         referenceId: transfer2.id,
         createdBy: userAdmin.id,
         createdAt: transfer2.completedAt!,
@@ -432,7 +459,8 @@ async function main() {
       requestedBy: userManagerHCM.id,
       rejectedBy: userWarehouse.id,
       note: "Xin chuyển 1 con CPU i9 13900K từ HN vào HCM.",
-      rejectReason: "Kho HN hiện chỉ còn 4 chiếc khả dụng (available), chạm ngưỡng tối thiểu nên không thể duyệt chuyển.",
+      rejectReason:
+        "Kho HN hiện chỉ còn 4 chiếc khả dụng (available), chạm ngưỡng tối thiểu nên không thể duyệt chuyển.",
       createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
       rejectedAt: new Date(),
       items: {
@@ -472,8 +500,22 @@ async function main() {
         rowNumber: 2,
         sku: "CPU-INTEL-I5-12400F",
         validationStatus: ImportRowStatus.COMMITTED,
-        rawData: { sku: "CPU-INTEL-I5-12400F", name: "Intel Core i5 12400F", brand: "Intel", category: "CPU", quantity: 20, unit_price: 3200000 },
-        normalizedData: { sku: "CPU-INTEL-I5-12400F", name: "Intel Core i5 12400F", brand: "Intel", category: "CPU", quantity: 20, unitPrice: 3200000 },
+        rawData: {
+          sku: "CPU-INTEL-I5-12400F",
+          name: "Intel Core i5 12400F",
+          brand: "Intel",
+          category: "CPU",
+          quantity: 20,
+          unit_price: 3200000,
+        },
+        normalizedData: {
+          sku: "CPU-INTEL-I5-12400F",
+          name: "Intel Core i5 12400F",
+          brand: "Intel",
+          category: "CPU",
+          quantity: 20,
+          unitPrice: 3200000,
+        },
         idempotencyKey: `seed-row-key-1-2`,
         processedAt: importJob1.completedAt,
       },
@@ -482,8 +524,22 @@ async function main() {
         rowNumber: 3,
         sku: "RAM-KING-8-DDR4",
         validationStatus: ImportRowStatus.COMMITTED,
-        rawData: { sku: "RAM-KING-8-DDR4", name: "Kingston Fury Beast 8GB DDR4", brand: "Kingston", category: "RAM", quantity: 50, unit_price: 550000 },
-        normalizedData: { sku: "RAM-KING-8-DDR4", name: "Kingston Fury Beast 8GB DDR4", brand: "Kingston", category: "RAM", quantity: 50, unitPrice: 550000 },
+        rawData: {
+          sku: "RAM-KING-8-DDR4",
+          name: "Kingston Fury Beast 8GB DDR4",
+          brand: "Kingston",
+          category: "RAM",
+          quantity: 50,
+          unit_price: 550000,
+        },
+        normalizedData: {
+          sku: "RAM-KING-8-DDR4",
+          name: "Kingston Fury Beast 8GB DDR4",
+          brand: "Kingston",
+          category: "RAM",
+          quantity: 50,
+          unitPrice: 550000,
+        },
         idempotencyKey: `seed-row-key-1-3`,
         processedAt: importJob1.completedAt,
       },
@@ -492,8 +548,22 @@ async function main() {
         rowNumber: 4,
         sku: "SSD-SAM-980-1TB",
         validationStatus: ImportRowStatus.COMMITTED,
-        rawData: { sku: "SSD-SAM-980-1TB", name: "Samsung 980 1TB", brand: "Samsung", category: "SSD", quantity: 30, unit_price: 1690000 },
-        normalizedData: { sku: "SSD-SAM-980-1TB", name: "Samsung 980 1TB", brand: "Samsung", category: "SSD", quantity: 30, unitPrice: 1690000 },
+        rawData: {
+          sku: "SSD-SAM-980-1TB",
+          name: "Samsung 980 1TB",
+          brand: "Samsung",
+          category: "SSD",
+          quantity: 30,
+          unit_price: 1690000,
+        },
+        normalizedData: {
+          sku: "SSD-SAM-980-1TB",
+          name: "Samsung 980 1TB",
+          brand: "Samsung",
+          category: "SSD",
+          quantity: 30,
+          unitPrice: 1690000,
+        },
         idempotencyKey: `seed-row-key-1-4`,
         processedAt: importJob1.completedAt,
       },
@@ -524,8 +594,28 @@ async function main() {
         rowNumber: 2,
         sku: "RAM-KING-8-DDR4",
         validationStatus: ImportRowStatus.VALID,
-        rawData: { sku: "RAM-KING-8-DDR4", name: "Kingston Fury Beast 8GB DDR4", brand: "Kingston", category: "RAM", quantity: 15, unit_price: 550000, ddr_generation: "DDR4", speed_mhz: 3200, capacity_gb: 8 },
-        normalizedData: { sku: "RAM-KING-8-DDR4", name: "Kingston Fury Beast 8GB DDR4", brand: "Kingston", category: "RAM", quantity: 15, unitPrice: 550000, ddrGeneration: "DDR4", speedMhz: 3200, capacityGb: 8 },
+        rawData: {
+          sku: "RAM-KING-8-DDR4",
+          name: "Kingston Fury Beast 8GB DDR4",
+          brand: "Kingston",
+          category: "RAM",
+          quantity: 15,
+          unit_price: 550000,
+          ddr_generation: "DDR4",
+          speed_mhz: 3200,
+          capacity_gb: 8,
+        },
+        normalizedData: {
+          sku: "RAM-KING-8-DDR4",
+          name: "Kingston Fury Beast 8GB DDR4",
+          brand: "Kingston",
+          category: "RAM",
+          quantity: 15,
+          unitPrice: 550000,
+          ddrGeneration: "DDR4",
+          speedMhz: 3200,
+          capacityGb: 8,
+        },
         idempotencyKey: `seed-row-key-2-2`,
       },
       {
@@ -533,8 +623,16 @@ async function main() {
         rowNumber: 3,
         sku: "INVALID-RAM-ROW",
         validationStatus: ImportRowStatus.INVALID,
-        errorMessage: "ddrGeneration: Required; speedMhz: Required; capacityGb: Required (Category RAM requires spec fields)",
-        rawData: { sku: "INVALID-RAM-ROW", name: "Ram non-spec test", brand: "Generic", category: "RAM", quantity: 10, unit_price: 400000 },
+        errorMessage:
+          "ddrGeneration: Required; speedMhz: Required; capacityGb: Required (Category RAM requires spec fields)",
+        rawData: {
+          sku: "INVALID-RAM-ROW",
+          name: "Ram non-spec test",
+          brand: "Generic",
+          category: "RAM",
+          quantity: 10,
+          unit_price: 400000,
+        },
         idempotencyKey: `seed-row-key-2-3`,
       },
       {
@@ -542,14 +640,32 @@ async function main() {
         rowNumber: 4,
         sku: "GPU-ASUS-4070-12G",
         validationStatus: ImportRowStatus.VALID,
-        rawData: { sku: "GPU-ASUS-4070-12G", name: "ASUS ROG Strix RTX 4070", brand: "ASUS", category: "GPU", quantity: 5, unit_price: 19800000, vram_gb: 12 },
-        normalizedData: { sku: "GPU-ASUS-4070-12G", name: "ASUS ROG Strix RTX 4070", brand: "ASUS", category: "GPU", quantity: 5, unitPrice: 19800000, vramGb: 12 },
+        rawData: {
+          sku: "GPU-ASUS-4070-12G",
+          name: "ASUS ROG Strix RTX 4070",
+          brand: "ASUS",
+          category: "GPU",
+          quantity: 5,
+          unit_price: 19800000,
+          vram_gb: 12,
+        },
+        normalizedData: {
+          sku: "GPU-ASUS-4070-12G",
+          name: "ASUS ROG Strix RTX 4070",
+          brand: "ASUS",
+          category: "GPU",
+          quantity: 5,
+          unitPrice: 19800000,
+          vramGb: 12,
+        },
         idempotencyKey: `seed-row-key-2-4`,
       },
     ],
   });
 
-  console.log("🚀 Seeding completed successfully! System has been populated with rich sample data.");
+  console.log(
+    "🚀 Seeding completed successfully! System has been populated with rich sample data.",
+  );
   console.log("\n🔑 Test User Credentials:");
   console.log("----------------------------------------------------------------------------------");
   console.log("1. ADMIN:            admin@stockflow.local       / Password: Admin@123");

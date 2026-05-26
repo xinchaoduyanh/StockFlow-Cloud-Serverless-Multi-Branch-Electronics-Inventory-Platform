@@ -1,8 +1,17 @@
+import { ReportType as ExternalReportType } from "@stockflow/shared";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { PrismaClient, ExportJobStatus } from "@prisma/client";
+import { PrismaClient, ExportJobStatus, ReportType as PrismaReportType } from "@prisma/client";
 
 const s3Client = new S3Client({});
 const prisma = new PrismaClient();
+
+const externalReportTypeByPrisma: Record<PrismaReportType, ExternalReportType> = {
+  [PrismaReportType.INVENTORY]: ExternalReportType.INVENTORY,
+  [PrismaReportType.LOW_STOCK]: ExternalReportType.LOW_STOCK,
+  [PrismaReportType.TRANSFERS]: ExternalReportType.TRANSFERS,
+  [PrismaReportType.IMPORT_HISTORY]: ExternalReportType.IMPORT_HISTORY,
+  [PrismaReportType.STOCK_MOVEMENTS]: ExternalReportType.STOCK_MOVEMENTS,
+};
 
 /**
  * Report Exporter Lambda
@@ -44,19 +53,19 @@ export const handler = async (event: any) => {
 
     // 2. Generate CSV based on report type
     switch (job.reportType) {
-      case "inventory":
+      case PrismaReportType.INVENTORY:
         ({ csv: csvContent, total: totalRecords } = await generateInventoryReport(filters));
         break;
-      case "low-stock":
+      case PrismaReportType.LOW_STOCK:
         ({ csv: csvContent, total: totalRecords } = await generateLowStockReport(filters));
         break;
-      case "transfers":
+      case PrismaReportType.TRANSFERS:
         ({ csv: csvContent, total: totalRecords } = await generateTransferReport(filters));
         break;
-      case "import-history":
+      case PrismaReportType.IMPORT_HISTORY:
         ({ csv: csvContent, total: totalRecords } = await generateImportHistoryReport(filters));
         break;
-      case "stock-movements":
+      case PrismaReportType.STOCK_MOVEMENTS:
         ({ csv: csvContent, total: totalRecords } = await generateStockMovementReport(filters));
         break;
       default:
@@ -66,8 +75,9 @@ export const handler = async (event: any) => {
     // 3. Upload CSV to S3
     const bucket = process.env.S3_BUCKET || process.env.AWS_S3_BUCKET || "";
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const s3Key = `reports/${job.reportType}/${timestamp}-${exportJobId}.csv`;
-    const fileName = `${job.reportType}-${timestamp}.csv`;
+    const externalReportType = externalReportTypeByPrisma[job.reportType];
+    const s3Key = `reports/${externalReportType}/${timestamp}-${exportJobId}.csv`;
+    const fileName = `${externalReportType}-${timestamp}.csv`;
 
     await s3Client.send(
       new PutObjectCommand({
@@ -76,7 +86,7 @@ export const handler = async (event: any) => {
         Body: csvContent,
         ContentType: "text/csv",
         ContentDisposition: `attachment; filename="${fileName}"`,
-      })
+      }),
     );
 
     console.log(`Report uploaded to s3://${bucket}/${s3Key}. Total records: ${totalRecords}`);
@@ -133,9 +143,7 @@ function escapeCsv(value: unknown): string {
 
 function toCsv(headers: string[], rows: Record<string, unknown>[]): string {
   const headerLine = headers.map(escapeCsv).join(",");
-  const dataLines = rows.map((row) =>
-    headers.map((h) => escapeCsv(row[h])).join(",")
-  );
+  const dataLines = rows.map((row) => headers.map((h) => escapeCsv(row[h])).join(","));
   return [headerLine, ...dataLines].join("\n");
 }
 
@@ -152,9 +160,19 @@ async function generateInventoryReport(filters: Record<string, any>) {
   });
 
   const headers = [
-    "branchCode", "branchName", "sku", "componentName", "brand", "category",
-    "quantity", "reservedQuantity", "availableQuantity", "minStockThreshold",
-    "unitPrice", "supplier", "warrantyMonths",
+    "branchCode",
+    "branchName",
+    "sku",
+    "componentName",
+    "brand",
+    "category",
+    "quantity",
+    "reservedQuantity",
+    "availableQuantity",
+    "minStockThreshold",
+    "unitPrice",
+    "supplier",
+    "warrantyMonths",
   ];
 
   const rows = items.map((item) => ({
@@ -191,8 +209,14 @@ async function generateLowStockReport(filters: Record<string, any>) {
   const lowStockItems = items.filter((item) => item.quantity <= item.minStockThreshold);
 
   const headers = [
-    "branchCode", "branchName", "sku", "componentName", "category",
-    "quantity", "minStockThreshold", "deficit",
+    "branchCode",
+    "branchName",
+    "sku",
+    "componentName",
+    "category",
+    "quantity",
+    "minStockThreshold",
+    "deficit",
   ];
 
   const rows = lowStockItems.map((item) => ({
@@ -226,8 +250,15 @@ async function generateTransferReport(filters: Record<string, any>) {
   });
 
   const headers = [
-    "transferId", "fromBranch", "toBranch", "status", "sku",
-    "componentName", "quantity", "createdAt", "completedAt",
+    "transferId",
+    "fromBranch",
+    "toBranch",
+    "status",
+    "sku",
+    "componentName",
+    "quantity",
+    "createdAt",
+    "completedAt",
   ];
 
   const rows: Record<string, unknown>[] = [];
@@ -260,9 +291,17 @@ async function generateImportHistoryReport(filters: Record<string, any>) {
   });
 
   const headers = [
-    "jobId", "branchCode", "branchName", "fileName", "status",
-    "totalRows", "validRows", "invalidRows", "committedRows",
-    "createdAt", "completedAt",
+    "jobId",
+    "branchCode",
+    "branchName",
+    "fileName",
+    "status",
+    "totalRows",
+    "validRows",
+    "invalidRows",
+    "committedRows",
+    "createdAt",
+    "completedAt",
   ];
 
   const rows = jobs.map((job) => ({
@@ -297,8 +336,15 @@ async function generateStockMovementReport(filters: Record<string, any>) {
   });
 
   const headers = [
-    "branchCode", "branchName", "sku", "componentName", "movementType",
-    "quantityChange", "referenceType", "referenceId", "createdAt",
+    "branchCode",
+    "branchName",
+    "sku",
+    "componentName",
+    "movementType",
+    "quantityChange",
+    "referenceType",
+    "referenceId",
+    "createdAt",
   ];
 
   const rows = movements.map((m) => ({
