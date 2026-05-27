@@ -11,6 +11,7 @@ import { InventoryModule } from "./inventory/inventory.module";
 import { ReconciliationModule } from "./reconciliation/reconciliation.module";
 import { ReportsModule } from "./reports/reports.module";
 import { TransfersModule } from "./transfers/transfers.module";
+import { NotificationsModule } from "./notifications/notifications.module";
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { TransfersModule } from "./transfers/transfers.module";
     ReportsModule,
     DlqModule,
     ReconciliationModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
@@ -32,4 +34,3 @@ export class AppModule implements NestModule {
     consumer.apply(HttpLoggerMiddleware).forRoutes("*");
   }
 }
-

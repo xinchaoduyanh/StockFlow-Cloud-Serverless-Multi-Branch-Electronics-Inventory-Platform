@@ -1,5 +1,6 @@
 import { ImportPipelineAction, StockMovementReferenceType } from "@stockflow/shared";
 import { PrismaClient, ImportStatus, ImportRowStatus, StockMovementType } from "@prisma/client";
+import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
 
 const prisma = new PrismaClient();
 
@@ -200,6 +201,37 @@ const handler = async (event: any) => {
 
     console.log(`Job finishing with status: ${finalStatus}. Total committed: ${committedRows}`);
 
+    // Trigger Success/Partial Success email and In-app alert notification
+    try {
+      const updatedJob = await prisma.importJob.findUnique({
+        where: { id: importJobId },
+        include: { branch: { select: { code: true } } },
+      });
+
+      if (updatedJob && updatedJob.createdBy) {
+        await publishNotification({
+          userId: updatedJob.createdBy,
+          title:
+            finalStatus === ImportStatus.COMPLETED
+              ? "Inventory Import Succeeded"
+              : "Inventory Import Success with Warnings",
+          message: `Spreadsheet '${updatedJob.fileName}' processed. Committed ${committedRows} items.`,
+          type: "IMPORT_SUCCESS",
+          metadata: {
+            jobId: updatedJob.id,
+            fileName: updatedJob.fileName || "unknown_file.xlsx",
+            branchCode: updatedJob.branch?.code || "unknown",
+            totalRows: updatedJob.totalRows,
+            validRows: updatedJob.validRows,
+            invalidRows: updatedJob.invalidRows,
+            committedRows: committedRows,
+          },
+        });
+      }
+    } catch (notiErr: any) {
+      console.error("Failed to trigger success notification:", notiErr.message);
+    }
+
     return {
       status: finalStatus,
       importJobId,
@@ -223,5 +255,53 @@ const handler = async (event: any) => {
     await prisma.$disconnect();
   }
 };
+
+/**
+ * Publish notification payload to SNS Topic (Production) or direct post to NestJS Webhook (Local Dev).
+ */
+async function publishNotification(payload: any) {
+  const snsTopicArn = process.env.NOTIFICATION_SNS_TOPIC_ARN;
+  const awsRegion = process.env.AWS_REGION || "ap-southeast-1";
+
+  if (snsTopicArn) {
+    try {
+      const snsClient = new SNSClient({ region: awsRegion });
+      const command = new PublishCommand({
+        TopicArn: snsTopicArn,
+        Message: JSON.stringify(payload),
+      });
+      await snsClient.send(command);
+      console.log("Successfully published completed notification message to SNS.");
+    } catch (err: any) {
+      console.error("Failed to publish SNS completion message:", err.message);
+    }
+  } else {
+    // Local dev: Fallback to direct NestJS Webhook post to enable easy offline mock testing
+    const localWebhookUrl =
+      process.env.LOCAL_API_WEBHOOK_URL || "http://localhost:8000/api/notifications/sns-callback";
+    console.warn(
+      `NOTIFICATION_SNS_TOPIC_ARN environment variable not found. Direct posting to local webhook: ${localWebhookUrl}`,
+    );
+    try {
+      const response = await fetch(localWebhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      if (response.ok) {
+        console.log("Successfully triggered local notification callback direct post.");
+      } else {
+        console.error(
+          "Failed to trigger local notification callback direct post. Status:",
+          response.status,
+        );
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch local webhook direct post:", err.message);
+    }
+  }
+}
 
 module.exports = { handler };

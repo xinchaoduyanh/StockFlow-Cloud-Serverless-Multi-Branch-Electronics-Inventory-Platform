@@ -34,5 +34,8 @@
     "turbo": "^2.9.14",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.59.4"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sns": "^3.1054.0"
   }
 }

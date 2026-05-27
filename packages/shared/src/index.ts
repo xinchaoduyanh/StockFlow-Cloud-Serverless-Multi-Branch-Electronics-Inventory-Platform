@@ -127,3 +127,5 @@ export * from "./imports";
 export * from "./dlq";
 export * from "./reports";
 export * from "./auth";
+export * from "./notifications";
+export * from "./templates";

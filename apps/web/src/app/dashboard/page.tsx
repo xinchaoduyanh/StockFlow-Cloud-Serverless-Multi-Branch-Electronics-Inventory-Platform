@@ -17,6 +17,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { apiRequest } from "@/lib/api-client";
 import { useCurrentUser, useLogout } from "@/features/auth/use-auth";
+import { NotificationBell } from "@/features/notifications/NotificationBell";
 
 type Branch = {
   id: string;
@@ -495,6 +496,7 @@ export default function DashboardPage() {
             <span className="rounded-md border border-[#d7dce5] bg-[#f8fafc] px-2 py-1 font-black text-[#172033]">
               {user.role}
             </span>
+            <NotificationBell />
             <button className="button-secondary" onClick={logout} type="button">
               Sign out
             </button>

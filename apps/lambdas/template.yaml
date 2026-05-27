@@ -101,6 +101,16 @@ Resources:
       CodeUri: ../../dist/lambdas/import-writer/
       Timeout: 180 # 3 minutes for bulk commit transactions
       Description: Commits staged valid items in batches of 500 rows to Component and Inventory tables.
+      Environment:
+        Variables:
+          NOTIFICATION_SNS_TOPIC_ARN: !Ref NotificationSnsTopic
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref NotificationSnsTopic
 
   ImportJobFailHandlerFunction:
     Type: AWS::Serverless::Function
@@ -108,6 +118,16 @@ Resources:
       Handler: index.handler
       CodeUri: ../../dist/lambdas/import-job-fail-handler/
       Description: Marks job status as FAILED in the database upon state machine runtime failures.
+      Environment:
+        Variables:
+          NOTIFICATION_SNS_TOPIC_ARN: !Ref NotificationSnsTopic
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref NotificationSnsTopic
 
   # -----------------------------------------------------------------
   # 3. Serverless Lambda Functions — Operations & Reporting
@@ -263,6 +283,14 @@ Resources:
                 - xray:GetSamplingTargets
               Resource: "*"
 
+  # -----------------------------------------------------------------
+  # 5. SNS Notification Topic for Event-Driven Ingestion Alerts
+  # -----------------------------------------------------------------
+  NotificationSnsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub stockflow-notifications-${AWS::AccountId}-${AWS::Region}
+
 Outputs:
   IncomingS3Bucket:
     Description: S3 Bucket Name for direct browser form uploads
@@ -279,4 +307,7 @@ Outputs:
   ReconciliationFunctionArn:
     Description: Daily Reconciliation Lambda ARN
     Value: !GetAtt ReconciliationFunction.Arn
+  NotificationSnsTopicArn:
+    Description: SNS Notification Topic ARN for ingestion notifications
+    Value: !Ref NotificationSnsTopic
 
