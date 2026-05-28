@@ -2,8 +2,12 @@ import { z } from "zod";
 
 const stringToBoolean = z.preprocess((val) => {
   if (typeof val === "string") {
-    if (val.toLowerCase() === "true" || val === "1") return true;
-    if (val.toLowerCase() === "false" || val === "0") return false;
+    const cleaned = val
+      .trim()
+      .replace(/^['"]|['"]$/g, "")
+      .toLowerCase();
+    if (cleaned === "true" || cleaned === "1") return true;
+    if (cleaned === "false" || cleaned === "0") return false;
   }
   return val;
 }, z.boolean());
@@ -31,4 +35,3 @@ export const envSchema = z.object({
 });
 
 export type Env = z.infer<typeof envSchema>;
-
