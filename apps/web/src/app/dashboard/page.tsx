@@ -442,13 +442,13 @@ export default function DashboardPage() {
     ).length;
 
     return [
-      { label: "Total units", value: totalUnits.toLocaleString(), tone: "text-[#0f766e]" },
-      { label: "Reserved", value: reservedUnits.toLocaleString(), tone: "text-[#7c3aed]" },
-      { label: "Low stock", value: lowStockItems.length.toLocaleString(), tone: "text-[#dc2626]" },
+      { label: "Total units", value: totalUnits.toLocaleString(), tone: "teal" },
+      { label: "Reserved", value: reservedUnits.toLocaleString(), tone: "violet" },
+      { label: "Low stock", value: lowStockItems.length.toLocaleString(), tone: "rose" },
       {
         label: "Pending transfers",
         value: pendingTransfers.toLocaleString(),
-        tone: "text-[#ca8a04]",
+        tone: "amber",
       },
     ];
   }, [inventoryItems, lowStockItems.length, transferItems]);
@@ -475,65 +475,97 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f4f7fb]">
-      <header className="sticky top-0 z-30 border-b border-[#d7dce5] bg-white/90 backdrop-blur-xl">
-        <div className="mx-auto flex w-[calc(100%_-_48px)] max-w-[1240px] items-center justify-between gap-4 py-3 max-md:w-[calc(100%_-_32px)] max-md:flex-col max-md:items-start">
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#0f766e] text-sm font-black text-white shadow-lg shadow-teal-800/15">
+    <main className="app-background pb-10">
+      <div className="ambient-orb -top-40 -left-28 h-[520px] w-[520px] bg-teal-300/16" />
+      <div className="ambient-orb right-[-140px] top-28 h-[520px] w-[520px] bg-sky-300/14 [animation-delay:1.2s]" />
+      <div className="ambient-orb bottom-[-180px] left-[45%] h-[460px] w-[460px] bg-emerald-300/14 [animation-delay:2.8s]" />
+      <header className="content-layer sticky top-0 z-30 border-b border-white/70 bg-white/72 shadow-sm shadow-slate-200/40 backdrop-blur-2xl">
+        <div className="mx-auto flex w-[calc(100%_-_48px)] max-w-[1240px] items-center justify-between gap-4 py-3.5 max-md:w-[calc(100%_-_32px)] max-md:flex-col max-md:items-start">
+          <div className="flex items-center gap-3.5">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-500 text-sm font-black text-white shadow-lg shadow-teal-700/20 transition-transform duration-500 hover:rotate-3 hover:scale-105">
               SF
             </div>
             <div>
-              <p className="mb-1 text-xs font-black uppercase tracking-[0.18em] text-[#0f766e]">
+              <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-teal-700">
                 StockFlow Cloud
               </p>
-              <h1 className="m-0 text-xl font-black tracking-normal text-[#172033]">
+              <h1 className="m-0 text-lg font-black tracking-tight text-slate-900">
                 Inventory Operations
               </h1>
             </div>
           </div>
-          <div className="flex items-center gap-3 text-sm max-md:w-full max-md:justify-between">
-            <span className="max-w-[240px] truncate text-[#5c667a]">{user.email}</span>
-            <span className="rounded-md border border-[#d7dce5] bg-[#f8fafc] px-2 py-1 font-black text-[#172033]">
-              {user.role}
-            </span>
+          <div className="flex items-center gap-4 text-sm max-md:w-full max-md:justify-between">
+            <div className="flex items-center gap-2">
+              <span className="max-w-[240px] truncate font-bold text-slate-700">{user.email}</span>
+              <span className="inline-flex rounded-lg bg-teal-500/10 px-2.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-teal-700">
+                {user.role}
+              </span>
+            </div>
             <NotificationBell />
-            <button className="button-secondary" onClick={logout} type="button">
+            <button className="button-secondary min-h-10 px-4" onClick={logout} type="button">
               Sign out
             </button>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto grid w-[calc(100%_-_48px)] max-w-[1240px] gap-4 py-5 max-md:w-[calc(100%_-_32px)]">
-        <section className="surface grid gap-4 p-5">
-          <div className="grid gap-3 md:grid-cols-4">
+      <div className="content-layer mx-auto grid w-[calc(100%_-_48px)] max-w-[1240px] gap-6 py-6 max-md:w-[calc(100%_-_32px)]">
+        <section className="surface grid gap-5 p-5 animate-rise-in md:p-6">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {inventorySummary.map((item) => (
-              <div key={item.label} className="rounded-md border border-[#d7dce5] bg-[#f8fafc] p-4">
-                <p className={`m-0 text-2xl font-black ${item.tone}`}>{item.value}</p>
-                <p className="m-0 mt-1 text-xs font-black uppercase tracking-[0.08em] text-[#5c667a]">
+              <div
+                key={item.label}
+                className="group relative overflow-hidden rounded-2xl border border-white/80 bg-gradient-to-br from-white/92 to-white/68 p-5 shadow-sm shadow-slate-200/40 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-teal-950/10"
+              >
+                <div
+                  className={`absolute top-0 inset-x-0 h-1 ${
+                    item.tone.includes("teal")
+                      ? "bg-teal-600"
+                      : item.tone.includes("violet")
+                        ? "bg-violet-600"
+                        : item.tone.includes("rose")
+                          ? "bg-rose-600"
+                          : "bg-amber-600"
+                  }`}
+                />
+                <p
+                  className={`m-0 text-3xl font-black tracking-tight ${
+                    item.tone.includes("teal")
+                      ? "text-teal-700"
+                      : item.tone.includes("violet")
+                        ? "text-violet-700"
+                        : item.tone.includes("rose")
+                          ? "text-rose-700"
+                          : "text-amber-700"
+                  }`}
+                >
+                  {item.value}
+                </p>
+                <p className="m-0 mt-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
                   {item.label}
                 </p>
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-[1fr_180px_220px] gap-3 max-md:grid-cols-1">
+          <div className="grid grid-cols-[1fr_220px_280px] gap-3 rounded-2xl border border-white/70 bg-white/55 p-3 shadow-inner shadow-white/60 backdrop-blur-xl max-md:grid-cols-1">
             <label className="field">
               <span>Search SKU or name</span>
               <input
-                className="input"
+                className="input bg-white/90 shadow-sm shadow-slate-200/50"
                 onChange={(event) => setSearch(event.target.value)}
                 value={search}
+                placeholder="Search SKU code or name..."
               />
             </label>
             <label className="field">
               <span>Category</span>
               <select
-                className="input"
+                className="input bg-white/90 shadow-sm shadow-slate-200/50"
                 onChange={(event) => setCategory(event.target.value)}
                 value={category}
               >
-                <option value="">All</option>
+                <option value="">All Categories</option>
                 {categories.map((item) => (
                   <option key={item} value={item}>
                     {item}
@@ -544,7 +576,7 @@ export default function DashboardPage() {
             <label className="field">
               <span>Branch</span>
               <select
-                className="input"
+                className="input bg-white/90 shadow-sm shadow-slate-200/50"
                 onChange={(event) => setBranchId(event.target.value)}
                 value={selectedBranchId}
               >
@@ -558,7 +590,7 @@ export default function DashboardPage() {
             </label>
           </div>
 
-          <nav className="flex flex-wrap gap-2 rounded-xl border border-[#d7dce5] bg-slate-50 p-1">
+          <nav className="flex flex-wrap gap-1 rounded-2xl border border-white/70 bg-white/55 p-1.5 shadow-inner shadow-white/70 backdrop-blur-xl">
             {tabs
               .filter(
                 (tab) => !("adminOnly" in tab && tab.adminOnly && user?.role !== UserRole.ADMIN),
@@ -595,7 +627,7 @@ export default function DashboardPage() {
         ) : null}
 
         {activeTab === "transfers" ? (
-          <section className="grid gap-4 lg:grid-cols-[340px_1fr]">
+          <section className="grid gap-4 lg:grid-cols-[340px_1fr] animate-rise-in-delay-1">
             <form className="surface grid h-fit gap-4 p-4" onSubmit={handleCreateTransfer}>
               <div>
                 <p className="m-0 text-xs font-black uppercase tracking-[0.14em] text-[#0f766e]">
@@ -606,7 +638,7 @@ export default function DashboardPage() {
               <label className="field">
                 <span>From branch</span>
                 <select
-                  className="input"
+                  className="input bg-white/90 shadow-sm shadow-slate-200/50"
                   onChange={(event) =>
                     setTransferForm((current) => ({ ...current, fromBranchId: event.target.value }))
                   }
@@ -624,7 +656,7 @@ export default function DashboardPage() {
               <label className="field">
                 <span>Component</span>
                 <select
-                  className="input"
+                  className="input bg-white/90 shadow-sm shadow-slate-200/50"
                   onChange={(event) =>
                     setTransferForm((current) => ({ ...current, componentId: event.target.value }))
                   }
@@ -643,7 +675,7 @@ export default function DashboardPage() {
               <label className="field">
                 <span>Quantity</span>
                 <input
-                  className="input"
+                  className="input bg-white/90 shadow-sm shadow-slate-200/50"
                   min="1"
                   onChange={(event) =>
                     setTransferForm((current) => ({ ...current, quantity: event.target.value }))
@@ -675,7 +707,7 @@ export default function DashboardPage() {
               <label className="surface field p-4">
                 <span>Reject reason</span>
                 <input
-                  className="input"
+                  className="input bg-white/90 shadow-sm shadow-slate-200/50"
                   onChange={(event) => setRejectReason(event.target.value)}
                   value={rejectReason}
                 />
@@ -694,19 +726,22 @@ export default function DashboardPage() {
         ) : null}
 
         {activeTab === "imports" ? (
-          <section className="grid gap-4">
-            <div className="surface flex items-center justify-between gap-4 p-5 max-sm:flex-col max-sm:items-start">
+          <section className="grid gap-4 animate-rise-in-delay-1">
+            <div className="surface relative overflow-hidden flex items-center justify-between gap-4 p-6 max-sm:flex-col max-sm:items-start">
               <div>
-                <h2 className="m-0 text-lg font-black tracking-tight text-[#172033]">
+                <div className="mb-2 inline-flex rounded-full bg-teal-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-teal-700">
+                  Cloud import
+                </div>
+                <h2 className="m-0 text-xl font-black tracking-tight text-slate-900">
                   Spreadsheet Ingestion
                 </h2>
-                <p className="m-0 mt-1 text-xs font-medium text-[#5c667a]">
+                <p className="m-0 mt-1.5 text-sm font-semibold text-slate-500">
                   Upload, audit, preview, and commit Excel inventory files.
                 </p>
               </div>
               <button
                 onClick={() => setIsUploadModalOpen(true)}
-                className="button-primary px-5"
+                className="button-primary min-h-12 rounded-2xl bg-gradient-to-r from-teal-700 to-emerald-600 px-5 shadow-xl shadow-teal-900/15 hover:from-teal-800 hover:to-emerald-700"
                 type="button"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -724,7 +759,7 @@ export default function DashboardPage() {
             {/* Ingestion Glassmorphic Modal Dialog */}
             {isUploadModalOpen && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-md animate-macbook-backdrop">
-                <div className="relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/70 bg-white p-6 shadow-2xl shadow-slate-950/20 animate-macbook-modal">
+                <div className="relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-3xl border border-white/80 bg-white/95 p-8 shadow-2xl shadow-slate-950/15 animate-macbook-modal backdrop-blur-xl">
                   {/* Close Modal Button */}
                   <button
                     onClick={() => {
@@ -733,31 +768,33 @@ export default function DashboardPage() {
                       setUploadProgress(null);
                       setIngestionStage(null);
                     }}
-                    className="absolute top-4 right-4 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                    className="absolute top-5 right-5 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
                     type="button"
                   >
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        strokeWidth={2}
+                        strokeWidth={1.8}
                         d="M6 18L18 6M6 6l12 12"
                       />
                     </svg>
                   </button>
 
                   <form className="grid gap-5" onSubmit={handleUpload}>
-                    <div className="flex items-center justify-between border-b border-[#f1f5f9] pb-3">
-                      <h2 className="m-0 text-lg font-bold text-[#172033]">Ingest Spreadsheet</h2>
-                      <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-[10px] font-semibold text-[#0f766e] tracking-wider uppercase">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                      <h2 className="m-0 text-base font-black text-slate-900 tracking-tight">
+                        Ingest Spreadsheet
+                      </h2>
+                      <span className="rounded-lg bg-teal-500/10 px-2.5 py-0.5 text-[9px] font-extrabold text-teal-700 tracking-wide uppercase">
                         S3 Direct
                       </span>
                     </div>
 
                     <label className="field">
-                      <span className="text-sm font-semibold text-[#475569]">Target Branch</span>
+                      <span>Target Branch</span>
                       <select
-                        className="input mt-1.5 border-[#cbd5e1] focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e] rounded-lg transition-all"
+                        className="input mt-1.5"
                         onChange={(event) => setImportBranchId(event.target.value)}
                         required
                         value={importBranchId}
@@ -773,15 +810,13 @@ export default function DashboardPage() {
 
                     {/* Drag and Drop Zone */}
                     <div className="field">
-                      <span className="text-sm font-semibold text-[#475569]">
-                        Spreadsheet (.xlsx)
-                      </span>
+                      <span>Spreadsheet (.xlsx)</span>
                       {!selectedFile ? (
                         <div
-                          className={`mt-1.5 flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-all duration-300 ${
+                          className={`mt-1.5 flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-7 text-center transition-all duration-300 cursor-pointer ${
                             isDragOver
-                              ? "border-[#0f766e] bg-teal-50/30 scale-[0.98]"
-                              : "border-[#cbd5e1] bg-[#f8fafc] hover:border-[#0f766e] hover:bg-slate-50/50"
+                              ? "border-teal-500 bg-teal-500/5 scale-[0.985]"
+                              : "border-slate-200 bg-slate-50/50 hover:border-teal-500 hover:bg-slate-50"
                           }`}
                           onDragOver={(e) => {
                             e.preventDefault();
@@ -996,8 +1031,8 @@ export default function DashboardPage() {
 
 function ShellMessage({ children }: { children: ReactNode }) {
   return (
-    <main className="mx-auto min-h-screen w-[calc(100%_-_48px)] max-w-[960px] py-16 max-md:w-[calc(100%_-_32px)] max-md:py-8 animate-fade-in">
-      <section className="rounded-xl border border-border bg-white p-7 shadow-sm">
+    <main className="app-background grid place-items-center px-6 py-16 animate-fade-in">
+      <section className="content-layer rounded-2xl border border-white/80 bg-white/80 p-7 shadow-xl shadow-teal-950/10 backdrop-blur-xl animate-rise-in">
         {children}
       </section>
     </main>
@@ -1020,7 +1055,7 @@ function InventoryTable({
   const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <section className="surface overflow-hidden">
+    <section className="surface overflow-hidden animate-rise-in-delay-1">
       <TableHeader title="Inventory list" count={items.length} />
       <div className="overflow-x-auto">
         <table className="data-table">
@@ -1046,7 +1081,11 @@ function InventoryTable({
                   <td className="font-bold">{item.component.sku}</td>
                   <td>{item.component.name}</td>
                   <td>{item.component.category}</td>
-                  <td>{item.branch.code}</td>
+                  <td>
+                    <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700">
+                      {item.branch.code}
+                    </span>
+                  </td>
                   <td>{item.quantity}</td>
                   <td>{item.reservedQuantity}</td>
                   <td>{item.minStockThreshold}</td>
@@ -1082,7 +1121,7 @@ function LowStockReport({
   const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <section className="surface overflow-hidden">
+    <section className="surface overflow-hidden animate-rise-in-delay-1">
       <TableHeader title="Low stock report" count={items.length} />
       <div className="overflow-x-auto">
         <table className="data-table">
@@ -1106,7 +1145,11 @@ function LowStockReport({
                 <tr key={`${item.branchId}-${item.componentId}`}>
                   <td className="font-bold">{item.component.sku}</td>
                   <td>{item.component.name}</td>
-                  <td>{item.branch.code}</td>
+                  <td>
+                    <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700">
+                      {item.branch.code}
+                    </span>
+                  </td>
                   <td>{item.quantity}</td>
                   <td>{item.minStockThreshold}</td>
                   <td className="font-bold text-red-700">
@@ -1150,7 +1193,7 @@ function TransferList({
   const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <section className="surface overflow-hidden">
+    <section className="surface overflow-hidden animate-rise-in-delay-1">
       <TableHeader title="Transfer requests" count={items.length} />
       <div className="overflow-x-auto">
         <table className="data-table">
@@ -1239,7 +1282,7 @@ function ImportJobsTable({
   const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <section className="surface overflow-hidden">
+    <section className="surface overflow-hidden animate-rise-in-delay-1">
       <TableHeader title="Import jobs" count={items.length} />
       <div className="overflow-x-auto">
         <table className="data-table">
@@ -1264,9 +1307,18 @@ function ImportJobsTable({
                   item.status === ImportStatus.UPLOADED || item.status === ImportStatus.VALIDATING;
                 return (
                   <tr key={item.id}>
-                    <td className="font-bold">{item.fileName ?? "Untitled"}</td>
-                    <td>{item.branch.code}</td>
-                    <td className="text-xs text-[#5c667a]">
+                    <td>
+                      <div className="font-black text-slate-800">{item.fileName ?? "Untitled"}</div>
+                      <div className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                        Excel workbook
+                      </div>
+                    </td>
+                    <td>
+                      <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700">
+                        {item.branch.code}
+                      </span>
+                    </td>
+                    <td className="text-xs font-semibold text-slate-500">
                       {new Date(item.createdAt).toLocaleString("vi-VN", { hour12: false })}
                     </td>
                     <td>
@@ -1719,32 +1771,36 @@ function TableState({ colSpan, text }: { colSpan: number; text: string }) {
 }
 
 function StatusPill({ status }: { status: string }) {
-  let tone = "bg-slate-50 text-slate-700 border-slate-200";
+  let tone = "bg-slate-100 text-slate-600 border-transparent";
 
   if (
     status === ImportRowStatus.VALID ||
     status === ExportJobStatus.COMPLETED ||
-    status === TransferStatus.APPROVED
+    status === TransferStatus.APPROVED ||
+    status === "RESOLVED"
   ) {
-    tone = "bg-emerald-50 text-emerald-700 border-emerald-200/50";
+    tone = "bg-emerald-500/10 text-emerald-700 border-emerald-500/10";
   } else if (
     status === ImportRowStatus.INVALID ||
     status === TransferStatus.REJECTED ||
-    status === ExportJobStatus.FAILED
+    status === ExportJobStatus.FAILED ||
+    status === "OPEN"
   ) {
-    tone = "bg-rose-50 text-rose-700 border-rose-200/50";
+    tone = "bg-rose-500/10 text-rose-700 border-rose-500/10";
   } else if (
     status === ExportJobStatus.PROCESSING ||
     status === ImportStatus.VALIDATING ||
     status === ImportStatus.COMMITTING ||
     status === TransferStatus.PENDING
   ) {
-    tone = "bg-amber-50 text-amber-700 border-amber-200/50";
+    tone = "bg-amber-500/10 text-amber-700 border-amber-500/10";
+  } else if (status === ImportStatus.UPLOADED || status === ImportStatus.PREVIEW_READY) {
+    tone = "bg-sky-500/10 text-sky-700 border-sky-500/10";
   }
 
   return (
     <span
-      className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${tone}`}
+      className={`inline-flex rounded-lg border px-2.5 py-0.5 text-[9px] font-extrabold tracking-wide uppercase ${tone}`}
     >
       {status}
     </span>
@@ -1783,11 +1839,11 @@ function ReportsTab({
   const paginatedItems = exportJobs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <section className="grid gap-4">
+    <section className="grid gap-4 animate-rise-in-delay-1">
       <div className="surface p-5">
         <div className="mb-4">
           <h2 className="m-0 text-lg font-black tracking-tight text-[#172033]">Export Reports</h2>
-          <p className="m-0 mt-1 text-xs font-medium text-[#5c667a]">
+          <p className="m-0 mt-1.5 text-sm font-semibold text-slate-500">
             Generate CSV reports from inventory data and download from S3.
           </p>
         </div>
@@ -1837,8 +1893,8 @@ function ReportsTab({
                       <StatusPill status={job.status} />
                     </td>
                     <td>{job.totalRecords ?? "-"}</td>
-                    <td className="text-xs text-[#5c667a]">{job.fileName ?? "-"}</td>
-                    <td className="text-xs text-[#5c667a]">
+                    <td className="text-xs font-semibold text-slate-500">{job.fileName ?? "-"}</td>
+                    <td className="text-xs font-semibold text-slate-500">
                       {new Date(job.createdAt).toLocaleString("vi-VN", { hour12: false })}
                     </td>
                     <td>
@@ -1898,14 +1954,14 @@ function DlqTab({
   const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <section className="grid gap-4">
+    <section className="grid gap-4 animate-rise-in-delay-1">
       <div className="surface p-5">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h2 className="m-0 text-lg font-black tracking-tight text-[#172033]">
               Dead Letter Queue
             </h2>
-            <p className="m-0 mt-1 text-xs font-medium text-[#5c667a]">
+            <p className="m-0 mt-1.5 text-sm font-semibold text-slate-500">
               Failed import jobs that can be replayed or discarded. {items.length} failed job
               {items.length !== 1 ? "s" : ""}.
             </p>
@@ -1940,15 +1996,24 @@ function DlqTab({
               {!isLoading &&
                 paginatedItems.map((item) => (
                   <tr key={item.id}>
-                    <td className="font-bold">{item.fileName ?? "Untitled"}</td>
-                    <td>{item.branch.code}</td>
+                    <td>
+                      <div className="font-black text-slate-800">{item.fileName ?? "Untitled"}</div>
+                      <div className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                        Excel workbook
+                      </div>
+                    </td>
+                    <td>
+                      <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700">
+                        {item.branch.code}
+                      </span>
+                    </td>
                     <td>
                       <StatusPill status={item.status} />
                     </td>
                     <td>
                       {item.validRows} valid / {item.invalidRows} invalid
                     </td>
-                    <td className="text-xs text-[#5c667a]">
+                    <td className="text-xs font-semibold text-slate-500">
                       {new Date(item.createdAt).toLocaleString("vi-VN", { hour12: false })}
                     </td>
                     <td>
@@ -2015,14 +2080,14 @@ function ReconciliationTab({
   const paginatedItems = issues.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <section className="grid gap-4">
+    <section className="grid gap-4 animate-rise-in-delay-1">
       <div className="surface p-5">
         <div className="flex items-center justify-between gap-4 max-sm:flex-col max-sm:items-start">
           <div>
             <h2 className="m-0 text-lg font-black tracking-tight text-[#172033]">
               Stock Reconciliation
             </h2>
-            <p className="m-0 mt-1 text-xs font-medium text-[#5c667a]">
+            <p className="m-0 mt-1.5 text-sm font-semibold text-slate-500">
               Compares inventory quantities against stock movement ledger to detect mismatches.
             </p>
           </div>
@@ -2038,7 +2103,7 @@ function ReconciliationTab({
               <option value={ReconciliationStatus.IGNORED}>Ignored</option>
             </select>
             <button
-              className="button-primary px-5"
+              className="button-primary min-h-12 rounded-2xl bg-gradient-to-r from-teal-700 to-emerald-600 px-5 shadow-xl shadow-teal-900/15 hover:from-teal-800 hover:to-emerald-700"
               onClick={onRun}
               disabled={isRunning}
               type="button"
@@ -2101,7 +2166,7 @@ function ReconciliationTab({
                     <td>
                       <StatusPill status={issue.status} />
                     </td>
-                    <td className="text-xs text-[#5c667a]">
+                    <td className="text-xs font-semibold text-slate-500">
                       {new Date(issue.detectedAt).toLocaleString("vi-VN", { hour12: false })}
                     </td>
                     <td>

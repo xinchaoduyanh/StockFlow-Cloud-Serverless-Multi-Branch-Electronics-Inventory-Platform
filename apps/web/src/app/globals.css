@@ -1,24 +1,32 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #f4f7fb;
-  --color-foreground: #111827;
-  --color-muted: #667085;
-  --color-border: #d6deea;
+  --color-background: #f8fafc;
+  --color-foreground: #0f172a;
+  --color-muted: #475569;
+  --color-border: #e2e8f0;
   --color-accent: #0f766e;
+
+  --font-sans: var(--font-outfit), sans-serif;
 }
 
 body {
-  background: radial-gradient(circle at top left, #eefaf7 0, transparent 28rem), var(--color-background);
+  font-family: var(--font-outfit), sans-serif;
+  background:
+    radial-gradient(circle at 16% 12%, rgba(20, 184, 166, 0.13) 0, transparent 28rem),
+    radial-gradient(circle at 88% 8%, rgba(14, 165, 233, 0.09) 0, transparent 26rem),
+    radial-gradient(circle at 76% 88%, rgba(52, 211, 153, 0.1) 0, transparent 32rem),
+    linear-gradient(135deg, #f8fafc 0%, #f0fdfa 48%, #f7fee7 100%);
   color: var(--color-foreground);
   -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
 }
 
 button,
 input,
 select,
 textarea {
-  font: inherit;
+  font-family: inherit;
 }
 
 button:disabled {
@@ -27,40 +35,87 @@ button:disabled {
 }
 
 @layer components {
+  .app-background {
+    @apply relative min-h-screen overflow-hidden bg-slate-50;
+    background:
+      radial-gradient(circle at 12% 10%, rgba(20, 184, 166, 0.16) 0, transparent 28rem),
+      radial-gradient(circle at 88% 14%, rgba(14, 165, 233, 0.1) 0, transparent 30rem),
+      radial-gradient(circle at 76% 88%, rgba(52, 211, 153, 0.12) 0, transparent 34rem),
+      linear-gradient(135deg, #f8fafc 0%, #f0fdfa 50%, #f7fee7 100%);
+  }
+
+  .app-background::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(15, 118, 110, 0.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15, 118, 110, 0.055) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.72), transparent 72%);
+  }
+
+  .app-background::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.55;
+    background: linear-gradient(
+      115deg,
+      transparent 0 42%,
+      rgba(255, 255, 255, 0.46) 48%,
+      transparent 54% 100%
+    );
+    animation: sheen 12s ease-in-out infinite;
+  }
+
+  .ambient-orb {
+    @apply pointer-events-none absolute rounded-full blur-3xl;
+    animation: floatDrift 10s ease-in-out infinite;
+  }
+
+  .content-layer {
+    @apply relative z-10;
+  }
+
   .field {
-    @apply grid gap-1.5 text-sm font-semibold text-muted;
+    @apply grid gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500;
   }
 
   .input {
-    @apply min-h-10 w-full rounded-lg border border-border bg-white px-3 text-sm font-medium text-foreground outline-none transition focus:border-accent focus:ring-4 focus:ring-teal-100;
+    @apply min-h-11 w-full rounded-xl border border-slate-200 bg-white/80 px-4.5 text-sm font-medium text-slate-900 outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-accent focus:bg-white focus:ring-4 focus:ring-teal-500/10 shadow-sm shadow-slate-100/50;
   }
 
   .button-primary {
-    @apply inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg bg-accent px-4 text-sm font-bold text-white shadow-sm shadow-teal-900/10 transition hover:bg-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100 active:scale-[0.99];
+    @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-accent px-5 text-sm font-bold text-white shadow-lg shadow-teal-700/15 transition-all duration-200 hover:bg-teal-800 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-teal-500/10;
   }
 
   .button-secondary {
-    @apply inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-border bg-white px-4 text-sm font-bold text-foreground shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-slate-100 active:scale-[0.99];
+    @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 shadow-sm transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-slate-100;
   }
 
   .button-small-primary {
-    @apply inline-flex min-h-8 cursor-pointer items-center justify-center rounded-md bg-foreground px-3 text-xs font-bold text-white transition hover:bg-slate-700 focus:outline-none focus:ring-4 focus:ring-slate-100;
+    @apply inline-flex min-h-8 cursor-pointer items-center justify-center rounded-lg bg-slate-900 px-3.5 text-xs font-bold text-white shadow-sm transition-all duration-200 hover:bg-slate-800 active:scale-[0.97] focus:outline-none focus:ring-4 focus:ring-slate-100;
   }
 
   .button-small-secondary {
-    @apply inline-flex min-h-8 cursor-pointer items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-bold text-foreground transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-slate-100;
+    @apply inline-flex min-h-8 cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-600 shadow-sm transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 active:scale-[0.97] focus:outline-none focus:ring-4 focus:ring-slate-100;
   }
 
   .tab {
-    @apply min-h-10 cursor-pointer rounded-lg border border-transparent bg-transparent px-4 text-sm font-bold text-muted transition hover:bg-white hover:text-foreground;
+    @apply min-h-11 cursor-pointer rounded-xl px-5 text-sm font-black text-slate-500 transition-all duration-200 hover:-translate-y-[1px] hover:bg-white/70 hover:text-slate-900 hover:shadow-sm;
   }
 
   .tab-active {
-    @apply min-h-10 cursor-pointer rounded-lg bg-foreground px-4 text-sm font-bold text-white shadow-sm;
+    @apply min-h-11 cursor-pointer rounded-xl bg-gradient-to-r from-teal-700 to-emerald-600 px-5 text-sm font-black text-white shadow-lg shadow-teal-800/20 transition-all duration-200 hover:-translate-y-[1px];
   }
 
   .surface {
-    @apply rounded-xl border border-border bg-white shadow-sm shadow-slate-200/70;
+    @apply rounded-2xl border border-white/70 bg-white/76 shadow-sm shadow-slate-200/50 backdrop-blur-xl transition-all duration-300 hover:-translate-y-[1px] hover:shadow-lg hover:shadow-teal-950/5;
   }
 
   .data-table {
@@ -68,15 +123,15 @@ button:disabled {
   }
 
   .data-table th {
-    @apply border-b border-border bg-slate-50/90 px-4 py-3 text-xs font-bold uppercase text-muted;
+    @apply border-b border-slate-100 bg-slate-50/60 px-5 py-4 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400;
   }
 
   .data-table td {
-    @apply border-b border-border px-4 py-3 align-top text-slate-700;
+    @apply border-b border-slate-100/80 px-5 py-4 align-middle text-slate-600 font-semibold;
   }
 
   .data-table tbody tr {
-    @apply transition hover:bg-slate-50/80;
+    @apply transition-all duration-200 hover:bg-white/80 hover:shadow-sm;
   }
 
   .data-table tr:last-child td {
@@ -84,18 +139,43 @@ button:disabled {
   }
 
   .error-text {
-    @apply m-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700;
+    @apply m-0 rounded-xl border border-red-200 bg-red-50 px-4.5 py-3 text-sm font-bold text-red-700;
+  }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
   }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; backdrop-filter: blur(0px); }
-  to { opacity: 1; backdrop-filter: blur(4px); }
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(4px);
+  }
 }
 
 @keyframes slideDown {
-  from { transform: translateY(-24px) scale(0.96); opacity: 0; }
-  to { transform: translateY(0) scale(1); opacity: 1; }
+  from {
+    transform: translateY(-24px) scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }
 
 @keyframes macbookSpringIn {
@@ -130,6 +210,18 @@ button:disabled {
   animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+.animate-rise-in {
+  animation: riseIn 0.58s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-rise-in-delay-1 {
+  animation: riseIn 0.58s 0.08s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-rise-in-delay-2 {
+  animation: riseIn 0.58s 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 .animate-slide-down {
   animation: slideDown 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
@@ -140,4 +232,37 @@ button:disabled {
 
 .animate-macbook-backdrop {
   animation: macbookBackdropFade 0.32s ease-out forwards;
+}
+
+@keyframes floatDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(18px, -22px, 0) scale(1.05);
+  }
+}
+
+@keyframes sheen {
+  0%,
+  100% {
+    transform: translateX(-18%);
+    opacity: 0.16;
+  }
+  50% {
+    transform: translateX(18%);
+    opacity: 0.34;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
 }
