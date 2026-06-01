@@ -58,52 +58,50 @@ async function main() {
 
   // 2. Seed Users
   console.log("👥 Seeding users...");
-  const pwdAdmin = await hashPassword("Admin@123");
-  const pwdManager = await hashPassword("Manager@123");
-  const pwdWarehouse = await hashPassword("Warehouse@123");
+  const pwdDefault = await hashPassword("123");
 
   const userAdmin = await prisma.user.upsert({
-    where: { email: "admin@stockflow.local" },
-    update: {},
+    where: { email: "duyanh19122k3+admin@gmail.com" },
+    update: { passwordHash: pwdDefault },
     create: {
-      email: "admin@stockflow.local",
+      email: "duyanh19122k3+admin@gmail.com",
       fullName: "Nguyễn Admin Tổng",
-      passwordHash: pwdAdmin,
+      passwordHash: pwdDefault,
       role: UserRole.ADMIN,
     },
   });
 
   const userManagerHN = await prisma.user.upsert({
-    where: { email: "manager.hn@stockflow.local" },
-    update: {},
+    where: { email: "duyanh19122k3+manager_hn@gmail.com" },
+    update: { passwordHash: pwdDefault },
     create: {
-      email: "manager.hn@stockflow.local",
+      email: "duyanh19122k3+manager_hn@gmail.com",
       fullName: "Trần Hà Nội Manager",
-      passwordHash: pwdManager,
+      passwordHash: pwdDefault,
       role: UserRole.STORE_MANAGER,
       branchId: branchHN.id,
     },
   });
 
   const userManagerHCM = await prisma.user.upsert({
-    where: { email: "manager.hcm@stockflow.local" },
-    update: {},
+    where: { email: "duyanh19122k3+manager_hcm@gmail.com" },
+    update: { passwordHash: pwdDefault },
     create: {
-      email: "manager.hcm@stockflow.local",
+      email: "duyanh19122k3+manager_hcm@gmail.com",
       fullName: "Lê Sài Gòn Manager",
-      passwordHash: pwdManager,
+      passwordHash: pwdDefault,
       role: UserRole.STORE_MANAGER,
       branchId: branchHCM.id,
     },
   });
 
   const userWarehouse = await prisma.user.upsert({
-    where: { email: "warehouse@stockflow.local" },
-    update: {},
+    where: { email: "duyanh19122k3+warehouse@gmail.com" },
+    update: { passwordHash: pwdDefault },
     create: {
-      email: "warehouse@stockflow.local",
+      email: "duyanh19122k3+warehouse@gmail.com",
       fullName: "Phạm Kho Vận",
-      passwordHash: pwdWarehouse,
+      passwordHash: pwdDefault,
       role: UserRole.WAREHOUSE,
     },
   });
@@ -668,10 +666,10 @@ async function main() {
   );
   console.log("\n🔑 Test User Credentials:");
   console.log("----------------------------------------------------------------------------------");
-  console.log("1. ADMIN:            admin@stockflow.local       / Password: Admin@123");
-  console.log("2. STORE_MANAGER HN:  manager.hn@stockflow.local / Password: Manager@123");
-  console.log("3. STORE_MANAGER HCM: manager.hcm@stockflow.local/ Password: Manager@123");
-  console.log("4. WAREHOUSE:         warehouse@stockflow.local   / Password: Warehouse@123");
+  console.log("1. ADMIN:            duyanh19122k3+admin@gmail.com       / Password: 123");
+  console.log("2. STORE_MANAGER HN:  duyanh19122k3+manager_hn@gmail.com  / Password: 123");
+  console.log("3. STORE_MANAGER HCM: duyanh19122k3+manager_hcm@gmail.com / Password: 123");
+  console.log("4. WAREHOUSE:         duyanh19122k3+warehouse@gmail.com   / Password: 123");
   console.log("----------------------------------------------------------------------------------");
 }
 

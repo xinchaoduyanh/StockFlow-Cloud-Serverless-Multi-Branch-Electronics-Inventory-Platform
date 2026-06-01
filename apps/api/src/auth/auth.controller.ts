@@ -25,14 +25,37 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post("register")
-  @ApiBody({ type: Object, description: "Register a new user." })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["email", "password"],
+      properties: {
+        email: { type: "string", example: "duyanh19122k3+admin@gmail.com" },
+        password: { type: "string", example: "123" },
+        fullName: { type: "string", example: "Nguyễn Admin Tổng" },
+        role: { type: "string", example: "ADMIN" },
+        branchId: { type: "string", format: "uuid" },
+      },
+    },
+    description: "Register a new user.",
+  })
   @ApiOkResponse({ description: "Registered successfully." })
   register(@Body(new ZodValidationPipe(registerBodySchema)) body: RegisterBody): Promise<UserDTO> {
     return this.authService.register(body) as any;
   }
 
   @Post("login")
-  @ApiBody({ type: Object, description: "Log in with email & password." })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["email", "password"],
+      properties: {
+        email: { type: "string", example: "duyanh19122k3+admin@gmail.com" },
+        password: { type: "string", example: "123" },
+      },
+    },
+    description: "Log in with email & password.",
+  })
   @ApiOkResponse({ description: "Logged in successfully, returns JWT token." })
   @ApiUnauthorizedResponse({ description: "Invalid credentials." })
   login(

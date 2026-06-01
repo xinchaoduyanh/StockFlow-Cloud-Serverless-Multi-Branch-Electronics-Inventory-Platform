@@ -5,7 +5,7 @@ export const loginBodySchema = z.object({
     .string()
     .email()
     .transform((value) => value.trim().toLowerCase()),
-  password: z.string().min(8),
+  password: z.string().min(1),
 });
 
 export const refreshBodySchema = z.object({
@@ -17,7 +17,7 @@ export const registerBodySchema = z.object({
     .string()
     .email()
     .transform((value) => value.trim().toLowerCase()),
-  password: z.string().min(8),
+  password: z.string().min(1),
   fullName: z.string().trim().nullable().optional(),
   role: z.string().optional(),
   branchId: z.string().uuid().nullable().optional(),

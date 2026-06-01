@@ -7,8 +7,13 @@ export function setupApp(app: INestApplication) {
   const env = app.get(EnvService);
 
   app.setGlobalPrefix("api");
+  const corsOrigin = env.get("CORS_ORIGIN");
+  const allowedOrigins = corsOrigin.includes(",")
+    ? corsOrigin.split(",").map((o) => o.trim())
+    : corsOrigin;
+
   app.enableCors({
-    origin: env.get("CORS_ORIGIN"),
+    origin: allowedOrigins,
     credentials: true,
   });
   app.useGlobalFilters(new AllExceptionsFilter());
