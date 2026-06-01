@@ -47,6 +47,15 @@ async function executeRefresh(): Promise<string | null> {
 }
 
 async function refreshAuthToken(): Promise<string | null> {
+  if (process.env.NEXT_PUBLIC_AUTH_MODE === "cognito") {
+    try {
+      const { getFreshCognitoToken } = await import("./cognito");
+      return await getFreshCognitoToken();
+    } catch {
+      return null;
+    }
+  }
+
   if (!refreshPromise) {
     refreshPromise = executeRefresh().finally(() => {
       refreshPromise = null;

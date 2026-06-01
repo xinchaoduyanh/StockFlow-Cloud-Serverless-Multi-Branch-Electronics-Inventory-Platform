@@ -62,22 +62,30 @@ async function main() {
 
   const userAdmin = await prisma.user.upsert({
     where: { email: "duyanh19122k3+admin@gmail.com" },
-    update: { passwordHash: pwdDefault },
+    update: {
+      passwordHash: pwdDefault,
+      cognitoSub: "f93aa58c-40e1-70d1-5f84-f00c62ac6f8c",
+    },
     create: {
       email: "duyanh19122k3+admin@gmail.com",
       fullName: "Nguyễn Admin Tổng",
       passwordHash: pwdDefault,
+      cognitoSub: "f93aa58c-40e1-70d1-5f84-f00c62ac6f8c",
       role: UserRole.ADMIN,
     },
   });
 
   const userManagerHN = await prisma.user.upsert({
     where: { email: "duyanh19122k3+manager_hn@gmail.com" },
-    update: { passwordHash: pwdDefault },
+    update: {
+      passwordHash: pwdDefault,
+      cognitoSub: "e96a959c-40e1-70e2-2029-b8101b2980ce",
+    },
     create: {
       email: "duyanh19122k3+manager_hn@gmail.com",
       fullName: "Trần Hà Nội Manager",
       passwordHash: pwdDefault,
+      cognitoSub: "e96a959c-40e1-70e2-2029-b8101b2980ce",
       role: UserRole.STORE_MANAGER,
       branchId: branchHN.id,
     },
@@ -85,11 +93,15 @@ async function main() {
 
   const userManagerHCM = await prisma.user.upsert({
     where: { email: "duyanh19122k3+manager_hcm@gmail.com" },
-    update: { passwordHash: pwdDefault },
+    update: {
+      passwordHash: pwdDefault,
+      cognitoSub: "f98aa52c-5011-705d-bfe6-77827c852cbf",
+    },
     create: {
       email: "duyanh19122k3+manager_hcm@gmail.com",
       fullName: "Lê Sài Gòn Manager",
       passwordHash: pwdDefault,
+      cognitoSub: "f98aa52c-5011-705d-bfe6-77827c852cbf",
       role: UserRole.STORE_MANAGER,
       branchId: branchHCM.id,
     },
@@ -97,11 +109,15 @@ async function main() {
 
   const userWarehouse = await prisma.user.upsert({
     where: { email: "duyanh19122k3+warehouse@gmail.com" },
-    update: { passwordHash: pwdDefault },
+    update: {
+      passwordHash: pwdDefault,
+      cognitoSub: "694a450c-2081-70e3-8446-a84689aa9d1f",
+    },
     create: {
       email: "duyanh19122k3+warehouse@gmail.com",
       fullName: "Phạm Kho Vận",
       passwordHash: pwdDefault,
+      cognitoSub: "694a450c-2081-70e3-8446-a84689aa9d1f",
       role: UserRole.WAREHOUSE,
     },
   });

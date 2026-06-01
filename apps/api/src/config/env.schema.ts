@@ -32,6 +32,10 @@ export const envSchema = z.object({
   REPORT_EXPORTER_LAMBDA_ARN: z.string().optional(),
   DLQ_REPLAY_LAMBDA_ARN: z.string().optional(),
   RECONCILIATION_LAMBDA_ARN: z.string().optional(),
+  AUTH_MODE: z.enum(["cognito", "mock"]).default("cognito"),
+  COGNITO_REGION: z.string().default("ap-southeast-1"),
+  COGNITO_USER_POOL_ID: z.string().optional(),
+  COGNITO_CLIENT_ID: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

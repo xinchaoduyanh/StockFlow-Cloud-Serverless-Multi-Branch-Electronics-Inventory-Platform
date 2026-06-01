@@ -77,7 +77,7 @@ export default function LoginPage() {
 
         {login.error ? (
           <p className="m-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-xs font-bold text-red-700">
-            Invalid email or password.
+            {login.error instanceof Error ? login.error.message : String(login.error)}
           </p>
         ) : null}
 
