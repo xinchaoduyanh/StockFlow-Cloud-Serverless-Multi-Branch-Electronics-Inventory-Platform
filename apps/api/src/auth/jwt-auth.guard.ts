@@ -1,5 +1,4 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
 import { Request } from "express";
 import { CognitoJwtVerifier } from "aws-jwt-verify";
 import { UserStatus } from "@prisma/client";
@@ -16,7 +15,6 @@ export class JwtAuthGuard implements CanActivate {
   private verifier: any;
 
   constructor(
-    private readonly jwtService: JwtService,
     private readonly env: EnvService,
     private readonly prisma: PrismaService,
   ) {}
@@ -29,43 +27,6 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException("Missing bearer token");
     }
 
-    const authMode = this.env.get("AUTH_MODE");
-
-    // 1. Mock Mode (Offline-friendly Developer Experience)
-    if (authMode === "mock") {
-      try {
-        // Fallback to legacy JWT verification (useful for dev transition)
-        const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
-        const user = await this.prisma.user.findUnique({
-          where: { id: payload.sub },
-        });
-
-        if (!user || user.status !== UserStatus.ACTIVE) {
-          throw new UnauthorizedException("User is no longer active");
-        }
-
-        request.user = payload;
-        return true;
-      } catch (e) {
-        // If it's not a legacy token, check if the token matches a mock cognito sub
-        const user = await this.prisma.user.findUnique({
-          where: { cognitoSub: token },
-        });
-
-        if (user && user.status === UserStatus.ACTIVE) {
-          request.user = {
-            sub: user.id,
-            email: user.email,
-            role: user.role,
-            branchId: user.branchId,
-          };
-          return true;
-        }
-        throw new UnauthorizedException("Invalid token in mock mode");
-      }
-    }
-
-    // 2. Cognito Real Auth Mode
     try {
       const verifier = this.getVerifier();
       const payload = await verifier.verify(token);
@@ -128,7 +89,7 @@ export class JwtAuthGuard implements CanActivate {
 
       if (!userPoolId || !clientId) {
         throw new Error(
-          "COGNITO_USER_POOL_ID and COGNITO_CLIENT_ID must be configured when AUTH_MODE is 'cognito'",
+          "COGNITO_USER_POOL_ID and COGNITO_CLIENT_ID must be configured for JWT authentication",
         );
       }
 
