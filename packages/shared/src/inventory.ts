@@ -24,6 +24,7 @@ export interface Branch {
   id: string;
   code: string;
   name: string;
+  address: string | null;
   status: string;
   createdAt: string | Date;
   updatedAt: string | Date;
@@ -53,3 +54,18 @@ export interface InventoryItem {
   branch: Branch;
   component: Component;
 }
+
+export const createBranchSchema = z.object({
+  code: z.string().trim().min(2).max(50).toUpperCase(),
+  name: z.string().trim().min(3).max(255),
+  address: z.string().trim().min(5).max(500).optional(),
+});
+
+export const updateBranchSchema = z.object({
+  name: z.string().trim().min(3).max(255).optional(),
+  address: z.string().trim().min(5).max(500).optional(),
+  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+});
+
+export type CreateBranchBody = z.infer<typeof createBranchSchema>;
+export type UpdateBranchBody = z.infer<typeof updateBranchSchema>;

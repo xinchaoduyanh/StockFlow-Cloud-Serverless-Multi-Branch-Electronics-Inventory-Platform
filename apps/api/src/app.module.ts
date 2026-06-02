@@ -12,6 +12,8 @@ import { ReconciliationModule } from "./reconciliation/reconciliation.module";
 import { ReportsModule } from "./reports/reports.module";
 import { TransfersModule } from "./transfers/transfers.module";
 import { NotificationsModule } from "./notifications/notifications.module";
+import { UsersModule } from "./users/users.module";
+import { BranchesModule } from "./branches/branches.module";
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { NotificationsModule } from "./notifications/notifications.module";
     DlqModule,
     ReconciliationModule,
     NotificationsModule,
+    UsersModule,
+    BranchesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

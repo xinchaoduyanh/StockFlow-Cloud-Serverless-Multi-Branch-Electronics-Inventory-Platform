@@ -19,6 +19,8 @@ import { apiRequest } from "@/lib/api-client";
 import { useCurrentUser, useLogout } from "@/features/auth/use-auth";
 import { NotificationBell } from "@/features/notifications/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { UsersAdmin } from "@/features/users/UsersAdmin";
+import { BranchesAdmin } from "@/features/branches/BranchesAdmin";
 
 type Branch = {
   id: string;
@@ -104,6 +106,8 @@ const tabs = [
   { id: "reports", label: "Reports" },
   { id: "dlq", label: "DLQ Admin", adminOnly: true },
   { id: "reconciliation", label: "Reconciliation", adminOnly: true },
+  { id: "users", label: "Users Admin", adminOnly: true },
+  { id: "branches", label: "Branches Admin", adminOnly: true },
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
@@ -1017,6 +1021,10 @@ export default function DashboardPage() {
             onPageChange={setReconPage}
           />
         ) : null}
+
+        {activeTab === "users" && user?.role === UserRole.ADMIN ? <UsersAdmin /> : null}
+
+        {activeTab === "branches" && user?.role === UserRole.ADMIN ? <BranchesAdmin /> : null}
       </div>
     </main>
   );
