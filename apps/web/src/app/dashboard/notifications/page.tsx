@@ -91,7 +91,7 @@ export default function NotificationsPage() {
                 StockFlow Cloud
               </p>
               <h1 className="m-0 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
-                Notifications History Center
+                Trung tâm Lịch sử Thông báo
               </h1>
             </div>
           </div>
@@ -99,7 +99,7 @@ export default function NotificationsPage() {
           <div className="flex items-center gap-3 max-md:w-full max-md:justify-between">
             <ThemeToggle />
             <Link href="/dashboard" className="button-secondary min-h-10 px-4 text-xs">
-              ← Return to Dashboard
+              ← Quay lại Bảng điều khiển
             </Link>
           </div>
         </div>
@@ -120,7 +120,7 @@ export default function NotificationsPage() {
                 }`}
                 type="button"
               >
-                All Notifications ({notifications.length})
+                Tất cả thông báo ({notifications.length})
               </button>
               <button
                 onClick={() => setFilter("unread")}
@@ -131,7 +131,7 @@ export default function NotificationsPage() {
                 }`}
                 type="button"
               >
-                Unread Alerts ({unreadCount})
+                Thông báo chưa đọc ({unreadCount})
               </button>
             </div>
 
@@ -142,7 +142,7 @@ export default function NotificationsPage() {
                 className="button-secondary min-h-10 cursor-pointer px-4 text-xs"
                 type="button"
               >
-                Mark All as Read
+                Đánh dấu tất cả đã đọc
               </button>
             )}
           </div>
@@ -162,10 +162,10 @@ export default function NotificationsPage() {
                   </svg>
                 </div>
                 <h3 className="mt-4 text-sm font-medium text-slate-800 dark:text-slate-200">
-                  Your notification log is clear
+                  Hộp thư thông báo của bạn trống
                 </h3>
                 <p className="mt-1 text-xs font-normal text-slate-400 dark:text-slate-500">
-                  No alerts matching the selected filter were found.
+                  Không tìm thấy thông báo nào phù hợp với bộ lọc đã chọn.
                 </p>
               </div>
             ) : (
@@ -234,7 +234,7 @@ export default function NotificationsPage() {
                             </span>
                             {!item.read && (
                               <span className="rounded-md border border-slate-200/70 dark:border-slate-850 bg-white dark:bg-slate-900 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-slate-655 dark:text-slate-400">
-                                New
+                                Mới
                               </span>
                             )}
                           </div>
@@ -276,7 +276,7 @@ export default function NotificationsPage() {
                     {isExpanded && (
                       <div className="rounded-b-xl border-t border-slate-200/60 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-6 animate-fade-in">
                         <p className="m-0 text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-450">
-                          Diagnostic Metadata Log
+                          Nhật ký siêu dữ liệu chẩn đoán
                         </p>
                         <p className="m-0 mt-2 text-xs font-normal leading-relaxed text-slate-700 dark:text-slate-300">
                           {item.message}
@@ -290,7 +290,7 @@ export default function NotificationsPage() {
                               <div className="mt-4 grid grid-cols-2 gap-4 rounded-lg border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 md:grid-cols-4 animate-slide-down">
                                 <div className="rounded-md bg-slate-50 dark:bg-slate-950/40 p-3.5">
                                   <span className="text-[9px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-450">
-                                    File Name
+                                    Tên File
                                   </span>
                                   <p className="m-0 mt-1 truncate text-xs font-medium text-slate-800 dark:text-slate-250">
                                     {successMeta.fileName}
@@ -298,7 +298,7 @@ export default function NotificationsPage() {
                                 </div>
                                 <div className="rounded-md bg-slate-50 dark:bg-slate-950/40 p-3.5">
                                   <span className="text-[9px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-450">
-                                    Branch Code
+                                    Mã chi nhánh
                                   </span>
                                   <p className="m-0 mt-1 text-xs font-medium text-slate-800 dark:text-slate-250">
                                     {successMeta.branchCode}
@@ -306,7 +306,7 @@ export default function NotificationsPage() {
                                 </div>
                                 <div className="rounded-md border border-emerald-100/70 dark:border-emerald-950/30 bg-emerald-50 dark:bg-emerald-950/20 p-3.5">
                                   <span className="text-[9px] font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
-                                    Valid Rows
+                                    Dòng hợp lệ
                                   </span>
                                   <p className="m-0 mt-1 text-xs font-medium text-emerald-800 dark:text-emerald-300">
                                     {successMeta.validRows} / {successMeta.totalRows}
@@ -314,7 +314,7 @@ export default function NotificationsPage() {
                                 </div>
                                 <div className="rounded-md border border-rose-100/70 dark:border-rose-950/30 bg-rose-50 dark:bg-rose-950/20 p-3.5">
                                   <span className="text-[9px] font-medium uppercase tracking-wide text-rose-700 dark:text-rose-400">
-                                    Invalid Rows
+                                    Dòng không hợp lệ
                                   </span>
                                   <p className="m-0 mt-1 text-xs font-medium text-rose-800 dark:text-rose-300">
                                     {successMeta.invalidRows} / {successMeta.totalRows}
@@ -340,12 +340,12 @@ export default function NotificationsPage() {
                                       d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                                     />
                                   </svg>
-                                  Failure Diagnostics Log
+                                  Nhật ký chẩn đoán lỗi
                                 </div>
                                 <div className="grid grid-cols-2 gap-4 mb-4">
                                   <div className="rounded-md border border-rose-100/70 dark:border-rose-950/30 bg-white dark:bg-slate-900 p-3">
                                     <span className="text-[9px] font-medium uppercase text-slate-500 dark:text-slate-450">
-                                      File Name
+                                      Tên File
                                     </span>
                                     <p className="m-0 mt-0.5 truncate text-xs font-medium text-slate-800 dark:text-slate-250">
                                       {failureMeta.fileName}
@@ -353,7 +353,7 @@ export default function NotificationsPage() {
                                   </div>
                                   <div className="rounded-md border border-rose-100/70 dark:border-rose-950/30 bg-white dark:bg-slate-900 p-3">
                                     <span className="text-[9px] font-medium uppercase text-slate-500 dark:text-slate-450">
-                                      Branch Code
+                                      Mã chi nhánh
                                     </span>
                                     <p className="m-0 mt-0.5 text-xs font-medium text-slate-800 dark:text-slate-250">
                                       {failureMeta.branchCode}
@@ -361,7 +361,7 @@ export default function NotificationsPage() {
                                   </div>
                                 </div>
                                 <span className="text-[9px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-450">
-                                  Detailed Error Message
+                                  Chi tiết thông báo lỗi
                                 </span>
                                 <pre className="mt-2 whitespace-pre-wrap rounded-lg border border-slate-800 dark:border-slate-750 bg-slate-950 dark:bg-slate-950 p-4 font-mono text-[11px] leading-relaxed text-slate-100 dark:text-slate-300 selection:bg-slate-700">
                                   {failureMeta.errorMessage}

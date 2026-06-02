@@ -70,11 +70,11 @@ export function NotificationBell() {
     const date = new Date(dateInput);
     const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
 
-    if (seconds < 60) return "Just now";
+    if (seconds < 60) return "Vừa xong";
     const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
+    if (minutes < 60) return `${minutes} phút trước`;
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
+    if (hours < 24) return `${hours} giờ trước`;
     return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   };
 
@@ -119,10 +119,10 @@ export function NotificationBell() {
           <div className="relative flex items-center justify-between border-b border-slate-200/60 dark:border-slate-805 bg-slate-50 dark:bg-slate-900/50 px-4.5 pb-3 pt-4">
             <div>
               <h3 className="m-0 text-xs font-medium uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                Notifications
+                Thông báo
               </h3>
               <p className="m-0 text-[10px] font-normal text-slate-500 dark:text-slate-400">
-                You have {unreadCount} unread alert{unreadCount !== 1 ? "s" : ""}
+                Bạn có {unreadCount} thông báo chưa đọc
               </p>
             </div>
             {unreadCount > 0 && (
@@ -132,7 +132,7 @@ export function NotificationBell() {
                 className="cursor-pointer border-0 bg-transparent text-[11px] font-medium text-slate-600 dark:text-slate-400 transition-colors hover:text-slate-950 dark:hover:text-slate-200 hover:underline"
                 type="button"
               >
-                Mark all as read
+                Đánh dấu tất cả đã đọc
               </button>
             )}
           </div>
@@ -152,10 +152,10 @@ export function NotificationBell() {
                     </svg>
                   </div>
                   <p className="mt-3 text-xs font-bold text-slate-700 dark:text-slate-300">
-                    No notifications yet
+                    Chưa có thông báo nào
                   </p>
                   <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-                    System alerts will show up here
+                    Các cảnh báo hệ thống sẽ hiển thị tại đây
                   </p>
                 </div>
               ) : (
@@ -246,7 +246,7 @@ export function NotificationBell() {
               className="w-full rounded-lg border-0 bg-transparent py-2.5 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors duration-200 hover:bg-white dark:hover:bg-slate-800 hover:text-slate-950 dark:hover:text-slate-100"
               type="button"
             >
-              View all notification history
+              Xem toàn bộ lịch sử thông báo
             </button>
           </div>
         </div>

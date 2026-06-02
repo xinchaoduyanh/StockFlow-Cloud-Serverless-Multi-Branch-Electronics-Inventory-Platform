@@ -44,16 +44,16 @@ export default function LoginPage() {
             StockFlow Cloud
           </p>
           <h1 className="m-0 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
-            Welcome Back
+            Chào mừng trở lại
           </h1>
           <p className="mt-2 text-xs font-normal text-slate-500 dark:text-slate-400">
-            Sign in to manage your multi-branch operations
+            Đăng nhập để quản lý kho hàng đa chi nhánh
           </p>
         </div>
 
         <div className="grid gap-5">
           <label className="field">
-            <span>Email Address</span>
+            <span>Địa chỉ Email</span>
             <div className="relative flex items-center">
               <span className="absolute left-4 text-slate-400 dark:text-slate-500">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -73,13 +73,13 @@ export default function LoginPage() {
                 required
                 type="email"
                 value={email}
-                placeholder="name@company.com"
+                placeholder="ten@congty.com"
               />
             </div>
           </label>
 
           <label className="field">
-            <span>Password</span>
+            <span>Mật khẩu</span>
             <div className="relative flex items-center">
               <span className="absolute left-4 text-slate-400 dark:text-slate-500">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -150,7 +150,7 @@ export default function LoginPage() {
         ) : null}
 
         <button className="button-primary w-full" disabled={login.isPending} type="submit">
-          {login.isPending ? "Signing in..." : "Sign in"}
+          {login.isPending ? "Đang đăng nhập..." : "Đăng nhập"}
         </button>
       </form>
     </main>

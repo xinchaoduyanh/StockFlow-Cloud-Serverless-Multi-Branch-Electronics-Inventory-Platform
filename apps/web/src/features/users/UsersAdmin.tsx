@@ -50,11 +50,11 @@ export function UsersAdmin() {
       }),
     onSuccess: (newUser) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      setFormSuccess(`User ${newUser.email} created and Cognito invitation sent.`);
+      setFormSuccess(`Tài khoản ${newUser.email} đã được tạo và email mời kích hoạt đã được gửi.`);
       resetForm();
     },
     onError: (error: any) => {
-      setFormError(error.message || "Failed to create user");
+      setFormError(error.message || "Không thể tạo tài khoản");
     },
   });
 
@@ -66,11 +66,11 @@ export function UsersAdmin() {
       }),
     onSuccess: (updatedUser) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      setFormSuccess(`User ${updatedUser.email} updated successfully.`);
+      setFormSuccess(`Cập nhật tài khoản ${updatedUser.email} thành công.`);
       resetForm();
     },
     onError: (error: any) => {
-      setFormError(error.message || "Failed to update user");
+      setFormError(error.message || "Không thể cập nhật tài khoản");
     },
   });
 
@@ -81,10 +81,12 @@ export function UsersAdmin() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      setFormSuccess("User deleted (or deactivated if they have history) successfully.");
+      setFormSuccess(
+        "Đã xóa tài khoản (hoặc vô hiệu hóa nếu tài khoản có lịch sử hoạt động) thành công.",
+      );
     },
     onError: (error: any) => {
-      setFormError(error.message || "Failed to delete user");
+      setFormError(error.message || "Không thể xóa tài khoản");
     },
   });
 
@@ -115,7 +117,7 @@ export function UsersAdmin() {
     setFormSuccess(null);
 
     if ((role === "STORE_MANAGER" || role === "WAREHOUSE") && !branchId) {
-      setFormError(`Assigned branch is required for ${role} role.`);
+      setFormError(`Chi nhánh trực thuộc là bắt buộc đối với vai trò ${role}.`);
       return;
     }
 
@@ -140,7 +142,7 @@ export function UsersAdmin() {
   };
 
   const handleDeleteClick = (user: UserDTO) => {
-    if (confirm(`Are you sure you want to remove user "${user.email}"?`)) {
+    if (confirm(`Bạn có chắc chắn muốn xóa nhân viên "${user.email}" không?`)) {
       setFormError(null);
       setFormSuccess(null);
       deleteUserMutation.mutate(user.id);
@@ -166,10 +168,10 @@ export function UsersAdmin() {
       <form className="surface grid h-fit gap-5 p-5" onSubmit={handleSubmit}>
         <div>
           <p className="m-0 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
-            User Provisioning
+            Quản trị Nhân viên
           </p>
           <h2 className="m-0 mt-1 text-lg font-semibold text-slate-950 dark:text-white">
-            {editingUser ? "Edit User Account" : "Invite New User"}
+            {editingUser ? "Cập nhật tài khoản" : "Mời nhân viên mới"}
           </h2>
         </div>
 
@@ -186,12 +188,12 @@ export function UsersAdmin() {
         )}
 
         <label className="field">
-          <span>Email Address</span>
+          <span>Địa chỉ Email</span>
           <input
             className="input"
             disabled={!!editingUser}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="user@example.com"
+            placeholder="nhanvien@congty.com"
             required
             type="email"
             value={email}
@@ -199,11 +201,11 @@ export function UsersAdmin() {
         </label>
 
         <label className="field">
-          <span>Full Name</span>
+          <span>Họ và tên</span>
           <input
             className="input"
             onChange={(e) => setFullName(e.target.value)}
-            placeholder="John Doe"
+            placeholder="Nguyễn Văn A"
             required
             type="text"
             value={fullName}
@@ -211,7 +213,7 @@ export function UsersAdmin() {
         </label>
 
         <label className="field">
-          <span>Access Role</span>
+          <span>Vai trò truy cập</span>
           <select
             className="input"
             onChange={(e) => {
@@ -223,22 +225,22 @@ export function UsersAdmin() {
             }}
             value={role}
           >
-            <option value="ADMIN">ADMIN</option>
-            <option value="STORE_MANAGER">STORE_MANAGER</option>
-            <option value="WAREHOUSE">WAREHOUSE</option>
+            <option value="ADMIN">ADMIN (Quản trị viên)</option>
+            <option value="STORE_MANAGER">STORE_MANAGER (Quản lý chi nhánh)</option>
+            <option value="WAREHOUSE">WAREHOUSE (Thủ kho)</option>
           </select>
         </label>
 
         {(role === "STORE_MANAGER" || role === "WAREHOUSE") && (
           <label className="field">
-            <span>Assigned Branch</span>
+            <span>Chi nhánh trực thuộc</span>
             <select
               className="input"
               onChange={(e) => setBranchId(e.target.value)}
               required
               value={branchId}
             >
-              <option value="">Select branch...</option>
+              <option value="">Chọn chi nhánh...</option>
               {branches
                 .filter((b) => b.status === "ACTIVE")
                 .map((b) => (
@@ -252,21 +254,21 @@ export function UsersAdmin() {
 
         {editingUser && (
           <label className="field">
-            <span>Account Status</span>
+            <span>Trạng thái tài khoản</span>
             <select className="input" onChange={(e) => setStatus(e.target.value)} value={status}>
-              <option value={UserStatus.ACTIVE}>ACTIVE (Enabled)</option>
-              <option value={UserStatus.INACTIVE}>INACTIVE (Disabled)</option>
+              <option value={UserStatus.ACTIVE}>Đang hoạt động (Kích hoạt)</option>
+              <option value={UserStatus.INACTIVE}>Ngừng hoạt động (Khóa)</option>
             </select>
           </label>
         )}
 
         <div className="flex gap-2">
           <button className="button-primary flex-1" disabled={isPending} type="submit">
-            {isPending ? "Saving..." : editingUser ? "Update User" : "Send Invite"}
+            {isPending ? "Đang lưu..." : editingUser ? "Cập nhật" : "Gửi lời mời"}
           </button>
           {editingUser && (
             <button className="button-secondary" onClick={resetForm} type="button">
-              Cancel
+              Hủy bỏ
             </button>
           )}
         </div>
@@ -277,10 +279,10 @@ export function UsersAdmin() {
         <section className="surface overflow-hidden">
           <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4">
             <h2 className="m-0 text-sm font-semibold tracking-tight text-slate-950 dark:text-white">
-              User Directories
+              Danh mục Nhân viên
             </h2>
             <span className="rounded-md border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-0.5 text-xs font-normal text-slate-500 dark:text-slate-400">
-              {users.length} total
+              Tổng cộng {users.length}
             </span>
           </div>
 
@@ -288,26 +290,26 @@ export function UsersAdmin() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Full Name</th>
+                  <th>Họ và tên</th>
                   <th>Email</th>
-                  <th>Access Role</th>
-                  <th>Branch</th>
-                  <th>Status</th>
-                  <th className="text-right">Actions</th>
+                  <th>Vai trò</th>
+                  <th>Chi nhánh</th>
+                  <th>Trạng thái</th>
+                  <th className="text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {usersQuery.isLoading && (
                   <tr>
                     <td className="py-12 text-center text-sm text-slate-400" colSpan={6}>
-                      Loading user data...
+                      Đang tải dữ liệu nhân viên...
                     </td>
                   </tr>
                 )}
                 {!usersQuery.isLoading && users.length === 0 && (
                   <tr>
                     <td className="py-12 text-center text-sm text-slate-400" colSpan={6}>
-                      No users configured.
+                      Chưa cấu hình nhân viên nào.
                     </td>
                   </tr>
                 )}
@@ -331,7 +333,11 @@ export function UsersAdmin() {
                                 : "border-slate-200/70 bg-slate-50 text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-350"
                           }`}
                         >
-                          {userItem.role}
+                          {userItem.role === "ADMIN"
+                            ? "ADMIN"
+                            : userItem.role === "STORE_MANAGER"
+                              ? "QUẢN LÝ"
+                              : "THỦ KHO"}
                         </span>
                       </td>
                       <td>
@@ -340,7 +346,7 @@ export function UsersAdmin() {
                             {getBranchCode(userItem.branchId)}
                           </span>
                         ) : (
-                          <span className="text-slate-400 text-xs">Global</span>
+                          <span className="text-slate-400 text-xs">Toàn cục</span>
                         )}
                       </td>
                       <td>
@@ -351,7 +357,9 @@ export function UsersAdmin() {
                               : "border-rose-200/70 bg-rose-50 text-rose-800 dark:border-rose-900/30 dark:bg-rose-950/20 dark:text-rose-400"
                           }`}
                         >
-                          {userItem.status}
+                          {userItem.status === UserStatus.ACTIVE
+                            ? "ĐANG HOẠT ĐỘNG"
+                            : "NGỪNG HOẠT ĐỘNG"}
                         </span>
                       </td>
                       <td className="text-right">
@@ -359,7 +367,7 @@ export function UsersAdmin() {
                           <button
                             className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                             onClick={() => handleEditClick(userItem)}
-                            title="Edit User"
+                            title="Chỉnh sửa"
                             type="button"
                           >
                             <svg
@@ -379,7 +387,7 @@ export function UsersAdmin() {
                           <button
                             className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition"
                             onClick={() => handleDeleteClick(userItem)}
-                            title="Delete User"
+                            title="Xóa nhân viên"
                             type="button"
                           >
                             <svg
@@ -412,10 +420,10 @@ export function UsersAdmin() {
                 onClick={() => setCurrentPage((c) => Math.max(c - 1, 1))}
                 type="button"
               >
-                Previous
+                Trước
               </button>
               <span className="text-xs text-slate-500">
-                Page {currentPage} of {totalPages}
+                Trang {currentPage} trên {totalPages}
               </span>
               <button
                 className="button-secondary min-h-8 px-2.5 py-1 text-xs"
@@ -423,7 +431,7 @@ export function UsersAdmin() {
                 onClick={() => setCurrentPage((c) => Math.min(c + 1, totalPages))}
                 type="button"
               >
-                Next
+                Sau
               </button>
             </div>
           )}

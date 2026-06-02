@@ -36,11 +36,11 @@ export function BranchesAdmin() {
       }),
     onSuccess: (newBranch) => {
       queryClient.invalidateQueries({ queryKey: ["branches"] });
-      setFormSuccess(`Branch "${newBranch.code}" created successfully.`);
+      setFormSuccess(`Chi nhánh "${newBranch.code}" đã được tạo thành công.`);
       resetForm();
     },
     onError: (error: any) => {
-      setFormError(error.message || "Failed to create branch");
+      setFormError(error.message || "Không thể tạo chi nhánh");
     },
   });
 
@@ -52,11 +52,11 @@ export function BranchesAdmin() {
       }),
     onSuccess: (updatedBranch) => {
       queryClient.invalidateQueries({ queryKey: ["branches"] });
-      setFormSuccess(`Branch "${updatedBranch.code}" updated successfully.`);
+      setFormSuccess(`Chi nhánh "${updatedBranch.code}" đã được cập nhật thành công.`);
       resetForm();
     },
     onError: (error: any) => {
-      setFormError(error.message || "Failed to update branch");
+      setFormError(error.message || "Không thể cập nhật chi nhánh");
     },
   });
 
@@ -67,10 +67,12 @@ export function BranchesAdmin() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["branches"] });
-      setFormSuccess("Branch deleted (or deactivated if it had history) successfully.");
+      setFormSuccess(
+        "Đã xóa chi nhánh (hoặc vô hiệu hóa nếu chi nhánh có lịch sử hoạt động) thành công.",
+      );
     },
     onError: (error: any) => {
-      setFormError(error.message || "Failed to delete branch");
+      setFormError(error.message || "Không thể xóa chi nhánh");
     },
   });
 
@@ -100,7 +102,7 @@ export function BranchesAdmin() {
 
     const codeTrimmed = code.trim().toUpperCase();
     if (codeTrimmed.length < 2) {
-      setFormError("Branch code must be at least 2 characters long.");
+      setFormError("Mã chi nhánh phải dài ít nhất 2 ký tự.");
       return;
     }
 
@@ -123,7 +125,7 @@ export function BranchesAdmin() {
   };
 
   const handleDeleteClick = (branch: Branch) => {
-    if (confirm(`Are you sure you want to remove branch "${branch.code}"?`)) {
+    if (confirm(`Bạn có chắc chắn muốn xóa chi nhánh "${branch.code}" không?`)) {
       setFormError(null);
       setFormSuccess(null);
       deleteBranchMutation.mutate(branch.id);
@@ -145,10 +147,10 @@ export function BranchesAdmin() {
       <form className="surface grid h-fit gap-5 p-5" onSubmit={handleSubmit}>
         <div>
           <p className="m-0 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
-            Branch Operations
+            Quản trị Chi nhánh
           </p>
           <h2 className="m-0 mt-1 text-lg font-semibold text-slate-950 dark:text-white">
-            {editingBranch ? "Edit Branch Info" : "Create New Branch"}
+            {editingBranch ? "Cập nhật chi nhánh" : "Tạo chi nhánh mới"}
           </h2>
         </div>
 
@@ -165,13 +167,13 @@ export function BranchesAdmin() {
         )}
 
         <label className="field">
-          <span>Branch Code</span>
+          <span>Mã chi nhánh</span>
           <input
             className="input uppercase"
             disabled={!!editingBranch}
             maxLength={10}
             onChange={(e) => setCode(e.target.value)}
-            placeholder="e.g. HCM01"
+            placeholder="Ví dụ: HCM01"
             required
             type="text"
             value={code}
@@ -179,11 +181,11 @@ export function BranchesAdmin() {
         </label>
 
         <label className="field">
-          <span>Branch Name</span>
+          <span>Tên chi nhánh</span>
           <input
             className="input"
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Ho Chi Minh Office"
+            placeholder="Ví dụ: Chi nhánh Hồ Chí Minh"
             required
             type="text"
             value={name}
@@ -191,32 +193,32 @@ export function BranchesAdmin() {
         </label>
 
         <label className="field">
-          <span>Address</span>
+          <span>Địa chỉ</span>
           <textarea
             className="input min-h-20"
             onChange={(e) => setAddress(e.target.value)}
-            placeholder="e.g. 123 Nguyen Hue Street, District 1"
+            placeholder="Ví dụ: 123 Nguyễn Huệ, Quận 1"
             value={address}
           />
         </label>
 
         {editingBranch && (
           <label className="field">
-            <span>Branch Status</span>
+            <span>Trạng thái chi nhánh</span>
             <select className="input" onChange={(e) => setStatus(e.target.value)} value={status}>
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="INACTIVE">INACTIVE</option>
+              <option value="ACTIVE">Đang hoạt động</option>
+              <option value="INACTIVE">Ngừng hoạt động</option>
             </select>
           </label>
         )}
 
         <div className="flex gap-2">
           <button className="button-primary flex-1" disabled={isPending} type="submit">
-            {isPending ? "Saving..." : editingBranch ? "Update Branch" : "Create Branch"}
+            {isPending ? "Đang lưu..." : editingBranch ? "Cập nhật" : "Tạo mới"}
           </button>
           {editingBranch && (
             <button className="button-secondary" onClick={resetForm} type="button">
-              Cancel
+              Hủy bỏ
             </button>
           )}
         </div>
@@ -227,10 +229,10 @@ export function BranchesAdmin() {
         <section className="surface overflow-hidden">
           <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4">
             <h2 className="m-0 text-sm font-semibold tracking-tight text-slate-950 dark:text-white">
-              Branch Directory
+              Danh mục Chi nhánh
             </h2>
             <span className="rounded-md border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-0.5 text-xs font-normal text-slate-500 dark:text-slate-400">
-              {branches.length} total
+              Tổng cộng {branches.length}
             </span>
           </div>
 
@@ -238,25 +240,25 @@ export function BranchesAdmin() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Branch Code</th>
-                  <th>Branch Name</th>
-                  <th>Address</th>
-                  <th>Status</th>
-                  <th className="text-right">Actions</th>
+                  <th>Mã chi nhánh</th>
+                  <th>Tên chi nhánh</th>
+                  <th>Địa chỉ</th>
+                  <th>Trạng thái</th>
+                  <th className="text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {branchesQuery.isLoading && (
                   <tr>
                     <td className="py-12 text-center text-sm text-slate-400" colSpan={5}>
-                      Loading branches data...
+                      Đang tải dữ liệu chi nhánh...
                     </td>
                   </tr>
                 )}
                 {!branchesQuery.isLoading && branches.length === 0 && (
                   <tr>
                     <td className="py-12 text-center text-sm text-slate-400" colSpan={5}>
-                      No branches configured.
+                      Chưa cấu hình chi nhánh nào.
                     </td>
                   </tr>
                 )}
@@ -285,7 +287,7 @@ export function BranchesAdmin() {
                               : "border-rose-200/70 bg-rose-50 text-rose-800 dark:border-rose-900/30 dark:bg-rose-950/20 dark:text-rose-400"
                           }`}
                         >
-                          {branchItem.status}
+                          {branchItem.status === "ACTIVE" ? "ĐANG HOẠT ĐỘNG" : "NGỪNG HOẠT ĐỘNG"}
                         </span>
                       </td>
                       <td className="text-right">
@@ -293,7 +295,7 @@ export function BranchesAdmin() {
                           <button
                             className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                             onClick={() => handleEditClick(branchItem)}
-                            title="Edit Branch"
+                            title="Chỉnh sửa"
                             type="button"
                           >
                             <svg
@@ -313,7 +315,7 @@ export function BranchesAdmin() {
                           <button
                             className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition"
                             onClick={() => handleDeleteClick(branchItem)}
-                            title="Delete Branch"
+                            title="Xóa chi nhánh"
                             type="button"
                           >
                             <svg
@@ -346,10 +348,10 @@ export function BranchesAdmin() {
                 onClick={() => setCurrentPage((c) => Math.max(c - 1, 1))}
                 type="button"
               >
-                Previous
+                Trước
               </button>
               <span className="text-xs text-slate-500">
-                Page {currentPage} of {totalPages}
+                Trang {currentPage} trên {totalPages}
               </span>
               <button
                 className="button-secondary min-h-8 px-2.5 py-1 text-xs"
@@ -357,7 +359,7 @@ export function BranchesAdmin() {
                 onClick={() => setCurrentPage((c) => Math.min(c + 1, totalPages))}
                 type="button"
               >
-                Next
+                Sau
               </button>
             </div>
           )}

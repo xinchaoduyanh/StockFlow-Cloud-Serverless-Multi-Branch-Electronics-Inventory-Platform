@@ -99,15 +99,15 @@ type DlqJob = ImportJob;
 const categories = COMPONENT_CATEGORIES;
 
 const tabs = [
-  { id: "inventory", label: "Inventory" },
-  { id: "transfers", label: "Transfers" },
-  { id: "imports", label: "Imports" },
-  { id: "low-stock", label: "Low stock" },
-  { id: "reports", label: "Reports" },
-  { id: "dlq", label: "DLQ Admin", adminOnly: true },
-  { id: "reconciliation", label: "Reconciliation", adminOnly: true },
-  { id: "users", label: "Users Admin", adminOnly: true },
-  { id: "branches", label: "Branches Admin", adminOnly: true },
+  { id: "inventory", label: "Tồn kho" },
+  { id: "transfers", label: "Chuyển kho" },
+  { id: "imports", label: "Nhập kho" },
+  { id: "low-stock", label: "Cảnh báo tồn thấp" },
+  { id: "reports", label: "Báo cáo & Thống kê" },
+  { id: "dlq", label: "Quản trị lỗi (DLQ)", adminOnly: true },
+  { id: "reconciliation", label: "Đối soát tồn kho", adminOnly: true },
+  { id: "users", label: "Quản lý nhân viên", adminOnly: true },
+  { id: "branches", label: "Quản lý chi nhánh", adminOnly: true },
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
@@ -447,11 +447,11 @@ export default function DashboardPage() {
     ).length;
 
     return [
-      { label: "Total units", value: totalUnits.toLocaleString(), tone: "teal" },
-      { label: "Reserved", value: reservedUnits.toLocaleString(), tone: "violet" },
-      { label: "Low stock", value: lowStockItems.length.toLocaleString(), tone: "rose" },
+      { label: "Tổng số lượng", value: totalUnits.toLocaleString(), tone: "teal" },
+      { label: "Tạm giữ", value: reservedUnits.toLocaleString(), tone: "violet" },
+      { label: "Cảnh báo tồn thấp", value: lowStockItems.length.toLocaleString(), tone: "rose" },
       {
-        label: "Pending transfers",
+        label: "Yêu cầu chờ duyệt",
         value: pendingTransfers.toLocaleString(),
         tone: "amber",
       },
@@ -492,7 +492,7 @@ export default function DashboardPage() {
                 StockFlow Cloud
               </p>
               <h1 className="m-0 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
-                Inventory Operations
+                Quản trị Kho hàng
               </h1>
             </div>
           </div>
@@ -502,13 +502,17 @@ export default function DashboardPage() {
                 {user.email}
               </span>
               <span className="inline-flex rounded-md border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 px-2.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
-                {user.role}
+                {user.role === "ADMIN"
+                  ? "ADMIN"
+                  : user.role === "STORE_MANAGER"
+                    ? "QUẢN LÝ"
+                    : "THỦ KHO"}
               </span>
             </div>
             <NotificationBell />
             <ThemeToggle />
             <button className="button-secondary min-h-10 px-4" onClick={logout} type="button">
-              Sign out
+              Đăng xuất
             </button>
           </div>
         </div>
@@ -547,22 +551,22 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-[1fr_220px_280px] gap-4 rounded-xl border border-slate-200/60 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/40 p-4 max-md:grid-cols-1">
             <label className="field">
-              <span>Search SKU or name</span>
+              <span>Tìm theo SKU hoặc tên</span>
               <input
                 className="input"
                 onChange={(event) => setSearch(event.target.value)}
                 value={search}
-                placeholder="Search SKU code or name..."
+                placeholder="Nhập mã SKU hoặc tên..."
               />
             </label>
             <label className="field">
-              <span>Category</span>
+              <span>Danh mục</span>
               <select
                 className="input"
                 onChange={(event) => setCategory(event.target.value)}
                 value={category}
               >
-                <option value="">All Categories</option>
+                <option value="">Tất cả danh mục</option>
                 {categories.map((item) => (
                   <option key={item} value={item}>
                     {item}
@@ -571,13 +575,13 @@ export default function DashboardPage() {
               </select>
             </label>
             <label className="field">
-              <span>Branch</span>
+              <span>Chi nhánh</span>
               <select
                 className="input"
                 onChange={(event) => setBranchId(event.target.value)}
                 value={selectedBranchId}
               >
-                <option value="">All branches</option>
+                <option value="">Tất cả chi nhánh</option>
                 {branchOptions.map((branch) => (
                   <option key={branch.id} value={branch.id}>
                     {branch.code} - {branch.name}
@@ -1132,24 +1136,24 @@ function InventoryTable({
 
   return (
     <section className="surface overflow-hidden animate-rise-in-delay-1">
-      <TableHeader title="Inventory list" count={items.length} />
+      <TableHeader title="Danh sách tồn kho" count={items.length} />
       <div className="overflow-x-auto">
         <table className="data-table">
           <thead>
             <tr>
               <th>SKU</th>
-              <th>Name</th>
-              <th>Category</th>
-              <th>Branch</th>
-              <th>Quantity</th>
-              <th>Reserved</th>
-              <th>Min stock</th>
+              <th>Tên sản phẩm</th>
+              <th>Danh mục</th>
+              <th>Chi nhánh</th>
+              <th>Số lượng</th>
+              <th>Tạm giữ</th>
+              <th>Mức tối thiểu</th>
             </tr>
           </thead>
           <tbody>
-            {isLoading ? <TableState colSpan={7} text="Loading inventory..." /> : null}
+            {isLoading ? <TableState colSpan={7} text="Đang tải dữ liệu tồn kho..." /> : null}
             {!isLoading && items.length === 0 ? (
-              <TableState colSpan={7} text="No inventory found." />
+              <TableState colSpan={7} text="Không tìm thấy dữ liệu tồn kho." />
             ) : null}
             {!isLoading &&
               paginatedItems.map((item) => (
@@ -1200,23 +1204,23 @@ function LowStockReport({
 
   return (
     <section className="surface overflow-hidden animate-rise-in-delay-1">
-      <TableHeader title="Low stock report" count={items.length} />
+      <TableHeader title="Báo cáo tồn kho thấp" count={items.length} />
       <div className="overflow-x-auto">
         <table className="data-table">
           <thead>
             <tr>
               <th>SKU</th>
-              <th>Name</th>
-              <th>Branch</th>
-              <th>Quantity</th>
-              <th>Threshold</th>
-              <th>Shortage</th>
+              <th>Tên sản phẩm</th>
+              <th>Chi nhánh</th>
+              <th>Số lượng</th>
+              <th>Mức tối thiểu</th>
+              <th>Thiếu hụt</th>
             </tr>
           </thead>
           <tbody>
-            {isLoading ? <TableState colSpan={6} text="Loading low stock..." /> : null}
+            {isLoading ? <TableState colSpan={6} text="Đang tải dữ liệu tồn thấp..." /> : null}
             {!isLoading && items.length === 0 ? (
-              <TableState colSpan={6} text="No low-stock items." />
+              <TableState colSpan={6} text="Không có sản phẩm nào dưới mức tối thiểu." />
             ) : null}
             {!isLoading &&
               paginatedItems.map((item) => (
@@ -1274,22 +1278,24 @@ function TransferList({
 
   return (
     <section className="surface overflow-hidden animate-rise-in-delay-1">
-      <TableHeader title="Transfer requests" count={items.length} />
+      <TableHeader title="Yêu cầu chuyển kho" count={items.length} />
       <div className="overflow-x-auto">
         <table className="data-table">
           <thead>
             <tr>
-              <th>Status</th>
-              <th>Route</th>
-              <th>Items</th>
-              <th>Note</th>
-              <th>Actions</th>
+              <th>Trạng thái</th>
+              <th>Lộ trình</th>
+              <th>Sản phẩm</th>
+              <th>Ghi chú / Lý do</th>
+              <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
-            {isLoading ? <TableState colSpan={5} text="Loading transfers..." /> : null}
+            {isLoading ? (
+              <TableState colSpan={5} text="Đang tải danh sách yêu cầu chuyển kho..." />
+            ) : null}
             {!isLoading && items.length === 0 ? (
-              <TableState colSpan={5} text="No transfer requests." />
+              <TableState colSpan={5} text="Không có yêu cầu chuyển kho nào." />
             ) : null}
             {!isLoading &&
               paginatedItems.map((item) => (
@@ -1298,7 +1304,7 @@ function TransferList({
                     <StatusPill status={item.status} />
                   </td>
                   <td>
-                    {item.fromBranch.code} to {item.toBranch.code}
+                    {item.fromBranch.code} sang {item.toBranch.code}
                   </td>
                   <td>
                     {item.items.map((line) => `${line.component.sku} x${line.quantity}`).join(", ")}
@@ -1312,14 +1318,14 @@ function TransferList({
                           onClick={() => onApprove(item.id)}
                           type="button"
                         >
-                          Approve
+                          Duyệt
                         </button>
                         <button
                           className="button-small-secondary"
                           onClick={() => onReject(item.id)}
                           type="button"
                         >
-                          Reject
+                          Từ chối
                         </button>
                       </div>
                     ) : (
@@ -1363,23 +1369,23 @@ function ImportJobsTable({
 
   return (
     <section className="surface overflow-hidden animate-rise-in-delay-1">
-      <TableHeader title="Import jobs" count={items.length} />
+      <TableHeader title="Danh sách nhập kho" count={items.length} />
       <div className="overflow-x-auto">
         <table className="data-table">
           <thead>
             <tr>
-              <th>File</th>
-              <th>Branch</th>
-              <th>Upload Time</th>
-              <th>Status</th>
-              <th>Rows</th>
-              <th>Open</th>
+              <th>Tệp tin</th>
+              <th>Chi nhánh</th>
+              <th>Thời gian tải lên</th>
+              <th>Trạng thái</th>
+              <th>Số dòng</th>
+              <th>Xem chi tiết</th>
             </tr>
           </thead>
           <tbody>
-            {isLoading ? <TableState colSpan={6} text="Loading imports..." /> : null}
+            {isLoading ? <TableState colSpan={6} text="Đang tải danh sách nhập kho..." /> : null}
             {!isLoading && items.length === 0 ? (
-              <TableState colSpan={6} text="No imports yet." />
+              <TableState colSpan={6} text="Chưa có yêu cầu nhập kho nào." />
             ) : null}
             {!isLoading &&
               paginatedItems.map((item) => {
@@ -1389,10 +1395,10 @@ function ImportJobsTable({
                   <tr key={item.id}>
                     <td>
                       <div className="font-medium text-slate-800 dark:text-slate-200">
-                        {item.fileName ?? "Untitled"}
+                        {item.fileName ?? "Không tên"}
                       </div>
                       <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                        Excel workbook
+                        Bảng tính Excel
                       </div>
                     </td>
                     <td>
@@ -1408,9 +1414,9 @@ function ImportJobsTable({
                     </td>
                     <td>
                       {isProcessing ? (
-                        <span className="text-xs italic text-muted">Processing...</span>
+                        <span className="text-xs italic text-muted">Đang xử lý...</span>
                       ) : (
-                        `${item.validRows} valid / ${item.invalidRows} invalid`
+                        `${item.validRows} hợp lệ / ${item.invalidRows} không hợp lệ`
                       )}
                     </td>
                     <td>
@@ -1427,11 +1433,13 @@ function ImportJobsTable({
                         disabled={isProcessing}
                         title={
                           isProcessing
-                            ? "File is still processing in cloud"
-                            : "Click to preview staged rows"
+                            ? "Tệp tin đang được xử lý trên đám mây"
+                            : "Nhấp để xem trước các dòng đã nạp"
                         }
                       >
-                        {item.status === ImportStatus.VALIDATING ? "Parsing..." : "Preview"}
+                        {item.status === ImportStatus.VALIDATING
+                          ? "Đang phân tích..."
+                          : "Xem trước"}
                       </button>
                     </td>
                   </tr>
@@ -1466,17 +1474,17 @@ function ImportPreviewModal({
         <div className="flex items-center justify-between gap-4 border-b border-slate-200/60 bg-slate-50 px-5 py-4">
           <div className="min-w-0">
             <p className="m-0 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
-              Import preview
+              Xem trước nhập kho
             </p>
             <h2 className="m-0 mt-1 truncate text-lg font-semibold text-slate-950">
-              {job?.fileName ?? "Spreadsheet preview"}
+              {job?.fileName ?? "Xem trước bảng tính"}
             </h2>
           </div>
           <button
             className="button-secondary min-h-9 px-3"
             onClick={onClose}
             type="button"
-            aria-label="Close preview"
+            aria-label="Đóng xem trước"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -1486,7 +1494,7 @@ function ImportPreviewModal({
                 d="M6 18L18 6M6 6l12 12"
               />
             </svg>
-            Close
+            Đóng
           </button>
         </div>
         <div className="overflow-y-auto p-4">{children}</div>
@@ -1537,10 +1545,10 @@ function ImportPreview({
                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
               />
             </svg>
-            Ingestion Details & Audit Workspace
+            Chi tiết nhập kho & Không gian kiểm tra
           </h2>
           <p className="mt-0.5 text-xs font-normal text-slate-500">
-            Verify spreadsheet layout staging before final cloud write
+            Kiểm tra cấu trúc bảng tính trước khi lưu chính thức
           </p>
         </div>
 
@@ -1552,7 +1560,7 @@ function ImportPreview({
               onClick={onConfirm}
               type="button"
             >
-              {isConfirming ? "Confirming..." : "Confirm import"}
+              {isConfirming ? "Đang xác nhận..." : "Xác nhận nhập kho"}
             </button>
           ) : (
             <span className="flex items-center gap-2 rounded-md border border-slate-200/70 bg-white px-4 py-2 text-xs font-medium text-slate-700">
@@ -1564,7 +1572,7 @@ function ImportPreview({
                   d="M5 13l4 4L19 7"
                 />
               </svg>
-              Ingested & Synced
+              Đã nhập & Đồng bộ
             </span>
           )
         ) : null}
@@ -1576,7 +1584,7 @@ function ImportPreview({
           <div className="flex items-center justify-between rounded-lg border border-slate-200/60 bg-white p-4">
             <div>
               <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
-                Total Rows Staged
+                Tổng số dòng đã nạp
               </span>
               <p className="mt-1 text-2xl font-semibold text-slate-950">{rows.length}</p>
             </div>
@@ -1595,7 +1603,7 @@ function ImportPreview({
           <div className="flex items-center justify-between rounded-lg border border-emerald-100/70 bg-white p-4">
             <div>
               <span className="text-[10px] font-medium uppercase tracking-wider text-emerald-700">
-                Valid Rows
+                Dòng hợp lệ
               </span>
               <p className="mt-1 text-2xl font-semibold text-emerald-800">{validCount}</p>
             </div>
@@ -1614,7 +1622,7 @@ function ImportPreview({
           <div className="flex items-center justify-between rounded-lg border border-rose-100/70 bg-white p-4">
             <div>
               <span className="text-[10px] font-medium uppercase tracking-wider text-rose-700">
-                Invalid / Failed Rows
+                Dòng lỗi / Không hợp lệ
               </span>
               <p className="mt-1 text-2xl font-semibold text-rose-800">{invalidCount}</p>
             </div>
@@ -1636,19 +1644,19 @@ function ImportPreview({
         <table className="data-table">
           <thead>
             <tr>
-              <th className="w-20">Row</th>
+              <th className="w-20">Dòng</th>
               <th className="w-40">SKU</th>
-              <th>Name / Details</th>
-              <th className="w-32">Status</th>
-              <th>Validation Errors / Notes</th>
+              <th>Tên / Chi tiết</th>
+              <th className="w-32">Trạng thái</th>
+              <th>Lỗi kiểm tra / Ghi chú</th>
             </tr>
           </thead>
           <tbody>
-            {isLoading ? <TableState colSpan={5} text="Loading preview..." /> : null}
+            {isLoading ? <TableState colSpan={5} text="Đang tải bản xem trước..." /> : null}
             {!isLoading && rows.length === 0 ? (
               <TableState
                 colSpan={5}
-                text="Select an import job to display interactive audit logs."
+                text="Chọn một phiên nhập kho để hiển thị nhật ký kiểm tra."
               />
             ) : null}
             {!isLoading &&
@@ -1695,7 +1703,7 @@ function ImportPreview({
                             d="M9 12l2 2 4-4"
                           />
                         </svg>
-                        Ready for Cloud Storage
+                        Sẵn sàng lưu trữ
                       </span>
                     )}
                   </td>
@@ -1741,28 +1749,28 @@ function Pagination({
           onClick={() => onPageChange(currentPage - 1)}
           className="relative inline-flex items-center rounded-md border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
         >
-          Previous
+          Trước
         </button>
         <button
           disabled={currentPage === totalPages}
           onClick={() => onPageChange(currentPage + 1)}
           className="relative ml-3 inline-flex items-center rounded-md border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
         >
-          Next
+          Sau
         </button>
       </div>
       <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-normal text-slate-500 dark:text-slate-400">
-            Showing{" "}
-            <span className="font-medium text-slate-800 dark:text-slate-200">{startIdx}</span> to{" "}
-            <span className="font-medium text-slate-800 dark:text-slate-200">{endIdx}</span> of{" "}
-            <span className="font-medium text-slate-800 dark:text-slate-200">{totalItems}</span>{" "}
-            results
+            Hiển thị từ{" "}
+            <span className="font-medium text-slate-800 dark:text-slate-200">{startIdx}</span> đến{" "}
+            <span className="font-medium text-slate-800 dark:text-slate-200">{endIdx}</span> trong
+            số <span className="font-medium text-slate-800 dark:text-slate-200">{totalItems}</span>{" "}
+            kết quả
           </p>
         </div>
         <div>
-          <nav className="isolate inline-flex -space-x-px rounded-md" aria-label="Pagination">
+          <nav className="isolate inline-flex -space-x-px rounded-md" aria-label="Phân trang">
             <button
               disabled={currentPage === 1}
               onClick={() => onPageChange(currentPage - 1)}
@@ -1835,14 +1843,15 @@ function TableHeader({
         {title}
       </h2>
       <span className="rounded-md border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-0.5 text-xs font-normal text-slate-500 dark:text-slate-400">
-        {count} items
+        {count} mục
       </span>
     </div>
   );
 }
 
 function TableState({ colSpan, text }: { colSpan: number; text: string }) {
-  const isLoading = text.toLowerCase().startsWith("loading");
+  const isLoading =
+    text.toLowerCase().startsWith("loading") || text.toLowerCase().startsWith("đang");
 
   if (isLoading) {
     return (
@@ -1901,25 +1910,41 @@ function StatusPill({ status }: { status: string }) {
     tone = "border-slate-200/70 bg-slate-50 text-slate-700";
   }
 
+  let statusText = status;
+  if (status === "VALID") statusText = "HỢP LỆ";
+  else if (status === "INVALID") statusText = "LỖI DÒNG";
+  else if (status === "COMPLETED") statusText = "HOÀN THÀNH";
+  else if (status === "FAILED") statusText = "THẤT BẠI";
+  else if (status === "APPROVED") statusText = "ĐÃ DUYỆT";
+  else if (status === "REJECTED") statusText = "TỪ CHỐI";
+  else if (status === "RESOLVED") statusText = "ĐÃ ĐỐI SOÁT";
+  else if (status === "OPEN") statusText = "CHƯA ĐỐI SOÁT";
+  else if (status === "PENDING") statusText = "CHỜ DUYỆT";
+  else if (status === "PROCESSING") statusText = "ĐANG XỬ LÝ";
+  else if (status === "VALIDATING") statusText = "ĐANG PHÂN TÍCH";
+  else if (status === "COMMITTING") statusText = "ĐANG LƯU KHO";
+  else if (status === "UPLOADED") statusText = "ĐÃ TẢI LÊN";
+  else if (status === "PREVIEW_READY") statusText = "ĐÃ NẠP XONG";
+
   return (
     <span
       className={`inline-flex rounded-md border px-2.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] ${tone}`}
     >
-      {status}
+      {statusText}
     </span>
   );
 }
 
 function messageFromError(error: Error) {
-  return error.message || "Request failed";
+  return error.message || "Yêu cầu thất bại";
 }
 
 const reportTypes = [
-  { id: ReportType.INVENTORY, label: "Full Inventory", icon: "INV" },
-  { id: ReportType.LOW_STOCK, label: "Low Stock Alert", icon: "LOW" },
-  { id: ReportType.TRANSFERS, label: "Transfer History", icon: "TRF" },
-  { id: ReportType.IMPORT_HISTORY, label: "Import Jobs", icon: "IMP" },
-  { id: ReportType.STOCK_MOVEMENTS, label: "Stock Movements", icon: "MOV" },
+  { id: ReportType.INVENTORY, label: "Báo cáo tồn kho", icon: "INV" },
+  { id: ReportType.LOW_STOCK, label: "Cảnh báo tồn thấp", icon: "LOW" },
+  { id: ReportType.TRANSFERS, label: "Lịch sử chuyển kho", icon: "TRF" },
+  { id: ReportType.IMPORT_HISTORY, label: "Lịch sử nhập kho", icon: "IMP" },
+  { id: ReportType.STOCK_MOVEMENTS, label: "Biến động kho", icon: "MOV" },
 ] as const;
 
 function ReportsTab({
@@ -1946,10 +1971,10 @@ function ReportsTab({
       <div className="surface p-5">
         <div className="mb-4">
           <h2 className="m-0 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
-            Export Reports
+            Xuất báo cáo dữ liệu
           </h2>
           <p className="m-0 mt-1.5 text-sm font-normal text-slate-500 dark:text-slate-400">
-            Generate CSV reports from inventory data and download from S3.
+            Tạo báo cáo CSV từ dữ liệu kho hàng và tải xuống trực tiếp từ S3.
           </p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
@@ -1973,32 +1998,42 @@ function ReportsTab({
       </div>
 
       <div className="surface overflow-hidden">
-        <TableHeader title="Export history" count={exportJobs.length} />
+        <TableHeader title="Lịch sử xuất báo cáo" count={exportJobs.length} />
         <div className="overflow-x-auto">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Report Type</th>
-                <th>Status</th>
-                <th>Records</th>
-                <th>File</th>
-                <th>Created</th>
-                <th>Download</th>
+                <th>Loại báo cáo</th>
+                <th>Trạng thái</th>
+                <th>Số dòng dữ liệu</th>
+                <th>Tệp tin</th>
+                <th>Thời gian tạo</th>
+                <th>Tải xuống</th>
               </tr>
             </thead>
             <tbody>
-              {isLoading ? <TableState colSpan={6} text="Loading exports..." /> : null}
+              {isLoading ? (
+                <TableState colSpan={6} text="Đang tải lịch sử xuất báo cáo..." />
+              ) : null}
               {!isLoading && exportJobs.length === 0 ? (
                 <TableState
                   colSpan={6}
-                  text="No exports yet. Click a report type above to generate."
+                  text="Chưa có báo cáo nào được xuất. Nhấp vào loại báo cáo ở trên để tạo."
                 />
               ) : null}
               {!isLoading &&
                 paginatedItems.map((job) => (
                   <tr key={job.id}>
                     <td className="font-medium text-slate-800 dark:text-slate-200">
-                      {job.reportType}
+                      {job.reportType === ReportType.INVENTORY
+                        ? "Báo cáo tồn kho"
+                        : job.reportType === ReportType.LOW_STOCK
+                          ? "Cảnh báo tồn thấp"
+                          : job.reportType === ReportType.TRANSFERS
+                            ? "Lịch sử chuyển kho"
+                            : job.reportType === ReportType.IMPORT_HISTORY
+                              ? "Lịch sử nhập kho"
+                              : "Biến động kho"}
                     </td>
                     <td>
                       <StatusPill status={job.status} />
@@ -2016,14 +2051,14 @@ function ReportsTab({
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          Download
+                          Tải xuống
                         </a>
                       ) : job.status === ExportJobStatus.FAILED ? (
                         <span className="text-xs text-red-600" title={job.errorMessage ?? ""}>
-                          Failed
+                          Lỗi
                         </span>
                       ) : (
-                        <span className="text-xs italic text-muted">Processing...</span>
+                        <span className="text-xs italic text-muted">Đang xử lý...</span>
                       )}
                     </td>
                   </tr>
@@ -2070,49 +2105,51 @@ function DlqTab({
         <div className="flex items-center justify-between gap-4">
           <div>
             <h2 className="m-0 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
-              Dead Letter Queue
+              Hàng đợi lỗi (DLQ)
             </h2>
             <p className="m-0 mt-1.5 text-sm font-normal text-slate-500 dark:text-slate-400">
-              Failed import jobs that can be replayed or discarded. {items.length} failed job
-              {items.length !== 1 ? "s" : ""}.
+              Các yêu cầu nhập kho bị lỗi có thể được thử lại hoặc hủy bỏ. Hiện có {items.length}{" "}
+              yêu cầu lỗi.
             </p>
           </div>
           <div className="flex items-center gap-2">
             <span className="rounded-md border border-rose-200/70 dark:border-rose-950/30 bg-rose-50 dark:bg-rose-950/20 px-3 py-1 text-xs font-medium text-rose-800 dark:text-rose-400">
-              {items.length} failed
+              {items.length} lỗi
             </span>
           </div>
         </div>
       </div>
 
       <div className="surface overflow-hidden">
-        <TableHeader title="Failed imports" count={items.length} />
+        <TableHeader title="Yêu cầu nhập kho lỗi" count={items.length} />
         <div className="overflow-x-auto">
           <table className="data-table">
             <thead>
               <tr>
-                <th>File</th>
-                <th>Branch</th>
-                <th>Status</th>
-                <th>Rows</th>
-                <th>Created</th>
-                <th>Actions</th>
+                <th>Tệp tin</th>
+                <th>Chi nhánh</th>
+                <th>Trạng thái</th>
+                <th>Số dòng</th>
+                <th>Thời gian tạo</th>
+                <th>Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {isLoading ? <TableState colSpan={6} text="Loading failed jobs..." /> : null}
+              {isLoading ? (
+                <TableState colSpan={6} text="Đang tải danh sách yêu cầu lỗi..." />
+              ) : null}
               {!isLoading && items.length === 0 ? (
-                <TableState colSpan={6} text="No failed import jobs. All clean." />
+                <TableState colSpan={6} text="Không có yêu cầu nhập kho lỗi nào. Hệ thống sạch." />
               ) : null}
               {!isLoading &&
                 paginatedItems.map((item) => (
                   <tr key={item.id}>
                     <td>
                       <div className="font-medium text-slate-800 dark:text-slate-200">
-                        {item.fileName ?? "Untitled"}
+                        {item.fileName ?? "Không tên"}
                       </div>
                       <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                        Excel workbook
+                        Bảng tính Excel
                       </div>
                     </td>
                     <td>
@@ -2124,7 +2161,7 @@ function DlqTab({
                       <StatusPill status={item.status} />
                     </td>
                     <td>
-                      {item.validRows} valid / {item.invalidRows} invalid
+                      {item.validRows} hợp lệ / {item.invalidRows} lỗi
                     </td>
                     <td className="text-xs font-normal text-slate-500">
                       {new Date(item.createdAt).toLocaleString("vi-VN", { hour12: false })}
@@ -2136,17 +2173,17 @@ function DlqTab({
                           onClick={() => onReplay(item.id)}
                           disabled={isReplaying}
                           type="button"
-                          title="Reset and re-run import pipeline"
+                          title="Đặt lại và chạy lại quy trình nhập kho"
                         >
-                          Replay
+                          Thử lại
                         </button>
                         <button
                           className="button-small-secondary"
                           onClick={() => onDiscard(item.id)}
                           type="button"
-                          title="Mark as cancelled"
+                          title="Đánh dấu là đã hủy"
                         >
-                          Discard
+                          Hủy bỏ
                         </button>
                       </div>
                     </td>
@@ -2198,10 +2235,10 @@ function ReconciliationTab({
         <div className="flex items-center justify-between gap-4 max-sm:flex-col max-sm:items-start">
           <div>
             <h2 className="m-0 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
-              Stock Reconciliation
+              Đối soát tồn kho
             </h2>
             <p className="m-0 mt-1.5 text-sm font-normal text-slate-500 dark:text-slate-400">
-              Compares inventory quantities against stock movement ledger to detect mismatches.
+              So sánh số lượng tồn kho với sổ đăng ký biến động kho để phát hiện chênh lệch.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -2210,10 +2247,10 @@ function ReconciliationTab({
               value={statusFilter}
               onChange={(e) => onStatusFilterChange(e.target.value as ReconciliationStatus | "")}
             >
-              <option value="">All statuses</option>
-              <option value={ReconciliationStatus.OPEN}>Open</option>
-              <option value={ReconciliationStatus.RESOLVED}>Resolved</option>
-              <option value={ReconciliationStatus.IGNORED}>Ignored</option>
+              <option value="">Tất cả trạng thái</option>
+              <option value={ReconciliationStatus.OPEN}>Chưa đối soát</option>
+              <option value={ReconciliationStatus.RESOLVED}>Đã đối soát</option>
+              <option value={ReconciliationStatus.IGNORED}>Bỏ qua</option>
             </select>
             <button
               className="button-primary min-h-12 px-5"
@@ -2221,37 +2258,37 @@ function ReconciliationTab({
               disabled={isRunning}
               type="button"
             >
-              {isRunning ? "Running..." : "Run Now"}
+              {isRunning ? "Đang chạy..." : "Chạy đối soát"}
             </button>
           </div>
         </div>
       </div>
 
       <div className="surface overflow-hidden">
-        <TableHeader title="Reconciliation issues" count={issues.length} />
+        <TableHeader title="Chênh lệch đối soát" count={issues.length} />
         <div className="overflow-x-auto">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Branch</th>
+                <th>Chi nhánh</th>
                 <th>SKU</th>
-                <th>Component</th>
-                <th>Expected</th>
-                <th>Actual</th>
-                <th>Difference</th>
-                <th>Status</th>
-                <th>Detected</th>
-                <th>Actions</th>
+                <th>Sản phẩm</th>
+                <th>Sổ sách</th>
+                <th>Thực tế</th>
+                <th>Chênh lệch</th>
+                <th>Trạng thái</th>
+                <th>Phát hiện</th>
+                <th>Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <TableState colSpan={9} text="Loading reconciliation issues..." />
+                <TableState colSpan={9} text="Đang tải danh sách chênh lệch đối soát..." />
               ) : null}
               {!isLoading && issues.length === 0 ? (
                 <TableState
                   colSpan={9}
-                  text="No reconciliation issues found. Inventory is consistent."
+                  text="Không phát hiện chênh lệch nào. Dữ liệu kho khớp hoàn toàn."
                 />
               ) : null}
               {!isLoading &&
@@ -2293,7 +2330,7 @@ function ReconciliationTab({
                           onClick={() => onResolve(issue.id)}
                           type="button"
                         >
-                          Resolve
+                          Giải quyết
                         </button>
                       ) : (
                         <span className="text-xs text-muted">
