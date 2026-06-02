@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { apiRequest } from "@/lib/api-client";
 import { NotificationBase, NotificationType } from "@stockflow/shared";
+import { useCurrentUser } from "@/features/auth/use-auth";
+import { usePusherNotification } from "@/hooks/usePusher";
 
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,12 +12,20 @@ export function NotificationBell() {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  // 1. SWR Real-Time Polling every 3 seconds
+  // 1. Fetch current notifications initially (without polling)
   const { data: notifications = [] } = useQuery<NotificationBase[]>({
     queryKey: ["notifications"],
     queryFn: () => apiRequest<NotificationBase[]>("/notifications"),
-    refetchInterval: 3000,
-    refetchIntervalInBackground: true,
+  });
+
+  const { data: user } = useCurrentUser();
+
+  // 2. Listen to real-time events via Pusher to update query cache
+  usePusherNotification(user?.id, (newNotification: NotificationBase) => {
+    queryClient.setQueryData<NotificationBase[]>(["notifications"], (old = []) => {
+      if (old.some((n) => n.id === newNotification.id)) return old;
+      return [newNotification, ...old];
+    });
   });
 
   const unreadCount = notifications.filter((n) => !n.read).length;

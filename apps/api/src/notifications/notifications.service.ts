@@ -8,6 +8,7 @@ import {
 } from "@stockflow/shared";
 import { PrismaService } from "../database/prisma.service";
 import { EmailService } from "./email.service";
+import { PusherService } from "./pusher.service";
 
 @Injectable()
 export class NotificationsService {
@@ -16,6 +17,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
+    private readonly pusherService: PusherService,
   ) {}
 
   /**
@@ -57,14 +59,23 @@ export class NotificationsService {
       },
     });
 
-    // 3. Fetch User's email address and uploader name
+    // 3. Trigger Pusher Real-time Push (Fire-and-forget)
+    this.pusherService
+      .triggerNotification(dto.userId, castNotificationRow(record))
+      .catch((err: any) => {
+        this.logger.error(
+          `Failed to dispatch real-time Pusher notification to user ${dto.userId}: ${err.message}`,
+        );
+      });
+
+    // 4. Fetch User's email address and uploader name
     const user = await this.prisma.user.findUnique({
       where: { id: dto.userId },
       select: { email: true, fullName: true },
     });
 
     if (user?.email) {
-      // 4. Asynchronous Fire-and-Forget Email Dispatch (Non-blocking!)
+      // 5. Asynchronous Fire-and-Forget Email Dispatch (Non-blocking!)
       this.emailService
         .sendEmail(user.email, dto.title, dto.type, {
           uploaderName: user.fullName || "User",
