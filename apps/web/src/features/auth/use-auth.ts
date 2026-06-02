@@ -21,14 +21,12 @@ export function useLogin() {
   return useMutation({
     mutationFn: async (input: { email: string; password: string }) => {
       const { loginWithCognito } = await import("@/lib/cognito");
-      const token = await loginWithCognito(input.email, input.password);
-      return { accessToken: token };
+      return loginWithCognito(input.email, input.password);
     },
     onSuccess: (data) => {
       if (data.accessToken) {
-        setAuthToken(data.accessToken);
+        router.replace("/dashboard");
       }
-      router.replace("/dashboard");
     },
   });
 }

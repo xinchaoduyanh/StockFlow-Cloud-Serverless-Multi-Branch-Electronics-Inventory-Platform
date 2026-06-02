@@ -17,7 +17,13 @@ export function getCognitoUserPool(): CognitoUserPool | null {
   return userPool;
 }
 
-export async function loginWithCognito(email: string, password: string): Promise<string> {
+export interface AuthResult {
+  accessToken?: string;
+  newPasswordRequired?: boolean;
+  cognitoUser?: CognitoUser;
+}
+
+export async function loginWithCognito(email: string, password: string): Promise<AuthResult> {
   if (!userPool) {
     throw new Error(
       "Cognito User Pool is not configured. Please check your environment variables.",
@@ -44,31 +50,43 @@ export async function loginWithCognito(email: string, password: string): Promise
         setAuthToken(idToken);
         setRefreshToken(refreshToken);
 
-        resolve(idToken);
+        resolve({ accessToken: idToken });
       },
       onFailure: (err) => {
         reject(err);
       },
       newPasswordRequired: (userAttributes, requiredAttributes) => {
-        // Auto-complete force change password challenge using the same password they just typed
-        cognitoUser.completeNewPasswordChallenge(
-          password,
-          {},
-          {
-            onSuccess: (session) => {
-              const idToken = session.getIdToken().getJwtToken();
-              const refreshToken = session.getRefreshToken().getToken();
-              setAuthToken(idToken);
-              setRefreshToken(refreshToken);
-              resolve(idToken);
-            },
-            onFailure: (err) => {
-              reject(err);
-            },
-          },
-        );
+        // Resolve indicating new password is required, giving the caller the user object to complete it
+        resolve({
+          newPasswordRequired: true,
+          cognitoUser,
+        });
       },
     });
+  });
+}
+
+export async function completeNewPassword(
+  cognitoUser: CognitoUser,
+  newPassword: string,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    cognitoUser.completeNewPasswordChallenge(
+      newPassword,
+      {},
+      {
+        onSuccess: (session) => {
+          const idToken = session.getIdToken().getJwtToken();
+          const refreshToken = session.getRefreshToken().getToken();
+          setAuthToken(idToken);
+          setRefreshToken(refreshToken);
+          resolve(idToken);
+        },
+        onFailure: (err) => {
+          reject(err);
+        },
+      },
+    );
   });
 }
 
