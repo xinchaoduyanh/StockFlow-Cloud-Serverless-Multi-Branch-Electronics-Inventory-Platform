@@ -454,11 +454,11 @@ export default function DashboardPage() {
   }, [inventoryItems, lowStockItems.length, transferItems]);
 
   if (!hasMounted || isLoading) {
-    return <ShellMessage>Loading...</ShellMessage>;
+    return <DashboardSkeleton />;
   }
 
   if (error || !user) {
-    return <ShellMessage>Redirecting to login...</ShellMessage>;
+    return <LoginRedirectSkeleton />;
   }
 
   function handleCreateTransfer(event: FormEvent<HTMLFormElement>) {
@@ -475,29 +475,28 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="app-background pb-10">
-      <div className="ambient-orb -top-40 -left-28 h-[520px] w-[520px] bg-teal-300/16" />
-      <div className="ambient-orb right-[-140px] top-28 h-[520px] w-[520px] bg-sky-300/14 [animation-delay:1.2s]" />
-      <div className="ambient-orb bottom-[-180px] left-[45%] h-[460px] w-[460px] bg-emerald-300/14 [animation-delay:2.8s]" />
-      <header className="content-layer sticky top-0 z-30 border-b border-white/70 bg-white/72 shadow-sm shadow-slate-200/40 backdrop-blur-2xl">
-        <div className="mx-auto flex w-[calc(100%_-_48px)] max-w-[1240px] items-center justify-between gap-4 py-3.5 max-md:w-[calc(100%_-_32px)] max-md:flex-col max-md:items-start">
+    <main className="app-background pb-14">
+      <header className="content-layer sticky top-0 z-30 border-b border-slate-200/60 bg-[#f8fafc]/95 backdrop-blur-sm">
+        <div className="mx-auto flex w-[calc(100%_-_48px)] max-w-[1240px] items-center justify-between gap-4 py-4 max-md:w-[calc(100%_-_32px)] max-md:flex-col max-md:items-start">
           <div className="flex items-center gap-3.5">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-500 text-sm font-black text-white shadow-lg shadow-teal-700/20 transition-transform duration-500 hover:rotate-3 hover:scale-105">
+            <div className="grid h-10 w-10 place-items-center rounded-lg bg-[#18181b] text-sm font-semibold text-white">
               SF
             </div>
             <div>
-              <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-teal-700">
+              <p className="mb-0.5 text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500">
                 StockFlow Cloud
               </p>
-              <h1 className="m-0 text-lg font-black tracking-tight text-slate-900">
+              <h1 className="m-0 text-lg font-semibold tracking-tight text-slate-950">
                 Inventory Operations
               </h1>
             </div>
           </div>
           <div className="flex items-center gap-4 text-sm max-md:w-full max-md:justify-between">
             <div className="flex items-center gap-2">
-              <span className="max-w-[240px] truncate font-bold text-slate-700">{user.email}</span>
-              <span className="inline-flex rounded-lg bg-teal-500/10 px-2.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-teal-700">
+              <span className="max-w-[240px] truncate font-medium text-slate-700">
+                {user.email}
+              </span>
+              <span className="inline-flex rounded-md border border-slate-200/70 bg-white px-2.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-slate-600">
                 {user.role}
               </span>
             </div>
@@ -509,50 +508,29 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="content-layer mx-auto grid w-[calc(100%_-_48px)] max-w-[1240px] gap-6 py-6 max-md:w-[calc(100%_-_32px)]">
-        <section className="surface grid gap-5 p-5 animate-rise-in md:p-6">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="content-layer mx-auto grid w-[calc(100%_-_48px)] max-w-[1240px] gap-8 py-8 max-md:w-[calc(100%_-_32px)]">
+        <section className="surface grid gap-6 p-6 animate-rise-in md:p-7">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {inventorySummary.map((item) => (
               <div
                 key={item.label}
-                className="group relative overflow-hidden rounded-2xl border border-white/80 bg-gradient-to-br from-white/92 to-white/68 p-5 shadow-sm shadow-slate-200/40 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-teal-950/10"
+                className="relative rounded-xl border border-black/[0.04] bg-white p-5 shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition-colors duration-200 hover:border-slate-200"
               >
-                <div
-                  className={`absolute top-0 inset-x-0 h-1 ${
-                    item.tone.includes("teal")
-                      ? "bg-teal-600"
-                      : item.tone.includes("violet")
-                        ? "bg-violet-600"
-                        : item.tone.includes("rose")
-                          ? "bg-rose-600"
-                          : "bg-amber-600"
-                  }`}
-                />
-                <p
-                  className={`m-0 text-3xl font-black tracking-tight ${
-                    item.tone.includes("teal")
-                      ? "text-teal-700"
-                      : item.tone.includes("violet")
-                        ? "text-violet-700"
-                        : item.tone.includes("rose")
-                          ? "text-rose-700"
-                          : "text-amber-700"
-                  }`}
-                >
+                <p className="m-0 text-3xl font-semibold tracking-tight text-slate-950">
                   {item.value}
                 </p>
-                <p className="m-0 mt-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                <p className="m-0 mt-2 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500">
                   {item.label}
                 </p>
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-[1fr_220px_280px] gap-3 rounded-2xl border border-white/70 bg-white/55 p-3 shadow-inner shadow-white/60 backdrop-blur-xl max-md:grid-cols-1">
+          <div className="grid grid-cols-[1fr_220px_280px] gap-4 rounded-xl border border-slate-200/60 bg-slate-50/80 p-4 max-md:grid-cols-1">
             <label className="field">
               <span>Search SKU or name</span>
               <input
-                className="input bg-white/90 shadow-sm shadow-slate-200/50"
+                className="input"
                 onChange={(event) => setSearch(event.target.value)}
                 value={search}
                 placeholder="Search SKU code or name..."
@@ -561,7 +539,7 @@ export default function DashboardPage() {
             <label className="field">
               <span>Category</span>
               <select
-                className="input bg-white/90 shadow-sm shadow-slate-200/50"
+                className="input"
                 onChange={(event) => setCategory(event.target.value)}
                 value={category}
               >
@@ -576,7 +554,7 @@ export default function DashboardPage() {
             <label className="field">
               <span>Branch</span>
               <select
-                className="input bg-white/90 shadow-sm shadow-slate-200/50"
+                className="input"
                 onChange={(event) => setBranchId(event.target.value)}
                 value={selectedBranchId}
               >
@@ -590,7 +568,7 @@ export default function DashboardPage() {
             </label>
           </div>
 
-          <nav className="flex flex-wrap gap-1 rounded-2xl border border-white/70 bg-white/55 p-1.5 shadow-inner shadow-white/70 backdrop-blur-xl">
+          <nav className="flex flex-wrap gap-1 rounded-xl border border-slate-200/60 bg-slate-50 p-1.5">
             {tabs
               .filter(
                 (tab) => !("adminOnly" in tab && tab.adminOnly && user?.role !== UserRole.ADMIN),
@@ -627,18 +605,18 @@ export default function DashboardPage() {
         ) : null}
 
         {activeTab === "transfers" ? (
-          <section className="grid gap-4 lg:grid-cols-[340px_1fr] animate-rise-in-delay-1">
-            <form className="surface grid h-fit gap-4 p-4" onSubmit={handleCreateTransfer}>
+          <section className="grid gap-5 lg:grid-cols-[340px_1fr] animate-rise-in-delay-1">
+            <form className="surface grid h-fit gap-5 p-5" onSubmit={handleCreateTransfer}>
               <div>
-                <p className="m-0 text-xs font-black uppercase tracking-[0.14em] text-[#0f766e]">
+                <p className="m-0 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
                   Transfer
                 </p>
-                <h2 className="m-0 mt-1 text-lg font-black">Create request</h2>
+                <h2 className="m-0 mt-1 text-lg font-semibold text-slate-950">Create request</h2>
               </div>
               <label className="field">
                 <span>From branch</span>
                 <select
-                  className="input bg-white/90 shadow-sm shadow-slate-200/50"
+                  className="input"
                   onChange={(event) =>
                     setTransferForm((current) => ({ ...current, fromBranchId: event.target.value }))
                   }
@@ -656,7 +634,7 @@ export default function DashboardPage() {
               <label className="field">
                 <span>Component</span>
                 <select
-                  className="input bg-white/90 shadow-sm shadow-slate-200/50"
+                  className="input"
                   onChange={(event) =>
                     setTransferForm((current) => ({ ...current, componentId: event.target.value }))
                   }
@@ -675,7 +653,7 @@ export default function DashboardPage() {
               <label className="field">
                 <span>Quantity</span>
                 <input
-                  className="input bg-white/90 shadow-sm shadow-slate-200/50"
+                  className="input"
                   min="1"
                   onChange={(event) =>
                     setTransferForm((current) => ({ ...current, quantity: event.target.value }))
@@ -703,11 +681,11 @@ export default function DashboardPage() {
               </button>
             </form>
 
-            <div className="grid gap-3">
-              <label className="surface field p-4">
+            <div className="grid gap-4">
+              <label className="surface field p-5">
                 <span>Reject reason</span>
                 <input
-                  className="input bg-white/90 shadow-sm shadow-slate-200/50"
+                  className="input"
                   onChange={(event) => setRejectReason(event.target.value)}
                   value={rejectReason}
                 />
@@ -726,22 +704,22 @@ export default function DashboardPage() {
         ) : null}
 
         {activeTab === "imports" ? (
-          <section className="grid gap-4 animate-rise-in-delay-1">
+          <section className="grid gap-5 animate-rise-in-delay-1">
             <div className="surface relative overflow-hidden flex items-center justify-between gap-4 p-6 max-sm:flex-col max-sm:items-start">
               <div>
-                <div className="mb-2 inline-flex rounded-full bg-teal-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-teal-700">
+                <div className="mb-2 inline-flex rounded-md border border-slate-200/70 bg-slate-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-600">
                   Cloud import
                 </div>
-                <h2 className="m-0 text-xl font-black tracking-tight text-slate-900">
+                <h2 className="m-0 text-xl font-semibold tracking-tight text-slate-950">
                   Spreadsheet Ingestion
                 </h2>
-                <p className="m-0 mt-1.5 text-sm font-semibold text-slate-500">
+                <p className="m-0 mt-1.5 text-sm font-normal text-slate-500">
                   Upload, audit, preview, and commit Excel inventory files.
                 </p>
               </div>
               <button
                 onClick={() => setIsUploadModalOpen(true)}
-                className="button-primary min-h-12 rounded-2xl bg-gradient-to-r from-teal-700 to-emerald-600 px-5 shadow-xl shadow-teal-900/15 hover:from-teal-800 hover:to-emerald-700"
+                className="button-primary min-h-12 px-5"
                 type="button"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -758,8 +736,8 @@ export default function DashboardPage() {
 
             {/* Ingestion Glassmorphic Modal Dialog */}
             {isUploadModalOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-md animate-macbook-backdrop">
-                <div className="relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-3xl border border-white/80 bg-white/95 p-8 shadow-2xl shadow-slate-950/15 animate-macbook-modal backdrop-blur-xl">
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-sm animate-macbook-backdrop">
+                <div className="relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-xl border border-black/[0.04] bg-white p-8 shadow-[0_24px_64px_rgba(15,23,42,0.16)] animate-macbook-modal">
                   {/* Close Modal Button */}
                   <button
                     onClick={() => {
@@ -768,7 +746,7 @@ export default function DashboardPage() {
                       setUploadProgress(null);
                       setIngestionStage(null);
                     }}
-                    className="absolute top-5 right-5 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                    className="absolute top-5 right-5 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
                     type="button"
                   >
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -783,10 +761,10 @@ export default function DashboardPage() {
 
                   <form className="grid gap-5" onSubmit={handleUpload}>
                     <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <h2 className="m-0 text-base font-black text-slate-900 tracking-tight">
+                      <h2 className="m-0 text-base font-semibold text-slate-950 tracking-tight">
                         Ingest Spreadsheet
                       </h2>
-                      <span className="rounded-lg bg-teal-500/10 px-2.5 py-0.5 text-[9px] font-extrabold text-teal-700 tracking-wide uppercase">
+                      <span className="rounded-md border border-slate-200/70 bg-slate-50 px-2.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-slate-600">
                         S3 Direct
                       </span>
                     </div>
@@ -813,10 +791,10 @@ export default function DashboardPage() {
                       <span>Spreadsheet (.xlsx)</span>
                       {!selectedFile ? (
                         <div
-                          className={`mt-1.5 flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-7 text-center transition-all duration-300 cursor-pointer ${
+                          className={`mt-1.5 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed p-7 text-center transition-colors duration-200 ${
                             isDragOver
-                              ? "border-teal-500 bg-teal-500/5 scale-[0.985]"
-                              : "border-slate-200 bg-slate-50/50 hover:border-teal-500 hover:bg-slate-50"
+                              ? "border-slate-400 bg-slate-50"
+                              : "border-slate-200 bg-slate-50/60 hover:border-slate-400 hover:bg-white"
                           }`}
                           onDragOver={(e) => {
                             e.preventDefault();
@@ -864,15 +842,15 @@ export default function DashboardPage() {
                           </p>
                           <p className="mt-1 text-[11px] text-[#64748b]">
                             or{" "}
-                            <span className="text-[#0f766e] underline font-semibold cursor-pointer">
+                            <span className="cursor-pointer font-medium text-slate-900 underline underline-offset-4">
                               browse your computer
                             </span>
                           </p>
                         </div>
                       ) : (
-                        <div className="mt-1.5 flex items-center justify-between rounded-xl border border-teal-100 bg-teal-50/10 p-4 shadow-sm">
+                        <div className="mt-1.5 flex items-center justify-between rounded-lg border border-slate-200/70 bg-white p-4">
                           <div className="flex items-center gap-3 overflow-hidden">
-                            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-teal-50 text-[#0f766e]">
+                            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-slate-100 text-slate-700">
                               <svg
                                 className="h-5 w-5"
                                 fill="none"
@@ -902,7 +880,7 @@ export default function DashboardPage() {
                               e.stopPropagation();
                               setSelectedFile(null);
                             }}
-                            className="rounded-full p-1 text-[#94a3b8] hover:bg-slate-100 hover:text-[#ef4444] transition-colors"
+                            className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-600"
                           >
                             <svg
                               className="h-4 w-4"
@@ -924,18 +902,18 @@ export default function DashboardPage() {
 
                     {/* Progress Bar */}
                     {uploadProgress !== null && (
-                      <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+                      <div className="rounded-lg border border-slate-200/70 bg-slate-50 p-4">
                         <div className="flex items-center justify-between text-xs font-semibold">
                           <span className="text-[#334155] flex items-center gap-1.5 font-semibold">
                             {ingestionStage === "uploading"
                               ? "Uploading to S3..."
                               : "Validating database staging..."}
                           </span>
-                          <span className="font-bold text-[#0f766e]">{uploadProgress}%</span>
+                          <span className="font-medium text-slate-950">{uploadProgress}%</span>
                         </div>
                         <div className="mt-2 h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
                           <div
-                            className="h-full bg-teal-600 rounded-full transition-all duration-300"
+                            className="h-full rounded-full bg-slate-900 transition-all duration-300"
                             style={{ width: `${uploadProgress}%` }}
                           />
                         </div>
@@ -943,7 +921,7 @@ export default function DashboardPage() {
                     )}
 
                     {uploadImportDirect.error && (
-                      <div className="flex gap-2 rounded-lg bg-rose-50 p-3 text-xs text-[#ef4444] border border-rose-100">
+                      <div className="flex gap-2 rounded-lg border border-rose-100 bg-rose-50 p-3 text-xs text-red-600">
                         <p>{messageFromError(uploadImportDirect.error)}</p>
                       </div>
                     )}
@@ -1029,11 +1007,86 @@ export default function DashboardPage() {
   );
 }
 
-function ShellMessage({ children }: { children: ReactNode }) {
+function DashboardSkeleton() {
+  return (
+    <main className="app-background pb-14">
+      <header className="content-layer sticky top-0 z-30 border-b border-slate-200/60 bg-[#f8fafc]/95 backdrop-blur-sm">
+        <div className="mx-auto flex w-[calc(100%_-_48px)] max-w-[1240px] items-center justify-between gap-4 py-4 max-md:w-[calc(100%_-_32px)]">
+          <div className="flex items-center gap-3.5">
+            <div className="skeleton-shimmer h-11 w-11 rounded-2xl" />
+            <div className="grid gap-2">
+              <div className="skeleton-shimmer h-3 w-28" />
+              <div className="skeleton-shimmer h-5 w-44" />
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="skeleton-shimmer h-8 w-56 max-sm:hidden" />
+            <div className="skeleton-shimmer h-10 w-10 rounded-xl" />
+            <div className="skeleton-shimmer h-10 w-24 rounded-xl" />
+          </div>
+        </div>
+      </header>
+      <div className="content-layer mx-auto grid w-[calc(100%_-_48px)] max-w-[1240px] gap-8 py-8 max-md:w-[calc(100%_-_32px)]">
+        <section className="surface grid gap-6 p-6 animate-rise-in md:p-7">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[0, 1, 2, 3].map((item) => (
+              <div
+                key={item}
+                className="rounded-xl border border-black/[0.04] bg-white p-5 shadow-[0_2px_8px_rgba(15,23,42,0.02)]"
+              >
+                <div className="skeleton-shimmer h-8 w-20" />
+                <div className="skeleton-shimmer mt-3 h-3 w-28" />
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-[1fr_220px_280px] gap-4 rounded-xl border border-slate-200/60 bg-slate-50/80 p-4 max-md:grid-cols-1">
+            <div className="skeleton-shimmer h-11 w-full" />
+            <div className="skeleton-shimmer h-11 w-full" />
+            <div className="skeleton-shimmer h-11 w-full" />
+          </div>
+          <div className="flex flex-wrap gap-2 rounded-xl border border-slate-200/60 bg-slate-50 p-1.5">
+            {[0, 1, 2, 3, 4].map((item) => (
+              <div key={item} className="skeleton-shimmer h-11 w-28 rounded-xl" />
+            ))}
+          </div>
+        </section>
+        <section className="surface overflow-hidden animate-rise-in-delay-1">
+          <div className="flex items-center justify-between border-b border-slate-200/60 bg-slate-50 p-4">
+            <div className="skeleton-shimmer h-4 w-32" />
+            <div className="skeleton-shimmer h-6 w-16 rounded-full" />
+          </div>
+          <div className="grid gap-3 p-5">
+            {[0, 1, 2, 3, 4, 5].map((item) => (
+              <div
+                key={item}
+                className="grid grid-cols-[1.6fr_1fr_1fr_0.8fr] gap-4 max-md:grid-cols-2"
+              >
+                <div className="skeleton-shimmer h-5 w-full" />
+                <div className="skeleton-shimmer h-5 w-full" />
+                <div className="skeleton-shimmer h-5 w-full" />
+                <div className="skeleton-shimmer h-8 w-20 rounded-lg" />
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
+
+function LoginRedirectSkeleton() {
   return (
     <main className="app-background grid place-items-center px-6 py-16 animate-fade-in">
-      <section className="content-layer rounded-2xl border border-white/80 bg-white/80 p-7 shadow-xl shadow-teal-950/10 backdrop-blur-xl animate-rise-in">
-        {children}
+      <section className="content-layer grid w-full max-w-[420px] gap-5 rounded-xl border border-black/[0.04] bg-white p-8 text-center shadow-[0_2px_8px_rgba(15,23,42,0.02)] animate-rise-in">
+        <div className="mx-auto grid h-11 w-11 place-items-center rounded-lg bg-[#18181b] text-base font-semibold text-white">
+          SF
+        </div>
+        <div className="skeleton-shimmer mx-auto h-5 w-44" />
+        <div className="skeleton-shimmer mx-auto h-3 w-64" />
+        <div className="grid gap-3 pt-2">
+          <div className="skeleton-shimmer h-11 w-full" />
+          <div className="skeleton-shimmer h-11 w-full" />
+        </div>
       </section>
     </main>
   );
@@ -1078,11 +1131,11 @@ function InventoryTable({
             {!isLoading &&
               paginatedItems.map((item) => (
                 <tr key={`${item.branchId}-${item.componentId}`}>
-                  <td className="font-bold">{item.component.sku}</td>
+                  <td className="font-medium text-slate-800">{item.component.sku}</td>
                   <td>{item.component.name}</td>
                   <td>{item.component.category}</td>
                   <td>
-                    <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700">
+                    <span className="inline-flex rounded-md border border-slate-200/70 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
                       {item.branch.code}
                     </span>
                   </td>
@@ -1143,16 +1196,16 @@ function LowStockReport({
             {!isLoading &&
               paginatedItems.map((item) => (
                 <tr key={`${item.branchId}-${item.componentId}`}>
-                  <td className="font-bold">{item.component.sku}</td>
+                  <td className="font-medium text-slate-800">{item.component.sku}</td>
                   <td>{item.component.name}</td>
                   <td>
-                    <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700">
+                    <span className="inline-flex rounded-md border border-slate-200/70 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
                       {item.branch.code}
                     </span>
                   </td>
                   <td>{item.quantity}</td>
                   <td>{item.minStockThreshold}</td>
-                  <td className="font-bold text-red-700">
+                  <td className="font-medium text-red-700">
                     {Math.max(item.minStockThreshold - item.quantity, 0)}
                   </td>
                 </tr>
@@ -1308,17 +1361,19 @@ function ImportJobsTable({
                 return (
                   <tr key={item.id}>
                     <td>
-                      <div className="font-black text-slate-800">{item.fileName ?? "Untitled"}</div>
-                      <div className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      <div className="font-medium text-slate-800">
+                        {item.fileName ?? "Untitled"}
+                      </div>
+                      <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-slate-500">
                         Excel workbook
                       </div>
                     </td>
                     <td>
-                      <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700">
+                      <span className="inline-flex rounded-md border border-slate-200/70 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
                         {item.branch.code}
                       </span>
                     </td>
-                    <td className="text-xs font-semibold text-slate-500">
+                    <td className="text-xs font-normal text-slate-500">
                       {new Date(item.createdAt).toLocaleString("vi-VN", { hour12: false })}
                     </td>
                     <td>
@@ -1379,14 +1434,14 @@ function ImportPreviewModal({
   children: ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-md animate-macbook-backdrop">
-      <div className="relative grid max-h-[90vh] w-full max-w-[1120px] overflow-hidden rounded-2xl border border-white/70 bg-white shadow-2xl shadow-slate-950/25 animate-macbook-modal">
-        <div className="flex items-center justify-between gap-4 border-b border-border bg-slate-50/80 px-5 py-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-sm animate-macbook-backdrop">
+      <div className="relative grid max-h-[90vh] w-full max-w-[1120px] overflow-hidden rounded-xl border border-black/[0.04] bg-white shadow-[0_24px_64px_rgba(15,23,42,0.16)] animate-macbook-modal">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-200/60 bg-slate-50 px-5 py-4">
           <div className="min-w-0">
-            <p className="m-0 text-xs font-black uppercase tracking-[0.16em] text-[#0f766e]">
+            <p className="m-0 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
               Import preview
             </p>
-            <h2 className="m-0 mt-1 truncate text-lg font-black text-[#172033]">
+            <h2 className="m-0 mt-1 truncate text-lg font-semibold text-slate-950">
               {job?.fileName ?? "Spreadsheet preview"}
             </h2>
           </div>
@@ -1437,13 +1492,13 @@ function ImportPreview({
   const invalidCount = rows.length - validCount;
 
   return (
-    <section className="overflow-hidden rounded-xl border border-border bg-white">
+    <section className="overflow-hidden rounded-xl border border-slate-200/60 bg-white">
       {/* Spacious Widescreen Header */}
-      <div className="flex items-center justify-between gap-4 border-b border-border p-4 max-md:flex-col max-md:items-start bg-slate-50/70">
+      <div className="flex items-center justify-between gap-4 border-b border-slate-200/60 bg-slate-50 p-4 max-md:flex-col max-md:items-start">
         <div>
-          <h2 className="m-0 text-lg font-black text-[#172033] tracking-tight uppercase flex items-center gap-2">
+          <h2 className="m-0 flex items-center gap-2 text-lg font-semibold tracking-tight text-slate-950">
             <svg
-              className="h-5 w-5 text-[#0f766e]"
+              className="h-5 w-5 text-slate-500"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -1457,7 +1512,7 @@ function ImportPreview({
             </svg>
             Ingestion Details & Audit Workspace
           </h2>
-          <p className="text-xs text-[#5c667a] mt-0.5 font-medium">
+          <p className="mt-0.5 text-xs font-normal text-slate-500">
             Verify spreadsheet layout staging before final cloud write
           </p>
         </div>
@@ -1465,7 +1520,7 @@ function ImportPreview({
         {rows.length > 0 ? (
           canConfirm ? (
             <button
-              className="button-primary bg-[#0f766e] text-white font-bold px-5 py-2.5 rounded-lg flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.01]"
+              className="button-primary px-5 py-2.5"
               disabled={validCount === 0 || isConfirming}
               onClick={onConfirm}
               type="button"
@@ -1473,7 +1528,7 @@ function ImportPreview({
               {isConfirming ? "Confirming..." : "Confirm import"}
             </button>
           ) : (
-            <span className="text-xs font-bold text-[#0f766e] bg-teal-50 border border-teal-200/50 px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm animate-pulse">
+            <span className="flex items-center gap-2 rounded-md border border-slate-200/70 bg-white px-4 py-2 text-xs font-medium text-slate-700">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
@@ -1490,15 +1545,15 @@ function ImportPreview({
 
       {rows.length > 0 ? (
         /* Spacious Stats Cards Section */
-        <div className="grid grid-cols-1 gap-3 border-b border-border bg-slate-50/20 p-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm flex items-center justify-between">
+        <div className="grid grid-cols-1 gap-3 border-b border-slate-200/60 bg-slate-50 p-4 sm:grid-cols-3">
+          <div className="flex items-center justify-between rounded-lg border border-slate-200/60 bg-white p-4">
             <div>
-              <span className="text-[10px] font-bold uppercase text-[#64748b] tracking-wider">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
                 Total Rows Staged
               </span>
-              <p className="text-2xl font-black text-[#1e293b] mt-1">{rows.length}</p>
+              <p className="mt-1 text-2xl font-semibold text-slate-950">{rows.length}</p>
             </div>
-            <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
+            <div className="rounded-md bg-slate-100 p-2 text-slate-600">
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
@@ -1510,14 +1565,14 @@ function ImportPreview({
             </div>
           </div>
 
-          <div className="rounded-xl border border-emerald-100 bg-emerald-50/10 p-4 shadow-sm flex items-center justify-between">
+          <div className="flex items-center justify-between rounded-lg border border-emerald-100/70 bg-white p-4">
             <div>
-              <span className="text-[10px] font-bold uppercase text-emerald-600 tracking-wider">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-emerald-700">
                 Valid Rows
               </span>
-              <p className="text-2xl font-black text-emerald-700 mt-1">{validCount}</p>
+              <p className="mt-1 text-2xl font-semibold text-emerald-800">{validCount}</p>
             </div>
-            <div className="rounded-lg bg-emerald-100/50 p-2 text-emerald-700">
+            <div className="rounded-md bg-emerald-50 p-2 text-emerald-700">
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
@@ -1529,14 +1584,14 @@ function ImportPreview({
             </div>
           </div>
 
-          <div className="rounded-xl border border-rose-100 bg-rose-50/10 p-4 shadow-sm flex items-center justify-between">
+          <div className="flex items-center justify-between rounded-lg border border-rose-100/70 bg-white p-4">
             <div>
-              <span className="text-[10px] font-bold uppercase text-rose-600 tracking-wider">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-rose-700">
                 Invalid / Failed Rows
               </span>
-              <p className="text-2xl font-black text-rose-700 mt-1">{invalidCount}</p>
+              <p className="mt-1 text-2xl font-semibold text-rose-800">{invalidCount}</p>
             </div>
-            <div className="rounded-lg bg-rose-100/50 p-2 text-rose-700">
+            <div className="rounded-md bg-rose-50 p-2 text-rose-700">
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
@@ -1571,16 +1626,16 @@ function ImportPreview({
             ) : null}
             {!isLoading &&
               paginatedRows.map((row) => (
-                <tr key={row.id} className="hover:bg-slate-50/50 transition-colors duration-150">
-                  <td className="font-semibold text-slate-500">{row.rowNumber}</td>
-                  <td className="font-bold text-[#1e293b]">{row.sku ?? "-"}</td>
-                  <td className="font-medium text-[#334155]">
+                <tr key={row.id} className="transition-colors duration-150 hover:bg-slate-50/70">
+                  <td className="font-normal text-slate-500">{row.rowNumber}</td>
+                  <td className="font-medium text-slate-800">{row.sku ?? "-"}</td>
+                  <td className="font-normal text-slate-700">
                     {String(row.normalizedData?.name ?? "-")}
                   </td>
                   <td>
                     <StatusPill status={row.validationStatus} />
                   </td>
-                  <td className="max-w-[450px] whitespace-normal text-xs text-rose-700 font-semibold leading-relaxed">
+                  <td className="max-w-[450px] whitespace-normal text-xs font-normal leading-relaxed text-rose-700">
                     {row.errorMessage ? (
                       <span className="flex items-center gap-1.5">
                         <svg
@@ -1652,40 +1707,37 @@ function Pagination({
   const endIdx = Math.min(currentPage * pageSize, totalItems);
 
   return (
-    <div className="flex items-center justify-between border-t border-[#e2e8f0] bg-white px-4 py-3 sm:px-6 rounded-b-lg">
+    <div className="flex items-center justify-between rounded-b-lg border-t border-slate-200/60 bg-white px-4 py-3 sm:px-6">
       <div className="flex flex-1 justify-between sm:hidden">
         <button
           disabled={currentPage === 1}
           onClick={() => onPageChange(currentPage - 1)}
-          className="relative inline-flex items-center rounded-md border border-[#cbd5e1] bg-white px-4 py-2 text-xs font-medium text-[#334155] hover:bg-slate-50 disabled:opacity-50"
+          className="relative inline-flex items-center rounded-md border border-slate-200/70 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
         >
           Previous
         </button>
         <button
           disabled={currentPage === totalPages}
           onClick={() => onPageChange(currentPage + 1)}
-          className="relative ml-3 inline-flex items-center rounded-md border border-[#cbd5e1] bg-white px-4 py-2 text-xs font-medium text-[#334155] hover:bg-slate-50 disabled:opacity-50"
+          className="relative ml-3 inline-flex items-center rounded-md border border-slate-200/70 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
         >
           Next
         </button>
       </div>
       <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs text-[#64748b] font-medium">
-            Showing <span className="font-bold text-[#1e293b]">{startIdx}</span> to{" "}
-            <span className="font-bold text-[#1e293b]">{endIdx}</span> of{" "}
-            <span className="font-bold text-[#1e293b]">{totalItems}</span> results
+          <p className="text-xs font-normal text-slate-500">
+            Showing <span className="font-medium text-slate-800">{startIdx}</span> to{" "}
+            <span className="font-medium text-slate-800">{endIdx}</span> of{" "}
+            <span className="font-medium text-slate-800">{totalItems}</span> results
           </p>
         </div>
         <div>
-          <nav
-            className="isolate inline-flex -space-x-px rounded-md shadow-sm"
-            aria-label="Pagination"
-          >
+          <nav className="isolate inline-flex -space-x-px rounded-md" aria-label="Pagination">
             <button
               disabled={currentPage === 1}
               onClick={() => onPageChange(currentPage - 1)}
-              className="relative inline-flex items-center rounded-l-md px-2 py-1.5 text-[#64748b] ring-1 ring-inset ring-[#e2e8f0] hover:bg-slate-50 disabled:opacity-40"
+              className="relative inline-flex items-center rounded-l-md px-2 py-1.5 text-slate-500 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 disabled:opacity-40"
             >
               <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path
@@ -1703,10 +1755,10 @@ function Pagination({
                   key={p}
                   onClick={() => onPageChange(p)}
                   aria-current={isCurrent ? "page" : undefined}
-                  className={`relative inline-flex items-center px-3 py-1.5 text-xs font-semibold focus:z-20 ${
+                  className={`relative inline-flex items-center px-3 py-1.5 text-xs font-medium focus:z-20 ${
                     isCurrent
-                      ? "z-10 bg-[#0f766e] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0f766e]"
-                      : "text-[#334155] ring-1 ring-inset ring-[#e2e8f0] hover:bg-slate-50 focus:outline-offset-0"
+                      ? "z-10 bg-[#18181b] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-300"
+                      : "text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 focus:outline-offset-0"
                   }`}
                 >
                   {p}
@@ -1716,7 +1768,7 @@ function Pagination({
             <button
               disabled={currentPage === totalPages}
               onClick={() => onPageChange(currentPage + 1)}
-              className="relative inline-flex items-center rounded-r-md px-2 py-1.5 text-[#64748b] ring-1 ring-inset ring-[#e2e8f0] hover:bg-slate-50 disabled:opacity-40"
+              className="relative inline-flex items-center rounded-r-md px-2 py-1.5 text-slate-500 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 disabled:opacity-40"
             >
               <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path
@@ -1747,13 +1799,11 @@ function TableHeader({
       className={
         compact
           ? ""
-          : "flex items-center justify-between gap-3 border-b border-border p-4 bg-slate-50/50"
+          : "flex items-center justify-between gap-3 border-b border-slate-200/60 bg-slate-50 p-4"
       }
     >
-      <h2 className="m-0 text-sm font-extrabold text-[#172033] tracking-tight uppercase">
-        {title}
-      </h2>
-      <span className="text-xs font-bold text-[#5c667a] bg-slate-100 px-2 py-0.5 rounded-full">
+      <h2 className="m-0 text-sm font-semibold tracking-tight text-slate-950">{title}</h2>
+      <span className="rounded-md border border-slate-200/70 bg-white px-2 py-0.5 text-xs font-normal text-slate-500">
         {count} items
       </span>
     </div>
@@ -1761,9 +1811,31 @@ function TableHeader({
 }
 
 function TableState({ colSpan, text }: { colSpan: number; text: string }) {
+  const isLoading = text.toLowerCase().startsWith("loading");
+
+  if (isLoading) {
+    return (
+      <>
+        {[0, 1, 2, 3, 4, 5].map((rowIndex) => (
+          <tr key={rowIndex}>
+            {Array.from({ length: colSpan }).map((_, colIndex) => {
+              const widthClass =
+                colIndex === 0 ? "w-44" : colIndex === colSpan - 1 ? "w-20" : "w-28";
+              return (
+                <td key={colIndex}>
+                  <div className={"skeleton-shimmer h-5 " + widthClass} />
+                </td>
+              );
+            })}
+          </tr>
+        ))}
+      </>
+    );
+  }
+
   return (
     <tr>
-      <td className="py-8 text-center text-muted" colSpan={colSpan}>
+      <td className="py-12 text-center text-sm font-normal text-slate-400" colSpan={colSpan}>
         {text}
       </td>
     </tr>
@@ -1771,7 +1843,7 @@ function TableState({ colSpan, text }: { colSpan: number; text: string }) {
 }
 
 function StatusPill({ status }: { status: string }) {
-  let tone = "bg-slate-100 text-slate-600 border-transparent";
+  let tone = "border-slate-200/70 bg-slate-50 text-slate-600";
 
   if (
     status === ImportRowStatus.VALID ||
@@ -1779,28 +1851,28 @@ function StatusPill({ status }: { status: string }) {
     status === TransferStatus.APPROVED ||
     status === "RESOLVED"
   ) {
-    tone = "bg-emerald-500/10 text-emerald-700 border-emerald-500/10";
+    tone = "border-emerald-200/70 bg-emerald-50 text-emerald-800";
   } else if (
     status === ImportRowStatus.INVALID ||
     status === TransferStatus.REJECTED ||
     status === ExportJobStatus.FAILED ||
     status === "OPEN"
   ) {
-    tone = "bg-rose-500/10 text-rose-700 border-rose-500/10";
+    tone = "border-rose-200/70 bg-rose-50 text-rose-800";
   } else if (
     status === ExportJobStatus.PROCESSING ||
     status === ImportStatus.VALIDATING ||
     status === ImportStatus.COMMITTING ||
     status === TransferStatus.PENDING
   ) {
-    tone = "bg-amber-500/10 text-amber-700 border-amber-500/10";
+    tone = "border-amber-200/70 bg-amber-50 text-amber-800";
   } else if (status === ImportStatus.UPLOADED || status === ImportStatus.PREVIEW_READY) {
-    tone = "bg-sky-500/10 text-sky-700 border-sky-500/10";
+    tone = "border-slate-200/70 bg-slate-50 text-slate-700";
   }
 
   return (
     <span
-      className={`inline-flex rounded-lg border px-2.5 py-0.5 text-[9px] font-extrabold tracking-wide uppercase ${tone}`}
+      className={`inline-flex rounded-md border px-2.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] ${tone}`}
     >
       {status}
     </span>
@@ -1812,11 +1884,11 @@ function messageFromError(error: Error) {
 }
 
 const reportTypes = [
-  { id: ReportType.INVENTORY, label: "Full Inventory", icon: "📦" },
-  { id: ReportType.LOW_STOCK, label: "Low Stock Alert", icon: "⚠️" },
-  { id: ReportType.TRANSFERS, label: "Transfer History", icon: "🔄" },
-  { id: ReportType.IMPORT_HISTORY, label: "Import Jobs", icon: "📥" },
-  { id: ReportType.STOCK_MOVEMENTS, label: "Stock Movements", icon: "📊" },
+  { id: ReportType.INVENTORY, label: "Full Inventory", icon: "INV" },
+  { id: ReportType.LOW_STOCK, label: "Low Stock Alert", icon: "LOW" },
+  { id: ReportType.TRANSFERS, label: "Transfer History", icon: "TRF" },
+  { id: ReportType.IMPORT_HISTORY, label: "Import Jobs", icon: "IMP" },
+  { id: ReportType.STOCK_MOVEMENTS, label: "Stock Movements", icon: "MOV" },
 ] as const;
 
 function ReportsTab({
@@ -1842,8 +1914,10 @@ function ReportsTab({
     <section className="grid gap-4 animate-rise-in-delay-1">
       <div className="surface p-5">
         <div className="mb-4">
-          <h2 className="m-0 text-lg font-black tracking-tight text-[#172033]">Export Reports</h2>
-          <p className="m-0 mt-1.5 text-sm font-semibold text-slate-500">
+          <h2 className="m-0 text-lg font-semibold tracking-tight text-slate-950">
+            Export Reports
+          </h2>
+          <p className="m-0 mt-1.5 text-sm font-normal text-slate-500">
             Generate CSV reports from inventory data and download from S3.
           </p>
         </div>
@@ -1851,13 +1925,15 @@ function ReportsTab({
           {reportTypes.map((report) => (
             <button
               key={report.id}
-              className="flex items-center gap-2 rounded-lg border border-[#d7dce5] bg-[#f8fafc] p-3 text-left transition hover:border-[#0f766e] hover:bg-teal-50/30 active:scale-[0.98]"
+              className="flex items-center gap-2 rounded-lg border border-slate-200/70 bg-white p-3 text-left transition-colors hover:border-slate-300 hover:bg-slate-50"
               onClick={() => onCreateExport(report.id)}
               disabled={isCreating}
               type="button"
             >
-              <span className="text-lg">{report.icon}</span>
-              <span className="text-xs font-bold text-[#172033]">{report.label}</span>
+              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-slate-500">
+                {report.icon}
+              </span>
+              <span className="text-xs font-medium text-slate-800">{report.label}</span>
             </button>
           ))}
         </div>
@@ -1888,13 +1964,13 @@ function ReportsTab({
               {!isLoading &&
                 paginatedItems.map((job) => (
                   <tr key={job.id}>
-                    <td className="font-bold">{job.reportType}</td>
+                    <td className="font-medium text-slate-800">{job.reportType}</td>
                     <td>
                       <StatusPill status={job.status} />
                     </td>
                     <td>{job.totalRecords ?? "-"}</td>
-                    <td className="text-xs font-semibold text-slate-500">{job.fileName ?? "-"}</td>
-                    <td className="text-xs font-semibold text-slate-500">
+                    <td className="text-xs font-normal text-slate-500">{job.fileName ?? "-"}</td>
+                    <td className="text-xs font-normal text-slate-500">
                       {new Date(job.createdAt).toLocaleString("vi-VN", { hour12: false })}
                     </td>
                     <td>
@@ -1958,16 +2034,16 @@ function DlqTab({
       <div className="surface p-5">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="m-0 text-lg font-black tracking-tight text-[#172033]">
+            <h2 className="m-0 text-lg font-semibold tracking-tight text-slate-950">
               Dead Letter Queue
             </h2>
-            <p className="m-0 mt-1.5 text-sm font-semibold text-slate-500">
+            <p className="m-0 mt-1.5 text-sm font-normal text-slate-500">
               Failed import jobs that can be replayed or discarded. {items.length} failed job
               {items.length !== 1 ? "s" : ""}.
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700 border border-rose-200/50">
+            <span className="rounded-md border border-rose-200/70 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-800">
               {items.length} failed
             </span>
           </div>
@@ -1991,19 +2067,21 @@ function DlqTab({
             <tbody>
               {isLoading ? <TableState colSpan={6} text="Loading failed jobs..." /> : null}
               {!isLoading && items.length === 0 ? (
-                <TableState colSpan={6} text="No failed import jobs. All clean! ✅" />
+                <TableState colSpan={6} text="No failed import jobs. All clean." />
               ) : null}
               {!isLoading &&
                 paginatedItems.map((item) => (
                   <tr key={item.id}>
                     <td>
-                      <div className="font-black text-slate-800">{item.fileName ?? "Untitled"}</div>
-                      <div className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      <div className="font-medium text-slate-800">
+                        {item.fileName ?? "Untitled"}
+                      </div>
+                      <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-slate-500">
                         Excel workbook
                       </div>
                     </td>
                     <td>
-                      <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700">
+                      <span className="inline-flex rounded-md border border-slate-200/70 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
                         {item.branch.code}
                       </span>
                     </td>
@@ -2013,7 +2091,7 @@ function DlqTab({
                     <td>
                       {item.validRows} valid / {item.invalidRows} invalid
                     </td>
-                    <td className="text-xs font-semibold text-slate-500">
+                    <td className="text-xs font-normal text-slate-500">
                       {new Date(item.createdAt).toLocaleString("vi-VN", { hour12: false })}
                     </td>
                     <td>
@@ -2084,10 +2162,10 @@ function ReconciliationTab({
       <div className="surface p-5">
         <div className="flex items-center justify-between gap-4 max-sm:flex-col max-sm:items-start">
           <div>
-            <h2 className="m-0 text-lg font-black tracking-tight text-[#172033]">
+            <h2 className="m-0 text-lg font-semibold tracking-tight text-slate-950">
               Stock Reconciliation
             </h2>
-            <p className="m-0 mt-1.5 text-sm font-semibold text-slate-500">
+            <p className="m-0 mt-1.5 text-sm font-normal text-slate-500">
               Compares inventory quantities against stock movement ledger to detect mismatches.
             </p>
           </div>
@@ -2103,7 +2181,7 @@ function ReconciliationTab({
               <option value={ReconciliationStatus.IGNORED}>Ignored</option>
             </select>
             <button
-              className="button-primary min-h-12 rounded-2xl bg-gradient-to-r from-teal-700 to-emerald-600 px-5 shadow-xl shadow-teal-900/15 hover:from-teal-800 hover:to-emerald-700"
+              className="button-primary min-h-12 px-5"
               onClick={onRun}
               disabled={isRunning}
               type="button"
@@ -2138,20 +2216,20 @@ function ReconciliationTab({
               {!isLoading && issues.length === 0 ? (
                 <TableState
                   colSpan={9}
-                  text="No reconciliation issues found. Inventory is consistent! ✅"
+                  text="No reconciliation issues found. Inventory is consistent."
                 />
               ) : null}
               {!isLoading &&
                 paginatedItems.map((issue) => (
                   <tr key={issue.id}>
-                    <td className="font-bold">{issue.branch.code}</td>
-                    <td className="font-bold">{issue.component.sku}</td>
+                    <td className="font-medium text-slate-800">{issue.branch.code}</td>
+                    <td className="font-medium text-slate-800">{issue.component.sku}</td>
                     <td className="text-xs">{issue.component.name}</td>
                     <td>{issue.expectedQuantity}</td>
                     <td>{issue.actualQuantity}</td>
                     <td>
                       <span
-                        className={`font-bold ${
+                        className={`font-medium ${
                           issue.difference > 0
                             ? "text-emerald-700"
                             : issue.difference < 0
@@ -2166,7 +2244,7 @@ function ReconciliationTab({
                     <td>
                       <StatusPill status={issue.status} />
                     </td>
-                    <td className="text-xs font-semibold text-slate-500">
+                    <td className="text-xs font-normal text-slate-500">
                       {new Date(issue.detectedAt).toLocaleString("vi-VN", { hour12: false })}
                     </td>
                     <td>

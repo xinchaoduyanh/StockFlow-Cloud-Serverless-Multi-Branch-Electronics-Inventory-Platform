@@ -56,13 +56,7 @@ export default function NotificationsPage() {
   });
 
   if (!hasMounted || isUserLoading || isNotiLoading) {
-    return (
-      <div className="app-background flex items-center justify-center">
-        <div className="text-sm font-bold text-slate-500 animate-pulse">
-          Loading Notifications Center...
-        </div>
-      </div>
-    );
+    return <NotificationsSkeleton />;
   }
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -81,30 +75,28 @@ export default function NotificationsPage() {
 
   return (
     <main className="app-background pb-16">
-      <div className="ambient-orb -top-36 -left-28 h-[520px] w-[520px] bg-teal-300/16" />
-      <div className="ambient-orb right-[-120px] top-28 h-[460px] w-[460px] bg-sky-300/14 [animation-delay:1.4s]" />
       {/* Navbar Header */}
-      <header className="content-layer sticky top-0 z-30 border-b border-white/70 bg-white/72 shadow-sm shadow-slate-200/40 backdrop-blur-2xl">
-        <div className="mx-auto flex w-[calc(100%_-_48px)] max-w-[1240px] items-center justify-between gap-4 py-3.5 max-md:w-[calc(100%_-_32px)] max-md:flex-col max-md:items-start">
+      <header className="content-layer sticky top-0 z-30 border-b border-slate-200/60 bg-[#f8fafc]/95 backdrop-blur-sm">
+        <div className="mx-auto flex w-[calc(100%_-_48px)] max-w-[1240px] items-center justify-between gap-4 py-4 max-md:w-[calc(100%_-_32px)] max-md:flex-col max-md:items-start">
           <div className="flex items-center gap-3.5">
             <Link
               href="/dashboard"
-              className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-500 text-sm font-black text-white shadow-lg shadow-teal-700/20 transition-all duration-500 hover:rotate-3 hover:scale-105"
+              className="grid h-10 w-10 place-items-center rounded-lg bg-[#18181b] text-sm font-semibold text-white"
             >
               SF
             </Link>
             <div>
-              <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-teal-700">
+              <p className="mb-0.5 text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500">
                 StockFlow Cloud
               </p>
-              <h1 className="m-0 text-lg font-black tracking-tight text-slate-900">
+              <h1 className="m-0 text-lg font-semibold tracking-tight text-slate-950">
                 Notifications History Center
               </h1>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <Link href="/dashboard" className="button-secondary min-h-10 px-4 text-xs font-bold">
+            <Link href="/dashboard" className="button-secondary min-h-10 px-4 text-xs">
               ← Return to Dashboard
             </Link>
           </div>
@@ -112,17 +104,17 @@ export default function NotificationsPage() {
       </header>
 
       {/* Main Body Grid */}
-      <div className="content-layer mx-auto mt-6 w-[calc(100%_-_48px)] max-w-[1240px] max-md:w-[calc(100%_-_32px)] animate-rise-in">
-        <div className="grid gap-6">
+      <div className="content-layer mx-auto mt-8 w-[calc(100%_-_48px)] max-w-[1240px] max-md:w-[calc(100%_-_32px)] animate-rise-in">
+        <div className="grid gap-5">
           {/* Action Header Card */}
           <div className="surface flex items-center justify-between gap-4 p-5 max-sm:flex-col max-sm:items-start">
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setFilter("all")}
-                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 cursor-pointer ${
+                className={`cursor-pointer rounded-lg px-4 py-2 text-xs font-medium transition-colors duration-200 ${
                   filter === "all"
-                    ? "bg-teal-700 text-white shadow-md shadow-teal-700/15"
-                    : "bg-slate-100/70 text-slate-500 hover:text-slate-900 hover:bg-slate-200/60"
+                    ? "bg-[#18181b] text-white"
+                    : "bg-slate-100 text-slate-500 hover:bg-white hover:text-slate-900"
                 }`}
                 type="button"
               >
@@ -130,10 +122,10 @@ export default function NotificationsPage() {
               </button>
               <button
                 onClick={() => setFilter("unread")}
-                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 cursor-pointer ${
+                className={`cursor-pointer rounded-lg px-4 py-2 text-xs font-medium transition-colors duration-200 ${
                   filter === "unread"
-                    ? "bg-teal-700 text-white shadow-md shadow-teal-700/15"
-                    : "bg-slate-100/70 text-slate-500 hover:text-slate-900 hover:bg-slate-200/60"
+                    ? "bg-[#18181b] text-white"
+                    : "bg-slate-100 text-slate-500 hover:bg-white hover:text-slate-900"
                 }`}
                 type="button"
               >
@@ -145,7 +137,7 @@ export default function NotificationsPage() {
               <button
                 onClick={() => markAllReadMutation.mutate()}
                 disabled={markAllReadMutation.isPending}
-                className="button-secondary min-h-10 px-4 text-xs font-bold cursor-pointer"
+                className="button-secondary min-h-10 cursor-pointer px-4 text-xs"
                 type="button"
               >
                 Mark All as Read
@@ -156,8 +148,8 @@ export default function NotificationsPage() {
           {/* List Container */}
           <div className="grid gap-3">
             {filteredNotifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-2xl border border-slate-100 shadow-sm">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-50 text-slate-400 border border-slate-100/50">
+              <div className="flex flex-col items-center justify-center rounded-xl border border-black/[0.04] bg-white py-20 text-center shadow-[0_2px_8px_rgba(15,23,42,0.02)]">
+                <div className="grid h-12 w-12 place-items-center rounded-lg border border-slate-100/70 bg-slate-50 text-slate-400">
                   <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
@@ -167,10 +159,10 @@ export default function NotificationsPage() {
                     />
                   </svg>
                 </div>
-                <h3 className="mt-4 text-sm font-bold text-slate-800">
+                <h3 className="mt-4 text-sm font-medium text-slate-800">
                   Your notification log is clear
                 </h3>
-                <p className="mt-1 text-xs font-semibold text-slate-400">
+                <p className="mt-1 text-xs font-normal text-slate-400">
                   No alerts matching the selected filter were found.
                 </p>
               </div>
@@ -181,24 +173,22 @@ export default function NotificationsPage() {
                 return (
                   <div
                     key={item.id}
-                    className={`rounded-2xl border transition-all duration-200 shadow-sm ${
-                      !item.read
-                        ? "border-teal-500/25 bg-teal-500/[0.03] ring-4 ring-teal-500/[0.02]"
-                        : "border-slate-100 bg-white"
+                    className={`rounded-xl border transition-colors duration-200 ${
+                      !item.read ? "border-slate-300 bg-slate-50" : "border-black/[0.04] bg-white"
                     }`}
                   >
                     {/* Summary Header Row */}
                     <div
                       onClick={() => toggleExpand(item.id, item.read)}
-                      className="flex items-center justify-between gap-4 p-5 cursor-pointer hover:bg-slate-50/40"
+                      className="flex cursor-pointer items-center justify-between gap-4 p-5 hover:bg-slate-50/70"
                     >
                       <div className="flex items-start gap-4 min-w-0 flex-1">
                         {/* Status Icon - low-opacity pastel styling */}
                         <div
-                          className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
+                          className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${
                             isSuccess
-                              ? "bg-emerald-500/15 text-emerald-700"
-                              : "bg-rose-500/15 text-rose-700"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-rose-50 text-rose-700"
                           }`}
                         >
                           {isSuccess ? (
@@ -235,14 +225,14 @@ export default function NotificationsPage() {
                         {/* Title & Message Summary */}
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm font-bold text-slate-800">{item.title}</span>
+                            <span className="text-sm font-medium text-slate-800">{item.title}</span>
                             {!item.read && (
-                              <span className="rounded-lg bg-teal-500/10 px-2 py-0.5 text-[9px] font-extrabold uppercase text-teal-700 tracking-wide animate-pulse">
+                              <span className="rounded-md border border-slate-200/70 bg-white px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-slate-600">
                                 New
                               </span>
                             )}
                           </div>
-                          <p className="m-0 mt-1 text-xs font-medium text-slate-500 line-clamp-1 leading-relaxed">
+                          <p className="m-0 mt-1 line-clamp-1 text-xs font-normal leading-relaxed text-slate-500">
                             {item.message}
                           </p>
                         </div>
@@ -250,7 +240,7 @@ export default function NotificationsPage() {
 
                       {/* Right Arrow and Date */}
                       <div className="flex items-center gap-3 shrink-0 text-right">
-                        <span className="text-xs font-bold text-slate-400 font-sans">
+                        <span className="font-sans text-xs font-normal text-slate-400">
                           {new Date(item.createdAt).toLocaleString(undefined, {
                             month: "short",
                             day: "numeric",
@@ -278,11 +268,11 @@ export default function NotificationsPage() {
 
                     {/* Expandable Diagnostic Panel */}
                     {isExpanded && (
-                      <div className="border-t border-slate-100 bg-slate-50/50 p-6 rounded-b-2xl animate-fade-in">
-                        <p className="m-0 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                      <div className="rounded-b-xl border-t border-slate-200/60 bg-slate-50 p-6 animate-fade-in">
+                        <p className="m-0 text-[10px] font-medium uppercase tracking-wider text-slate-500">
                           Diagnostic Metadata Log
                         </p>
-                        <p className="m-0 mt-2 text-xs font-semibold text-slate-700 leading-relaxed">
+                        <p className="m-0 mt-2 text-xs font-normal leading-relaxed text-slate-700">
                           {item.message}
                         </p>
 
@@ -291,36 +281,36 @@ export default function NotificationsPage() {
                           if (isSuccess) {
                             const successMeta = item.metadata as ImportSuccessMetadata;
                             return (
-                              <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4 border border-slate-100 bg-white p-4 rounded-xl shadow-sm">
-                                <div className="rounded-lg bg-slate-50/70 p-3.5">
-                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">
+                              <div className="mt-4 grid grid-cols-2 gap-4 rounded-lg border border-slate-200/60 bg-white p-4 md:grid-cols-4">
+                                <div className="rounded-md bg-slate-50 p-3.5">
+                                  <span className="text-[9px] font-medium uppercase tracking-wide text-slate-500">
                                     File Name
                                   </span>
-                                  <p className="m-0 mt-1 text-xs font-black text-slate-800 truncate">
+                                  <p className="m-0 mt-1 truncate text-xs font-medium text-slate-800">
                                     {successMeta.fileName}
                                   </p>
                                 </div>
-                                <div className="rounded-lg bg-slate-50/70 p-3.5">
-                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">
+                                <div className="rounded-md bg-slate-50 p-3.5">
+                                  <span className="text-[9px] font-medium uppercase tracking-wide text-slate-500">
                                     Branch Code
                                   </span>
-                                  <p className="m-0 mt-1 text-xs font-black text-slate-800">
+                                  <p className="m-0 mt-1 text-xs font-medium text-slate-800">
                                     {successMeta.branchCode}
                                   </p>
                                 </div>
-                                <div className="rounded-lg bg-emerald-500/10 p-3.5 border border-emerald-500/10">
-                                  <span className="text-[9px] font-extrabold text-emerald-700 uppercase tracking-wide">
+                                <div className="rounded-md border border-emerald-100/70 bg-emerald-50 p-3.5">
+                                  <span className="text-[9px] font-medium uppercase tracking-wide text-emerald-700">
                                     Valid Rows
                                   </span>
-                                  <p className="m-0 mt-1 text-xs font-black text-emerald-800">
+                                  <p className="m-0 mt-1 text-xs font-medium text-emerald-800">
                                     {successMeta.validRows} / {successMeta.totalRows}
                                   </p>
                                 </div>
-                                <div className="rounded-lg bg-rose-500/10 p-3.5 border border-rose-500/10">
-                                  <span className="text-[9px] font-extrabold text-rose-700 uppercase tracking-wide">
+                                <div className="rounded-md border border-rose-100/70 bg-rose-50 p-3.5">
+                                  <span className="text-[9px] font-medium uppercase tracking-wide text-rose-700">
                                     Invalid Rows
                                   </span>
-                                  <p className="m-0 mt-1 text-xs font-black text-rose-800">
+                                  <p className="m-0 mt-1 text-xs font-medium text-rose-800">
                                     {successMeta.invalidRows} / {successMeta.totalRows}
                                   </p>
                                 </div>
@@ -329,8 +319,8 @@ export default function NotificationsPage() {
                           } else {
                             const failureMeta = item.metadata as ImportFailureMetadata;
                             return (
-                              <div className="mt-4 border border-rose-200/50 bg-rose-50/20 p-5 rounded-xl shadow-sm">
-                                <div className="flex items-center gap-2 mb-3.5 text-rose-700 font-black text-xs uppercase tracking-wider">
+                              <div className="mt-4 rounded-lg border border-rose-200/70 bg-rose-50 p-5">
+                                <div className="mb-3.5 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-rose-800">
                                   <svg
                                     className="h-4.5 w-4.5 shrink-0"
                                     fill="none"
@@ -347,27 +337,27 @@ export default function NotificationsPage() {
                                   Failure Diagnostics Log
                                 </div>
                                 <div className="grid grid-cols-2 gap-4 mb-4">
-                                  <div className="rounded-lg bg-white/70 p-3 border border-rose-100/50">
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase">
+                                  <div className="rounded-md border border-rose-100/70 bg-white p-3">
+                                    <span className="text-[9px] font-medium uppercase text-slate-500">
                                       File Name
                                     </span>
-                                    <p className="m-0 mt-0.5 text-xs font-black text-slate-800 truncate">
+                                    <p className="m-0 mt-0.5 truncate text-xs font-medium text-slate-800">
                                       {failureMeta.fileName}
                                     </p>
                                   </div>
-                                  <div className="rounded-lg bg-white/70 p-3 border border-rose-100/50">
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase">
+                                  <div className="rounded-md border border-rose-100/70 bg-white p-3">
+                                    <span className="text-[9px] font-medium uppercase text-slate-500">
                                       Branch Code
                                     </span>
-                                    <p className="m-0 mt-0.5 text-xs font-black text-slate-800">
+                                    <p className="m-0 mt-0.5 text-xs font-medium text-slate-800">
                                       {failureMeta.branchCode}
                                     </p>
                                   </div>
                                 </div>
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">
+                                <span className="text-[9px] font-medium uppercase tracking-wide text-slate-500">
                                   Detailed Error Message
                                 </span>
-                                <pre className="mt-2 p-4 rounded-xl bg-slate-900 text-emerald-400 font-mono text-[11px] leading-relaxed whitespace-pre-wrap select-all shadow-inner border border-slate-800">
+                                <pre className="mt-2 whitespace-pre-wrap rounded-lg border border-slate-800 bg-slate-900 p-4 font-mono text-[11px] leading-relaxed text-slate-100 selection:bg-slate-700">
                                   {failureMeta.errorMessage}
                                 </pre>
                               </div>
@@ -382,6 +372,49 @@ export default function NotificationsPage() {
             )}
           </div>
         </div>
+      </div>
+    </main>
+  );
+}
+
+function NotificationsSkeleton() {
+  return (
+    <main className="app-background pb-16">
+      <header className="content-layer sticky top-0 z-30 border-b border-slate-200/60 bg-[#f8fafc]/95 backdrop-blur-sm">
+        <div className="mx-auto flex w-[calc(100%_-_48px)] max-w-[1240px] items-center justify-between gap-4 py-4 max-md:w-[calc(100%_-_32px)]">
+          <div className="flex items-center gap-3.5">
+            <div className="skeleton-shimmer h-11 w-11 rounded-2xl" />
+            <div className="grid gap-2">
+              <div className="skeleton-shimmer h-3 w-28" />
+              <div className="skeleton-shimmer h-5 w-56" />
+            </div>
+          </div>
+          <div className="skeleton-shimmer h-10 w-36 rounded-xl" />
+        </div>
+      </header>
+      <div className="content-layer mx-auto mt-6 grid w-[calc(100%_-_48px)] max-w-[1240px] gap-4 max-md:w-[calc(100%_-_32px)] animate-rise-in">
+        <div className="surface flex items-center justify-between gap-4 p-5">
+          <div className="flex gap-2">
+            <div className="skeleton-shimmer h-9 w-36 rounded-xl" />
+            <div className="skeleton-shimmer h-9 w-32 rounded-xl" />
+          </div>
+          <div className="skeleton-shimmer h-9 w-36 rounded-xl" />
+        </div>
+        {[0, 1, 2, 3, 4].map((item) => (
+          <div
+            key={item}
+            className="rounded-xl border border-black/[0.04] bg-white p-5 shadow-[0_2px_8px_rgba(15,23,42,0.02)]"
+          >
+            <div className="flex items-center gap-4">
+              <div className="skeleton-shimmer h-10 w-10 rounded-xl" />
+              <div className="grid flex-1 gap-2">
+                <div className="skeleton-shimmer h-4 w-52" />
+                <div className="skeleton-shimmer h-3 w-full" />
+              </div>
+              <div className="skeleton-shimmer h-4 w-24" />
+            </div>
+          </div>
+        ))}
       </div>
     </main>
   );

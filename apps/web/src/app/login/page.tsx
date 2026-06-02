@@ -26,30 +26,25 @@ export default function LoginPage() {
 
   return (
     <main className="app-background grid place-items-center px-6 py-12">
-      <div className="ambient-orb -top-36 -left-32 h-[520px] w-[520px] bg-teal-300/22" />
-      <div className="ambient-orb -right-28 bottom-8 h-[460px] w-[460px] bg-sky-300/18 [animation-delay:1.5s]" />
-      <div className="ambient-orb left-[48%] top-[18%] h-[360px] w-[360px] bg-emerald-200/16 [animation-delay:3s]" />
-
       <form
-        className="content-layer grid w-full max-w-[440px] gap-6 rounded-3xl border border-white/80 bg-white/72 p-9 shadow-2xl shadow-teal-950/10 backdrop-blur-2xl transition-all duration-500 animate-rise-in hover:-translate-y-1 hover:shadow-teal-950/15"
+        className="content-layer grid w-full max-w-[440px] gap-7 rounded-xl border border-black/[0.04] bg-white p-9 shadow-[0_2px_8px_rgba(15,23,42,0.02)] animate-rise-in"
         onSubmit={handleSubmit}
       >
         <div className="text-center">
-          {/* Custom Squircle Brand Mark */}
-          <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-500 text-base font-black text-white shadow-lg shadow-teal-700/25 transition-transform duration-500 hover:rotate-3 hover:scale-105">
+          <div className="mx-auto mb-4 grid h-11 w-11 place-items-center rounded-lg bg-[#18181b] text-base font-semibold text-white">
             SF
           </div>
-          <p className="mb-1 text-[10px] font-black uppercase tracking-[0.2em] text-teal-700">
+          <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500">
             StockFlow Cloud
           </p>
-          <h1 className="m-0 text-3xl font-black tracking-tight text-slate-900">Welcome Back</h1>
-          <p className="mt-2 text-xs font-semibold text-slate-500">
+          <h1 className="m-0 text-3xl font-semibold tracking-tight text-slate-950">Welcome Back</h1>
+          <p className="mt-2 text-xs font-normal text-slate-500">
             Sign in to manage your multi-branch operations
           </p>
         </div>
 
         <div className="grid gap-5">
-          <label className="grid gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
+          <label className="field">
             <span>Email Address</span>
             <div className="relative flex items-center">
               <span className="absolute left-4 text-slate-400">
@@ -63,7 +58,7 @@ export default function LoginPage() {
                 </svg>
               </span>
               <input
-                className="min-h-11 w-full rounded-xl border border-slate-200 bg-white/90 pl-12 pr-4.5 text-sm font-medium text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-teal-600 focus:ring-4 focus:ring-teal-500/10 shadow-sm shadow-slate-100/50"
+                className="input pl-12"
                 autoComplete="email"
                 name="email"
                 onChange={(event) => setEmail(event.target.value)}
@@ -75,7 +70,7 @@ export default function LoginPage() {
             </div>
           </label>
 
-          <label className="grid gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
+          <label className="field">
             <span>Password</span>
             <div className="relative flex items-center">
               <span className="absolute left-4 text-slate-400">
@@ -89,7 +84,7 @@ export default function LoginPage() {
                 </svg>
               </span>
               <input
-                className="min-h-11 w-full rounded-xl border border-slate-200 bg-white/90 pl-12 pr-12 text-sm font-medium text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-teal-600 focus:ring-4 focus:ring-teal-500/10 shadow-sm shadow-slate-100/50"
+                className="input pl-12 pr-12"
                 autoComplete="current-password"
                 name="password"
                 onChange={(event) => setPassword(event.target.value)}
@@ -101,7 +96,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 cursor-pointer text-slate-400 transition-colors hover:text-teal-600 focus:outline-none"
+                className="absolute right-4 cursor-pointer text-slate-400 transition-colors hover:text-slate-700 focus:outline-none"
                 tabIndex={-1}
               >
                 {showPassword ? (
@@ -141,16 +136,12 @@ export default function LoginPage() {
         </div>
 
         {login.error ? (
-          <p className="m-0 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center text-xs font-bold text-red-700 animate-slide-down">
+          <p className="m-0 rounded-lg border border-red-200/70 bg-red-50 px-4 py-3 text-center text-xs font-medium text-red-700 animate-slide-down">
             {login.error instanceof Error ? login.error.message : String(login.error)}
           </p>
         ) : null}
 
-        <button
-          className="min-h-11 cursor-pointer rounded-xl bg-teal-700 font-bold text-white shadow-lg shadow-teal-700/20 transition-all duration-200 hover:bg-teal-800 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-75 disabled:hover:bg-teal-700 focus:outline-none focus:ring-4 focus:ring-teal-500/10"
-          disabled={login.isPending}
-          type="submit"
-        >
+        <button className="button-primary w-full" disabled={login.isPending} type="submit">
           {login.isPending ? "Signing in..." : "Sign in"}
         </button>
       </form>
