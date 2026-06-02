@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useLogin } from "@/features/auth/use-auth";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -25,20 +26,27 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="app-background grid place-items-center px-6 py-12">
+    <main className="app-background grid place-items-center px-6 py-12 min-h-screen">
+      {/* Floating Theme Toggle in top-right */}
+      <div className="absolute top-6 right-6 z-50">
+        <ThemeToggle />
+      </div>
+
       <form
-        className="content-layer grid w-full max-w-[440px] gap-7 rounded-xl border border-black/[0.04] bg-white p-9 shadow-[0_2px_8px_rgba(15,23,42,0.02)] animate-rise-in"
+        className="content-layer grid w-full max-w-[440px] gap-7 p-9 surface animate-rise-in"
         onSubmit={handleSubmit}
       >
         <div className="text-center">
-          <div className="mx-auto mb-4 grid h-11 w-11 place-items-center rounded-lg bg-[#18181b] text-base font-semibold text-white">
+          <div className="mx-auto mb-4 grid h-11 w-11 place-items-center rounded-lg bg-[var(--color-accent-solid)] text-base font-semibold text-white">
             SF
           </div>
-          <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500">
+          <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
             StockFlow Cloud
           </p>
-          <h1 className="m-0 text-3xl font-semibold tracking-tight text-slate-950">Welcome Back</h1>
-          <p className="mt-2 text-xs font-normal text-slate-500">
+          <h1 className="m-0 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
+            Welcome Back
+          </h1>
+          <p className="mt-2 text-xs font-normal text-slate-500 dark:text-slate-400">
             Sign in to manage your multi-branch operations
           </p>
         </div>
@@ -47,7 +55,7 @@ export default function LoginPage() {
           <label className="field">
             <span>Email Address</span>
             <div className="relative flex items-center">
-              <span className="absolute left-4 text-slate-400">
+              <span className="absolute left-4 text-slate-400 dark:text-slate-500">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
@@ -73,7 +81,7 @@ export default function LoginPage() {
           <label className="field">
             <span>Password</span>
             <div className="relative flex items-center">
-              <span className="absolute left-4 text-slate-400">
+              <span className="absolute left-4 text-slate-400 dark:text-slate-500">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
@@ -96,7 +104,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 cursor-pointer text-slate-400 transition-colors hover:text-slate-700 focus:outline-none"
+                className="absolute right-4 cursor-pointer text-slate-400 transition-colors hover:text-slate-700 dark:hover:text-slate-200 focus:outline-none"
                 tabIndex={-1}
               >
                 {showPassword ? (
@@ -136,7 +144,7 @@ export default function LoginPage() {
         </div>
 
         {login.error ? (
-          <p className="m-0 rounded-lg border border-red-200/70 bg-red-50 px-4 py-3 text-center text-xs font-medium text-red-700 animate-slide-down">
+          <p className="m-0 rounded-lg border border-red-200/70 bg-red-50 dark:bg-red-950/20 px-4 py-3 text-center text-xs font-medium text-red-700 dark:text-red-400 animate-slide-down">
             {login.error instanceof Error ? login.error.message : String(login.error)}
           </p>
         ) : null}

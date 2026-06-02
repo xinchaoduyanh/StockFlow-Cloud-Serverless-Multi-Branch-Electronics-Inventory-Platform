@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { apiRequest } from "@/lib/api-client";
 import { useCurrentUser, useLogout } from "@/features/auth/use-auth";
 import { NotificationBell } from "@/features/notifications/NotificationBell";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 type Branch = {
   id: string;
@@ -476,31 +477,32 @@ export default function DashboardPage() {
 
   return (
     <main className="app-background pb-14">
-      <header className="content-layer sticky top-0 z-30 border-b border-slate-200/60 bg-[#f8fafc]/95 backdrop-blur-sm">
+      <header className="content-layer sticky top-0 z-30 border-b border-slate-200/60 dark:border-slate-800 bg-[#f8fafc]/95 dark:bg-slate-900/95 backdrop-blur-sm">
         <div className="mx-auto flex w-[calc(100%_-_48px)] max-w-[1240px] items-center justify-between gap-4 py-4 max-md:w-[calc(100%_-_32px)] max-md:flex-col max-md:items-start">
           <div className="flex items-center gap-3.5">
-            <div className="grid h-10 w-10 place-items-center rounded-lg bg-[#18181b] text-sm font-semibold text-white">
+            <div className="grid h-10 w-10 place-items-center rounded-lg bg-[var(--color-accent-solid)] text-sm font-semibold text-white">
               SF
             </div>
             <div>
-              <p className="mb-0.5 text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500">
+              <p className="mb-0.5 text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
                 StockFlow Cloud
               </p>
-              <h1 className="m-0 text-lg font-semibold tracking-tight text-slate-950">
+              <h1 className="m-0 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
                 Inventory Operations
               </h1>
             </div>
           </div>
           <div className="flex items-center gap-4 text-sm max-md:w-full max-md:justify-between">
             <div className="flex items-center gap-2">
-              <span className="max-w-[240px] truncate font-medium text-slate-700">
+              <span className="max-w-[240px] truncate font-medium text-slate-700 dark:text-slate-300">
                 {user.email}
               </span>
-              <span className="inline-flex rounded-md border border-slate-200/70 bg-white px-2.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-slate-600">
+              <span className="inline-flex rounded-md border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 px-2.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
                 {user.role}
               </span>
             </div>
             <NotificationBell />
+            <ThemeToggle />
             <button className="button-secondary min-h-10 px-4" onClick={logout} type="button">
               Sign out
             </button>
@@ -511,22 +513,35 @@ export default function DashboardPage() {
       <div className="content-layer mx-auto grid w-[calc(100%_-_48px)] max-w-[1240px] gap-8 py-8 max-md:w-[calc(100%_-_32px)]">
         <section className="surface grid gap-6 p-6 animate-rise-in md:p-7">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {inventorySummary.map((item) => (
-              <div
-                key={item.label}
-                className="relative rounded-xl border border-black/[0.04] bg-white p-5 shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition-colors duration-200 hover:border-slate-200"
-              >
-                <p className="m-0 text-3xl font-semibold tracking-tight text-slate-950">
-                  {item.value}
-                </p>
-                <p className="m-0 mt-2 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500">
-                  {item.label}
-                </p>
-              </div>
-            ))}
+            {inventorySummary.map((item) => {
+              const borderClass =
+                item.tone === "teal"
+                  ? "border-t-teal-500 dark:border-t-teal-400"
+                  : item.tone === "violet"
+                    ? "border-t-violet-500 dark:border-t-violet-400"
+                    : item.tone === "rose"
+                      ? "border-t-rose-500 dark:border-t-rose-400"
+                      : item.tone === "amber"
+                        ? "border-t-amber-500 dark:border-t-amber-400"
+                        : "border-t-slate-300 dark:border-t-slate-700";
+
+              return (
+                <div
+                  key={item.label}
+                  className={`relative rounded-xl border border-t-2 border-black/[0.04] dark:border-white/[0.04] bg-white dark:bg-slate-900 p-5 shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition-all duration-200 hover:border-slate-200 dark:hover:border-slate-700 ${borderClass}`}
+                >
+                  <p className="m-0 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
+                    {item.value}
+                  </p>
+                  <p className="m-0 mt-2 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                    {item.label}
+                  </p>
+                </div>
+              );
+            })}
           </div>
 
-          <div className="grid grid-cols-[1fr_220px_280px] gap-4 rounded-xl border border-slate-200/60 bg-slate-50/80 p-4 max-md:grid-cols-1">
+          <div className="grid grid-cols-[1fr_220px_280px] gap-4 rounded-xl border border-slate-200/60 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/40 p-4 max-md:grid-cols-1">
             <label className="field">
               <span>Search SKU or name</span>
               <input
@@ -568,7 +583,7 @@ export default function DashboardPage() {
             </label>
           </div>
 
-          <nav className="flex flex-wrap gap-1 rounded-xl border border-slate-200/60 bg-slate-50 p-1.5">
+          <nav className="flex flex-wrap gap-1 rounded-xl border border-slate-200/60 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 p-1.5">
             {tabs
               .filter(
                 (tab) => !("adminOnly" in tab && tab.adminOnly && user?.role !== UserRole.ADMIN),
@@ -1131,11 +1146,13 @@ function InventoryTable({
             {!isLoading &&
               paginatedItems.map((item) => (
                 <tr key={`${item.branchId}-${item.componentId}`}>
-                  <td className="font-medium text-slate-800">{item.component.sku}</td>
+                  <td className="font-medium text-slate-800 dark:text-slate-200">
+                    {item.component.sku}
+                  </td>
                   <td>{item.component.name}</td>
                   <td>{item.component.category}</td>
                   <td>
-                    <span className="inline-flex rounded-md border border-slate-200/70 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
+                    <span className="inline-flex rounded-md border border-slate-200/70 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-355">
                       {item.branch.code}
                     </span>
                   </td>
@@ -1196,16 +1213,18 @@ function LowStockReport({
             {!isLoading &&
               paginatedItems.map((item) => (
                 <tr key={`${item.branchId}-${item.componentId}`}>
-                  <td className="font-medium text-slate-800">{item.component.sku}</td>
+                  <td className="font-medium text-slate-800 dark:text-slate-200">
+                    {item.component.sku}
+                  </td>
                   <td>{item.component.name}</td>
                   <td>
-                    <span className="inline-flex rounded-md border border-slate-200/70 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
+                    <span className="inline-flex rounded-md border border-slate-200/70 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-355">
                       {item.branch.code}
                     </span>
                   </td>
                   <td>{item.quantity}</td>
                   <td>{item.minStockThreshold}</td>
-                  <td className="font-medium text-red-700">
+                  <td className="font-medium text-red-700 dark:text-red-400">
                     {Math.max(item.minStockThreshold - item.quantity, 0)}
                   </td>
                 </tr>
@@ -1361,15 +1380,15 @@ function ImportJobsTable({
                 return (
                   <tr key={item.id}>
                     <td>
-                      <div className="font-medium text-slate-800">
+                      <div className="font-medium text-slate-800 dark:text-slate-200">
                         {item.fileName ?? "Untitled"}
                       </div>
-                      <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                      <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Excel workbook
                       </div>
                     </td>
                     <td>
-                      <span className="inline-flex rounded-md border border-slate-200/70 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
+                      <span className="inline-flex rounded-md border border-slate-200/70 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-355">
                         {item.branch.code}
                       </span>
                     </td>
@@ -1707,29 +1726,31 @@ function Pagination({
   const endIdx = Math.min(currentPage * pageSize, totalItems);
 
   return (
-    <div className="flex items-center justify-between rounded-b-lg border-t border-slate-200/60 bg-white px-4 py-3 sm:px-6">
+    <div className="flex items-center justify-between rounded-b-lg border-t border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 sm:px-6">
       <div className="flex flex-1 justify-between sm:hidden">
         <button
           disabled={currentPage === 1}
           onClick={() => onPageChange(currentPage - 1)}
-          className="relative inline-flex items-center rounded-md border border-slate-200/70 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="relative inline-flex items-center rounded-md border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
         >
           Previous
         </button>
         <button
           disabled={currentPage === totalPages}
           onClick={() => onPageChange(currentPage + 1)}
-          className="relative ml-3 inline-flex items-center rounded-md border border-slate-200/70 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="relative ml-3 inline-flex items-center rounded-md border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
         >
           Next
         </button>
       </div>
       <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-normal text-slate-500">
-            Showing <span className="font-medium text-slate-800">{startIdx}</span> to{" "}
-            <span className="font-medium text-slate-800">{endIdx}</span> of{" "}
-            <span className="font-medium text-slate-800">{totalItems}</span> results
+          <p className="text-xs font-normal text-slate-500 dark:text-slate-400">
+            Showing{" "}
+            <span className="font-medium text-slate-800 dark:text-slate-200">{startIdx}</span> to{" "}
+            <span className="font-medium text-slate-800 dark:text-slate-200">{endIdx}</span> of{" "}
+            <span className="font-medium text-slate-800 dark:text-slate-200">{totalItems}</span>{" "}
+            results
           </p>
         </div>
         <div>
@@ -1737,7 +1758,7 @@ function Pagination({
             <button
               disabled={currentPage === 1}
               onClick={() => onPageChange(currentPage - 1)}
-              className="relative inline-flex items-center rounded-l-md px-2 py-1.5 text-slate-500 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 disabled:opacity-40"
+              className="relative inline-flex items-center rounded-l-md px-2 py-1.5 text-slate-500 dark:text-slate-400 ring-1 ring-inset ring-slate-200 dark:ring-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40"
             >
               <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path
@@ -1757,8 +1778,8 @@ function Pagination({
                   aria-current={isCurrent ? "page" : undefined}
                   className={`relative inline-flex items-center px-3 py-1.5 text-xs font-medium focus:z-20 ${
                     isCurrent
-                      ? "z-10 bg-[#18181b] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-300"
-                      : "text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 focus:outline-offset-0"
+                      ? "z-10 bg-[var(--color-accent-solid)] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-300"
+                      : "text-slate-700 dark:text-slate-300 ring-1 ring-inset ring-slate-200 dark:ring-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 focus:outline-offset-0"
                   }`}
                 >
                   {p}
@@ -1768,7 +1789,7 @@ function Pagination({
             <button
               disabled={currentPage === totalPages}
               onClick={() => onPageChange(currentPage + 1)}
-              className="relative inline-flex items-center rounded-r-md px-2 py-1.5 text-slate-500 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 disabled:opacity-40"
+              className="relative inline-flex items-center rounded-r-md px-2 py-1.5 text-slate-500 dark:text-slate-400 ring-1 ring-inset ring-slate-200 dark:ring-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40"
             >
               <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path
@@ -1799,11 +1820,13 @@ function TableHeader({
       className={
         compact
           ? ""
-          : "flex items-center justify-between gap-3 border-b border-slate-200/60 bg-slate-50 p-4"
+          : "flex items-center justify-between gap-3 border-b border-slate-200/60 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4"
       }
     >
-      <h2 className="m-0 text-sm font-semibold tracking-tight text-slate-950">{title}</h2>
-      <span className="rounded-md border border-slate-200/70 bg-white px-2 py-0.5 text-xs font-normal text-slate-500">
+      <h2 className="m-0 text-sm font-semibold tracking-tight text-slate-950 dark:text-white">
+        {title}
+      </h2>
+      <span className="rounded-md border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-0.5 text-xs font-normal text-slate-500 dark:text-slate-400">
         {count} items
       </span>
     </div>
@@ -1914,10 +1937,10 @@ function ReportsTab({
     <section className="grid gap-4 animate-rise-in-delay-1">
       <div className="surface p-5">
         <div className="mb-4">
-          <h2 className="m-0 text-lg font-semibold tracking-tight text-slate-950">
+          <h2 className="m-0 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
             Export Reports
           </h2>
-          <p className="m-0 mt-1.5 text-sm font-normal text-slate-500">
+          <p className="m-0 mt-1.5 text-sm font-normal text-slate-500 dark:text-slate-400">
             Generate CSV reports from inventory data and download from S3.
           </p>
         </div>
@@ -1925,15 +1948,17 @@ function ReportsTab({
           {reportTypes.map((report) => (
             <button
               key={report.id}
-              className="flex items-center gap-2 rounded-lg border border-slate-200/70 bg-white p-3 text-left transition-colors hover:border-slate-300 hover:bg-slate-50"
+              className="flex items-center gap-2 rounded-lg border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 text-left transition-all hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-850 hover:scale-[1.02]"
               onClick={() => onCreateExport(report.id)}
               disabled={isCreating}
               type="button"
             >
-              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-slate-500">
+              <span className="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-slate-500 dark:text-slate-400">
                 {report.icon}
               </span>
-              <span className="text-xs font-medium text-slate-800">{report.label}</span>
+              <span className="text-xs font-medium text-slate-800 dark:text-slate-200">
+                {report.label}
+              </span>
             </button>
           ))}
         </div>
@@ -1964,7 +1989,9 @@ function ReportsTab({
               {!isLoading &&
                 paginatedItems.map((job) => (
                   <tr key={job.id}>
-                    <td className="font-medium text-slate-800">{job.reportType}</td>
+                    <td className="font-medium text-slate-800 dark:text-slate-200">
+                      {job.reportType}
+                    </td>
                     <td>
                       <StatusPill status={job.status} />
                     </td>
@@ -2034,16 +2061,16 @@ function DlqTab({
       <div className="surface p-5">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="m-0 text-lg font-semibold tracking-tight text-slate-950">
+            <h2 className="m-0 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
               Dead Letter Queue
             </h2>
-            <p className="m-0 mt-1.5 text-sm font-normal text-slate-500">
+            <p className="m-0 mt-1.5 text-sm font-normal text-slate-500 dark:text-slate-400">
               Failed import jobs that can be replayed or discarded. {items.length} failed job
               {items.length !== 1 ? "s" : ""}.
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <span className="rounded-md border border-rose-200/70 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-800">
+            <span className="rounded-md border border-rose-200/70 dark:border-rose-950/30 bg-rose-50 dark:bg-rose-950/20 px-3 py-1 text-xs font-medium text-rose-800 dark:text-rose-400">
               {items.length} failed
             </span>
           </div>
@@ -2073,15 +2100,15 @@ function DlqTab({
                 paginatedItems.map((item) => (
                   <tr key={item.id}>
                     <td>
-                      <div className="font-medium text-slate-800">
+                      <div className="font-medium text-slate-800 dark:text-slate-200">
                         {item.fileName ?? "Untitled"}
                       </div>
-                      <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                      <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Excel workbook
                       </div>
                     </td>
                     <td>
-                      <span className="inline-flex rounded-md border border-slate-200/70 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
+                      <span className="inline-flex rounded-md border border-slate-200/70 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-355">
                         {item.branch.code}
                       </span>
                     </td>
@@ -2162,10 +2189,10 @@ function ReconciliationTab({
       <div className="surface p-5">
         <div className="flex items-center justify-between gap-4 max-sm:flex-col max-sm:items-start">
           <div>
-            <h2 className="m-0 text-lg font-semibold tracking-tight text-slate-950">
+            <h2 className="m-0 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
               Stock Reconciliation
             </h2>
-            <p className="m-0 mt-1.5 text-sm font-normal text-slate-500">
+            <p className="m-0 mt-1.5 text-sm font-normal text-slate-500 dark:text-slate-400">
               Compares inventory quantities against stock movement ledger to detect mismatches.
             </p>
           </div>
@@ -2222,8 +2249,12 @@ function ReconciliationTab({
               {!isLoading &&
                 paginatedItems.map((issue) => (
                   <tr key={issue.id}>
-                    <td className="font-medium text-slate-800">{issue.branch.code}</td>
-                    <td className="font-medium text-slate-800">{issue.component.sku}</td>
+                    <td className="font-medium text-slate-800 dark:text-slate-200">
+                      {issue.branch.code}
+                    </td>
+                    <td className="font-medium text-slate-800 dark:text-slate-200">
+                      {issue.component.sku}
+                    </td>
                     <td className="text-xs">{issue.component.name}</td>
                     <td>{issue.expectedQuantity}</td>
                     <td>{issue.actualQuantity}</td>

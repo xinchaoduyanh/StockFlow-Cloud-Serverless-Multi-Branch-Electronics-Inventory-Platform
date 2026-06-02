@@ -76,7 +76,7 @@ export function NotificationBell() {
       {/* Icon Trigger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200/70 bg-white text-slate-500 transition-colors duration-200 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-slate-200"
+        className="relative flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200/70 bg-white text-slate-500 transition-all duration-200 hover:scale-[1.05] hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-100 active:scale-[0.95] focus:outline-none focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-800"
         type="button"
         aria-label="Toggle notifications"
         aria-expanded={isOpen}
@@ -93,7 +93,7 @@ export function NotificationBell() {
 
         {/* Live Unread Pill Indicator */}
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-md bg-rose-700 px-1.5 text-[9px] font-medium text-white ring-2 ring-white">
+          <span className="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-md bg-rose-700 px-1.5 text-[9px] font-medium text-white ring-2 ring-white dark:ring-slate-950 animate-pulse">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
@@ -106,12 +106,12 @@ export function NotificationBell() {
           role="region"
           aria-label="Notifications"
         >
-          <div className="relative flex items-center justify-between border-b border-slate-200/60 bg-slate-50 px-4.5 pb-3 pt-4">
+          <div className="relative flex items-center justify-between border-b border-slate-200/60 dark:border-slate-805 bg-slate-50 dark:bg-slate-900/50 px-4.5 pb-3 pt-4">
             <div>
-              <h3 className="m-0 text-xs font-medium uppercase tracking-wider text-slate-800">
+              <h3 className="m-0 text-xs font-medium uppercase tracking-wider text-slate-800 dark:text-slate-200">
                 Notifications
               </h3>
-              <p className="m-0 text-[10px] font-normal text-slate-500">
+              <p className="m-0 text-[10px] font-normal text-slate-500 dark:text-slate-400">
                 You have {unreadCount} unread alert{unreadCount !== 1 ? "s" : ""}
               </p>
             </div>
@@ -119,7 +119,7 @@ export function NotificationBell() {
               <button
                 onClick={() => markAllReadMutation.mutate()}
                 disabled={markAllReadMutation.isPending}
-                className="cursor-pointer border-0 bg-transparent text-[11px] font-medium text-slate-600 transition-colors hover:text-slate-950 hover:underline"
+                className="cursor-pointer border-0 bg-transparent text-[11px] font-medium text-slate-600 dark:text-slate-400 transition-colors hover:text-slate-950 dark:hover:text-slate-200 hover:underline"
                 type="button"
               >
                 Mark all as read
@@ -131,7 +131,7 @@ export function NotificationBell() {
             <div className="dropdown-scroll">
               {displayItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-50 text-slate-400 border border-slate-100/50">
+                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-50 dark:bg-slate-900/50 text-slate-400 dark:text-slate-500 border border-slate-100/50 dark:border-slate-800/50">
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
@@ -141,8 +141,10 @@ export function NotificationBell() {
                       />
                     </svg>
                   </div>
-                  <p className="mt-3 text-xs font-bold text-slate-700">No notifications yet</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">
+                  <p className="mt-3 text-xs font-bold text-slate-700 dark:text-slate-300">
+                    No notifications yet
+                  </p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
                     System alerts will show up here
                   </p>
                 </div>
@@ -153,14 +155,18 @@ export function NotificationBell() {
                     <div
                       key={item.id}
                       onClick={() => handleNotificationClick(item)}
-                      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors duration-200 hover:bg-slate-50 ${
-                        !item.read ? "border-slate-300 bg-slate-50" : "border-slate-100 bg-white"
+                      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors duration-200 hover:bg-slate-50 dark:hover:bg-slate-850 ${
+                        !item.read
+                          ? "border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50"
+                          : "border-slate-100 dark:border-slate-800/50 bg-white dark:bg-slate-900/10"
                       }`}
                     >
                       {/* Status Badge - ultra-soft style */}
                       <div
                         className={`grid h-8 w-8 shrink-0 place-items-center rounded-md ${
-                          isSuccess ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                          isSuccess
+                            ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
+                            : "bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400"
                         }`}
                       >
                         {isSuccess ? (
@@ -197,21 +203,21 @@ export function NotificationBell() {
                       {/* Alert Message Text */}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="truncate text-xs font-medium text-slate-800">
+                          <span className="truncate text-xs font-medium text-slate-800 dark:text-slate-200">
                             {item.title}
                           </span>
-                          <span className="shrink-0 font-sans text-[9px] font-normal text-slate-400">
+                          <span className="shrink-0 font-sans text-[9px] font-normal text-slate-400 dark:text-slate-500">
                             {formatTime(item.createdAt)}
                           </span>
                         </div>
-                        <p className="m-0 mt-0.5 line-clamp-2 text-[11px] font-normal leading-relaxed text-slate-500">
+                        <p className="m-0 mt-0.5 line-clamp-2 text-[11px] font-normal leading-relaxed text-slate-500 dark:text-slate-400">
                           {item.message}
                         </p>
                       </div>
 
                       {/* Unread indicator dot */}
                       {!item.read && (
-                        <span className="h-2 w-2 shrink-0 self-center rounded-full bg-slate-900" />
+                        <span className="h-2 w-2 shrink-0 self-center rounded-full bg-slate-900 dark:bg-slate-200" />
                       )}
                     </div>
                   );
@@ -221,13 +227,13 @@ export function NotificationBell() {
           </div>
 
           {/* Footer View All Shortcut */}
-          <div className="relative border-t border-slate-200/60 bg-slate-50 px-3 py-3 text-center">
+          <div className="relative border-t border-slate-200/60 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 px-3 py-3 text-center">
             <button
               onClick={() => {
                 setIsOpen(false);
                 router.push("/dashboard/notifications");
               }}
-              className="w-full rounded-lg border-0 bg-transparent py-2.5 text-xs font-medium text-slate-700 transition-colors duration-200 hover:bg-white hover:text-slate-950"
+              className="w-full rounded-lg border-0 bg-transparent py-2.5 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors duration-200 hover:bg-white dark:hover:bg-slate-800 hover:text-slate-950 dark:hover:text-slate-100"
               type="button"
             >
               View all notification history
