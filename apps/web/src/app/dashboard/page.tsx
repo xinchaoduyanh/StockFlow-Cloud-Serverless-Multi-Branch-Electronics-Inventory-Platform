@@ -112,8 +112,115 @@ const tabs = [
 
 type TabId = (typeof tabs)[number]["id"];
 
+function getTabIcon(id: string) {
+  switch (id) {
+    case "inventory":
+      return (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+          />
+        </svg>
+      );
+    case "transfers":
+      return (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+          />
+        </svg>
+      );
+    case "imports":
+      return (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+          />
+        </svg>
+      );
+    case "low-stock":
+      return (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+          />
+        </svg>
+      );
+    case "reports":
+      return (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2z"
+          />
+        </svg>
+      );
+    case "dlq":
+      return (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+          />
+        </svg>
+      );
+    case "reconciliation":
+      return (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+          />
+        </svg>
+      );
+    case "users":
+      return (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+          />
+        </svg>
+      );
+    case "branches":
+      return (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+          />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
 export default function DashboardPage() {
   const [hasMounted, setHasMounted] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { data: user, isLoading, error } = useCurrentUser();
   const logout = useLogout();
   const router = useRouter();
@@ -480,173 +587,486 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="app-background pb-14">
-      <header className="content-layer sticky top-0 z-30 border-b border-slate-200/60 dark:border-slate-800 bg-[#f8fafc]/95 dark:bg-slate-900/95 backdrop-blur-sm">
-        <div className="mx-auto flex w-[calc(100%_-_48px)] max-w-[1240px] items-center justify-between gap-4 py-4 max-md:w-[calc(100%_-_32px)] max-md:flex-col max-md:items-start">
-          <div className="flex items-center gap-3.5">
-            <div className="grid h-10 w-10 place-items-center rounded-lg bg-[var(--color-accent-solid)] text-sm font-semibold text-white">
+    <div className="min-h-screen bg-[var(--color-bg-base)] text-[var(--color-text-primary)] flex w-full">
+      {/* Sidebar - Desktop */}
+      <aside className="hidden lg:flex flex-col w-64 fixed inset-y-0 left-0 border-r border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900/95 z-30">
+        {/* Sidebar Header */}
+        <div className="flex flex-col gap-1.5 px-6 py-5 border-b border-slate-200/60 dark:border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--color-accent-solid)] text-sm font-bold text-white shadow-sm shadow-indigo-500/25">
               SF
             </div>
             <div>
-              <p className="mb-0.5 text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+              <p className="mb-0.5 text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                 StockFlow Cloud
               </p>
-              <h1 className="m-0 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
+              <h1 className="m-0 text-sm font-bold tracking-tight text-slate-900 dark:text-white">
                 Quản trị Kho hàng
               </h1>
             </div>
           </div>
-          <div className="flex items-center gap-4 text-sm max-md:w-full max-md:justify-between">
-            <div className="flex items-center gap-2">
-              <span className="max-w-[240px] truncate font-medium text-slate-700 dark:text-slate-300">
+
+          {/* Live Serverless System Status indicator */}
+          <div className="flex items-center gap-2 mt-2 px-0.5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-450 tracking-wide">
+              Hệ thống: Trực tuyến
+            </span>
+          </div>
+        </div>
+
+        {/* Sidebar Navigation */}
+        <nav className="flex-1 overflow-y-auto px-3 py-6 space-y-1">
+          {tabs
+            .filter(
+              (tab) => !("adminOnly" in tab && tab.adminOnly && user?.role !== UserRole.ADMIN),
+            )
+            .map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-r-xl text-sm font-medium transition-all duration-150 border-l-2 -ml-3 pl-4 ${
+                    isActive
+                      ? "bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 border-indigo-600 dark:border-indigo-400 font-semibold"
+                      : "text-slate-650 dark:text-slate-400 border-transparent hover:bg-slate-50/70 dark:hover:bg-slate-900/40 hover:text-slate-950 dark:hover:text-slate-100"
+                  }`}
+                  type="button"
+                >
+                  <span
+                    className={
+                      isActive
+                        ? "text-indigo-650 dark:text-indigo-400"
+                        : "text-slate-400 dark:text-slate-500"
+                    }
+                  >
+                    {getTabIcon(tab.id)}
+                  </span>
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+        </nav>
+
+        {/* Sidebar Footer */}
+        <div className="p-4 border-t border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
+          <div className="flex items-center gap-3 mb-4 bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200/50 dark:border-slate-800/60 shadow-sm shadow-slate-100/10">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 font-semibold text-sm shadow-inner shrink-0">
+              {user.email?.[0].toUpperCase() || "U"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">
                 {user.email}
-              </span>
-              <span className="inline-flex rounded-md border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 px-2.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
+              </p>
+              <p className="text-[9px] text-slate-550 dark:text-slate-450 uppercase tracking-widest font-bold mt-0.5">
                 {user.role === "ADMIN"
-                  ? "ADMIN"
+                  ? "QUẢN TRỊ VIÊN"
                   : user.role === "STORE_MANAGER"
                     ? "QUẢN LÝ"
                     : "THỦ KHO"}
-              </span>
+              </p>
             </div>
-            <NotificationBell />
-            <ThemeToggle />
-            <button className="button-secondary min-h-10 px-4" onClick={logout} type="button">
-              Đăng xuất
-            </button>
           </div>
+          <button
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-500 hover:text-rose-600 dark:text-slate-450 dark:hover:text-rose-450 hover:bg-rose-50/50 dark:hover:bg-rose-950/25 transition-all duration-150"
+            onClick={logout}
+            type="button"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+              />
+            </svg>
+            <span>Đăng xuất</span>
+          </button>
         </div>
-      </header>
+      </aside>
 
-      <div className="content-layer mx-auto grid w-[calc(100%_-_48px)] max-w-[1240px] gap-8 py-8 max-md:w-[calc(100%_-_32px)]">
-        <section className="surface grid gap-6 p-6 animate-rise-in md:p-7">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {inventorySummary.map((item) => {
-              const borderClass =
-                item.tone === "teal"
-                  ? "border-t-teal-500 dark:border-t-teal-400"
-                  : item.tone === "violet"
-                    ? "border-t-violet-500 dark:border-t-violet-400"
-                    : item.tone === "rose"
-                      ? "border-t-rose-500 dark:border-t-rose-400"
-                      : item.tone === "amber"
-                        ? "border-t-amber-500 dark:border-t-amber-400"
-                        : "border-t-slate-300 dark:border-t-slate-700";
+      {/* Sidebar - Mobile Drawer */}
+      {isSidebarOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          {/* Overlay backdrop */}
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsSidebarOpen(false)}
+          />
 
-              return (
-                <div
-                  key={item.label}
-                  className={`relative rounded-xl border border-t-2 border-black/[0.04] dark:border-white/[0.04] bg-white dark:bg-slate-900 p-5 shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition-all duration-200 hover:border-slate-200 dark:hover:border-slate-700 ${borderClass}`}
-                >
-                  <p className="m-0 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
-                    {item.value}
+          <aside className="relative flex flex-col w-64 max-w-xs bg-white dark:bg-slate-900 h-full z-10 shadow-2xl animate-rise-in border-r border-slate-200/60 dark:border-slate-800">
+            {/* Close Button */}
+            <div className="absolute top-4 right-4">
+              <button
+                onClick={() => setIsSidebarOpen(false)}
+                className="p-1 rounded-xl border border-slate-200/60 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-all duration-150"
+                type="button"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Sidebar Header */}
+            <div className="flex flex-col gap-1.5 px-6 py-5 border-b border-slate-200/60 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--color-accent-solid)] text-sm font-bold text-white shadow-sm">
+                  SF
+                </div>
+                <div>
+                  <p className="mb-0.5 text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                    StockFlow Cloud
                   </p>
-                  <p className="m-0 mt-2 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-                    {item.label}
+                  <h1 className="m-0 text-sm font-bold tracking-tight text-slate-900 dark:text-white">
+                    Quản trị Kho hàng
+                  </h1>
+                </div>
+              </div>
+
+              {/* Live Status */}
+              <div className="flex items-center gap-2 mt-2 px-0.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-450 tracking-wide">
+                  Hệ thống: Trực tuyến
+                </span>
+              </div>
+            </div>
+
+            {/* Sidebar Navigation */}
+            <nav className="flex-1 overflow-y-auto px-3 py-6 space-y-1">
+              {tabs
+                .filter(
+                  (tab) => !("adminOnly" in tab && tab.adminOnly && user?.role !== UserRole.ADMIN),
+                )
+                .map((tab) => {
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveTab(tab.id);
+                        setIsSidebarOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-r-xl text-sm font-medium transition-all duration-150 border-l-2 -ml-3 pl-4 ${
+                        isActive
+                          ? "bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 border-indigo-600 dark:border-indigo-400 font-semibold"
+                          : "text-slate-655 dark:text-slate-400 border-transparent hover:bg-slate-50/70 dark:hover:bg-slate-900/40 hover:text-slate-950 dark:hover:text-slate-100"
+                      }`}
+                      type="button"
+                    >
+                      <span
+                        className={
+                          isActive
+                            ? "text-indigo-650 dark:text-indigo-400"
+                            : "text-slate-400 dark:text-slate-500"
+                        }
+                      >
+                        {getTabIcon(tab.id)}
+                      </span>
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+            </nav>
+
+            {/* Sidebar Footer */}
+            <div className="p-4 border-t border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
+              <div className="flex items-center gap-3 mb-4 bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200/50 dark:border-slate-800/60 shadow-sm shadow-slate-100/10">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 font-semibold text-sm shadow-inner shrink-0">
+                  {user.email?.[0].toUpperCase() || "U"}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">
+                    {user.email}
+                  </p>
+                  <p className="text-[9px] text-slate-550 dark:text-slate-450 uppercase tracking-widest font-bold mt-0.5">
+                    {user.role === "ADMIN"
+                      ? "QUẢN TRỊ VIÊN"
+                      : user.role === "STORE_MANAGER"
+                        ? "QUẢN LÝ"
+                        : "THỦ KHO"}
                   </p>
                 </div>
-              );
-            })}
-          </div>
-
-          <div className="grid grid-cols-[1fr_220px_280px] gap-4 rounded-xl border border-slate-200/60 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/40 p-4 max-md:grid-cols-1">
-            <label className="field">
-              <span>Tìm theo SKU hoặc tên</span>
-              <input
-                className="input"
-                onChange={(event) => setSearch(event.target.value)}
-                value={search}
-                placeholder="Nhập mã SKU hoặc tên..."
-              />
-            </label>
-            <label className="field">
-              <span>Danh mục</span>
-              <select
-                className="input"
-                onChange={(event) => setCategory(event.target.value)}
-                value={category}
-              >
-                <option value="">Tất cả danh mục</option>
-                {categories.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>Chi nhánh</span>
-              <select
-                className="input"
-                onChange={(event) => setBranchId(event.target.value)}
-                value={selectedBranchId}
-              >
-                <option value="">Tất cả chi nhánh</option>
-                {branchOptions.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.code} - {branch.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <nav className="flex flex-wrap gap-1 rounded-xl border border-slate-200/60 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 p-1.5">
-            {tabs
-              .filter(
-                (tab) => !("adminOnly" in tab && tab.adminOnly && user?.role !== UserRole.ADMIN),
-              )
-              .map((tab) => (
-                <button
-                  className={tab.id === activeTab ? "tab-active" : "tab"}
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  type="button"
-                >
-                  {tab.label}
-                </button>
-              ))}
-          </nav>
-        </section>
-
-        {activeTab === "inventory" ? (
-          <InventoryTable
-            isLoading={inventoryQuery.isLoading}
-            items={inventoryItems}
-            currentPage={inventoryPage}
-            onPageChange={setInventoryPage}
-          />
-        ) : null}
-
-        {activeTab === "low-stock" ? (
-          <LowStockReport
-            isLoading={lowStockQuery.isLoading}
-            items={lowStockQuery.data ?? []}
-            currentPage={lowStockPage}
-            onPageChange={setLowStockPage}
-          />
-        ) : null}
-
-        {activeTab === "transfers" ? (
-          <section className="grid gap-5 lg:grid-cols-[340px_1fr] animate-rise-in-delay-1">
-            <form className="surface grid h-fit gap-5 p-5" onSubmit={handleCreateTransfer}>
-              <div>
-                <p className="m-0 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
-                  Transfer
-                </p>
-                <h2 className="m-0 mt-1 text-lg font-semibold text-slate-950">Create request</h2>
               </div>
+              <button
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-500 hover:text-rose-600 dark:text-slate-455 dark:hover:text-rose-455 hover:bg-rose-50/50 dark:hover:bg-rose-950/25 transition-all duration-150"
+                onClick={logout}
+                type="button"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
+                </svg>
+                <span>Đăng xuất</span>
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* Main Content Area */}
+      <div className="flex-1 lg:pl-64 flex flex-col min-h-screen">
+        {/* Header */}
+        <header className="sticky top-0 z-20 border-b border-slate-200/60 dark:border-slate-800 bg-[#f8fafc]/95 dark:bg-slate-900/95 backdrop-blur-sm">
+          <div className="flex h-16 items-center justify-between px-6 gap-4">
+            <div className="flex items-center gap-4">
+              {/* Hamburger Menu Toggle on Mobile */}
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="lg:hidden p-2 -ml-2 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+                type="button"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+              </button>
+
+              <h2 className="text-base font-semibold tracking-tight text-slate-950 dark:text-white">
+                {tabs.find((t) => t.id === activeTab)?.label}
+              </h2>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <NotificationBell />
+              <ThemeToggle />
+            </div>
+          </div>
+        </header>
+
+        {/* Content Body Container */}
+        <main className="flex-1 p-6 md:p-8 space-y-6 max-w-[1240px] w-full mx-auto">
+          {/* Main Dashboard Stats cards & filters ONLY rendered when on Inventory tab */}
+          {activeTab === "inventory" && (
+            <>
+              <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 animate-rise-in">
+                {inventorySummary.map((item) => {
+                  const { bgBadge, textBadge, metricIcon } = (() => {
+                    if (item.tone === "teal") {
+                      return {
+                        bgBadge: "bg-teal-50 dark:bg-teal-950/30",
+                        textBadge: "text-teal-600 dark:text-teal-400",
+                        metricIcon: (
+                          <svg
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                            />
+                          </svg>
+                        ),
+                      };
+                    } else if (item.tone === "violet") {
+                      return {
+                        bgBadge: "bg-violet-50 dark:bg-violet-950/30",
+                        textBadge: "text-violet-600 dark:text-violet-400",
+                        metricIcon: (
+                          <svg
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                            />
+                          </svg>
+                        ),
+                      };
+                    } else if (item.tone === "rose") {
+                      return {
+                        bgBadge: "bg-rose-50 dark:bg-rose-950/30",
+                        textBadge: "text-rose-600 dark:text-rose-400",
+                        metricIcon: (
+                          <svg
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                            />
+                          </svg>
+                        ),
+                      };
+                    } else {
+                      return {
+                        bgBadge: "bg-amber-50 dark:bg-amber-950/30",
+                        textBadge: "text-amber-600 dark:text-amber-400",
+                        metricIcon: (
+                          <svg
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                            />
+                          </svg>
+                        ),
+                      };
+                    }
+                  })();
+
+                  return (
+                    <div
+                      key={item.label}
+                      className="relative overflow-hidden rounded-2xl border border-slate-200/60 dark:border-slate-800/80 bg-white dark:bg-slate-900 p-5 shadow-[0_2px_12px_rgba(15,23,42,0.03)] transition-all duration-200 hover:shadow-[0_4px_20px_rgba(15,23,42,0.06)] hover:-translate-y-0.5 active:translate-y-0 hover:border-slate-300 dark:hover:border-slate-700 flex flex-col justify-between h-32"
+                    >
+                      {/* Top Row: Label & Icon */}
+                      <div className="flex items-start justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                          {item.label}
+                        </span>
+                        <div
+                          className={`p-2 rounded-xl ${bgBadge} ${textBadge} transition-transform duration-300 hover:rotate-6`}
+                        >
+                          {metricIcon}
+                        </div>
+                      </div>
+
+                      {/* Bottom Row: Large Value */}
+                      <div className="mt-auto">
+                        <p className="m-0 text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white tabular-nums">
+                          {item.value}
+                        </p>
+                      </div>
+
+                      {/* Subtle accent bar at the top */}
+                      <div
+                        className={`absolute top-0 inset-x-0 h-1 ${
+                          item.tone === "teal"
+                            ? "bg-teal-500"
+                            : item.tone === "violet"
+                              ? "bg-violet-500"
+                              : item.tone === "rose"
+                                ? "bg-rose-500"
+                                : "bg-amber-500"
+                        }`}
+                      />
+                    </div>
+                  );
+                })}
+              </section>
+
+              {/* Filters for SKU, category, and branch */}
+              <section className="surface grid grid-cols-[1fr_220px_280px] gap-4 p-4 max-md:grid-cols-1 animate-rise-in-delay-1">
+                <label className="field">
+                  <span>Tìm theo SKU hoặc tên</span>
+                  <input
+                    className="input"
+                    onChange={(event) => setSearch(event.target.value)}
+                    value={search}
+                    placeholder="Nhập mã SKU hoặc tên..."
+                  />
+                </label>
+                <label className="field">
+                  <span>Danh mục</span>
+                  <select
+                    className="input"
+                    onChange={(event) => setCategory(event.target.value)}
+                    value={category}
+                  >
+                    <option value="">Tất cả danh mục</option>
+                    {categories.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Chi nhánh</span>
+                  <select
+                    className="input"
+                    onChange={(event) => setBranchId(event.target.value)}
+                    value={selectedBranchId}
+                  >
+                    <option value="">Tất cả chi nhánh</option>
+                    {branchOptions.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.code} - {branch.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </section>
+            </>
+          )}
+
+          {/* Filters also showing on low-stock tab (very helpful for navigation) but NO summary cards */}
+          {activeTab === "low-stock" && (
+            <section className="surface grid grid-cols-[1fr_220px_280px] gap-4 p-4 max-md:grid-cols-1 animate-rise-in">
               <label className="field">
-                <span>From branch</span>
+                <span>Tìm theo SKU hoặc tên</span>
+                <input
+                  className="input"
+                  onChange={(event) => setSearch(event.target.value)}
+                  value={search}
+                  placeholder="Nhập mã SKU hoặc tên..."
+                />
+              </label>
+              <label className="field">
+                <span>Danh mục</span>
                 <select
                   className="input"
-                  onChange={(event) =>
-                    setTransferForm((current) => ({ ...current, fromBranchId: event.target.value }))
-                  }
-                  required
-                  value={transferForm.fromBranchId}
+                  onChange={(event) => setCategory(event.target.value)}
+                  value={category}
                 >
-                  <option value="">Select branch</option>
+                  <option value="">Tất cả danh mục</option>
+                  {categories.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Chi nhánh</span>
+                <select
+                  className="input"
+                  onChange={(event) => setBranchId(event.target.value)}
+                  value={selectedBranchId}
+                >
+                  <option value="">Tất cả chi nhánh</option>
                   {branchOptions.map((branch) => (
                     <option key={branch.id} value={branch.id}>
                       {branch.code} - {branch.name}
@@ -654,259 +1074,264 @@ export default function DashboardPage() {
                   ))}
                 </select>
               </label>
-              <label className="field">
-                <span>Component</span>
-                <select
-                  className="input"
-                  onChange={(event) =>
-                    setTransferForm((current) => ({ ...current, componentId: event.target.value }))
-                  }
-                  required
-                  value={transferForm.componentId}
-                >
-                  <option value="">Select stock item</option>
-                  {transferComponents.map((item) => (
-                    <option key={`${item.branchId}-${item.componentId}`} value={item.componentId}>
-                      {item.component.sku} - {item.component.name} (
-                      {item.quantity - item.reservedQuantity} available)
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>Quantity</span>
-                <input
-                  className="input"
-                  min="1"
-                  onChange={(event) =>
-                    setTransferForm((current) => ({ ...current, quantity: event.target.value }))
-                  }
-                  required
-                  type="number"
-                  value={transferForm.quantity}
-                />
-              </label>
-              <label className="field">
-                <span>Note</span>
-                <textarea
-                  className="input min-h-20"
-                  onChange={(event) =>
-                    setTransferForm((current) => ({ ...current, note: event.target.value }))
-                  }
-                  value={transferForm.note}
-                />
-              </label>
-              {createTransfer.error ? (
-                <p className="error-text">{messageFromError(createTransfer.error)}</p>
-              ) : null}
-              <button className="button-primary" disabled={createTransfer.isPending} type="submit">
-                {createTransfer.isPending ? "Creating..." : "Create request"}
-              </button>
-            </form>
+            </section>
+          )}
 
-            <div className="grid gap-4">
-              <label className="surface field p-5">
-                <span>Reject reason</span>
-                <input
-                  className="input"
-                  onChange={(event) => setRejectReason(event.target.value)}
-                  value={rejectReason}
-                />
-              </label>
-              <TransferList
-                isAdmin={user.role === UserRole.ADMIN}
-                isLoading={transfersQuery.isLoading}
-                items={transferItems}
-                onApprove={(id) => approveTransfer.mutate(id)}
-                onReject={(id) => rejectTransfer.mutate(id)}
-                currentPage={transfersPage}
-                onPageChange={setTransfersPage}
-              />
-            </div>
-          </section>
-        ) : null}
+          {activeTab === "inventory" ? (
+            <InventoryTable
+              isLoading={inventoryQuery.isLoading}
+              items={inventoryItems}
+              currentPage={inventoryPage}
+              onPageChange={setInventoryPage}
+            />
+          ) : null}
 
-        {activeTab === "imports" ? (
-          <section className="grid gap-5 animate-rise-in-delay-1">
-            <div className="surface relative overflow-hidden flex items-center justify-between gap-4 p-6 max-sm:flex-col max-sm:items-start">
-              <div>
-                <div className="mb-2 inline-flex rounded-md border border-slate-200/70 bg-slate-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-600">
-                  Cloud import
+          {activeTab === "low-stock" ? (
+            <LowStockReport
+              isLoading={lowStockQuery.isLoading}
+              items={lowStockQuery.data ?? []}
+              currentPage={lowStockPage}
+              onPageChange={setLowStockPage}
+            />
+          ) : null}
+
+          {activeTab === "transfers" ? (
+            <section className="grid gap-5 lg:grid-cols-[340px_1fr] animate-rise-in-delay-1">
+              <form className="surface grid h-fit gap-5 p-5" onSubmit={handleCreateTransfer}>
+                <div>
+                  <p className="m-0 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                    Transfer
+                  </p>
+                  <h2 className="m-0 mt-1 text-lg font-semibold text-slate-950">Create request</h2>
                 </div>
-                <h2 className="m-0 text-xl font-semibold tracking-tight text-slate-950">
-                  Spreadsheet Ingestion
-                </h2>
-                <p className="m-0 mt-1.5 text-sm font-normal text-slate-500">
-                  Upload, audit, preview, and commit Excel inventory files.
-                </p>
-              </div>
-              <button
-                onClick={() => setIsUploadModalOpen(true)}
-                className="button-primary min-h-12 px-5"
-                type="button"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2.5}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-                <span>Ingest Spreadsheet</span>
-              </button>
-            </div>
-
-            {/* Ingestion Glassmorphic Modal Dialog */}
-            {isUploadModalOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-sm animate-macbook-backdrop">
-                <div className="relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-xl border border-black/[0.04] bg-white p-8 shadow-[0_24px_64px_rgba(15,23,42,0.16)] animate-macbook-modal">
-                  {/* Close Modal Button */}
-                  <button
-                    onClick={() => {
-                      setIsUploadModalOpen(false);
-                      setSelectedFile(null);
-                      setUploadProgress(null);
-                      setIngestionStage(null);
-                    }}
-                    className="absolute top-5 right-5 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-                    type="button"
+                <label className="field">
+                  <span>From branch</span>
+                  <select
+                    className="input"
+                    onChange={(event) =>
+                      setTransferForm((current) => ({
+                        ...current,
+                        fromBranchId: event.target.value,
+                      }))
+                    }
+                    required
+                    value={transferForm.fromBranchId}
                   >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.8}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
+                    <option value="">Select branch</option>
+                    {branchOptions.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.code} - {branch.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Component</span>
+                  <select
+                    className="input"
+                    onChange={(event) =>
+                      setTransferForm((current) => ({
+                        ...current,
+                        componentId: event.target.value,
+                      }))
+                    }
+                    required
+                    value={transferForm.componentId}
+                  >
+                    <option value="">Select stock item</option>
+                    {transferComponents.map((item) => (
+                      <option key={`${item.branchId}-${item.componentId}`} value={item.componentId}>
+                        {item.component.sku} - {item.component.name} (
+                        {item.quantity - item.reservedQuantity} available)
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Quantity</span>
+                  <input
+                    className="input"
+                    min="1"
+                    onChange={(event) =>
+                      setTransferForm((current) => ({ ...current, quantity: event.target.value }))
+                    }
+                    required
+                    type="number"
+                    value={transferForm.quantity}
+                  />
+                </label>
+                <label className="field">
+                  <span>Note</span>
+                  <textarea
+                    className="input min-h-20"
+                    onChange={(event) =>
+                      setTransferForm((current) => ({ ...current, note: event.target.value }))
+                    }
+                    value={transferForm.note}
+                  />
+                </label>
+                {createTransfer.error ? (
+                  <p className="error-text">{messageFromError(createTransfer.error)}</p>
+                ) : null}
+                <button
+                  className="button-primary"
+                  disabled={createTransfer.isPending}
+                  type="submit"
+                >
+                  {createTransfer.isPending ? "Creating..." : "Create request"}
+                </button>
+              </form>
 
-                  <form className="grid gap-5" onSubmit={handleUpload}>
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <h2 className="m-0 text-base font-semibold text-slate-950 tracking-tight">
-                        Ingest Spreadsheet
-                      </h2>
-                      <span className="rounded-md border border-slate-200/70 bg-slate-50 px-2.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-slate-600">
-                        S3 Direct
-                      </span>
-                    </div>
+              <div className="grid gap-4">
+                <label className="surface field p-5">
+                  <span>Reject reason</span>
+                  <input
+                    className="input"
+                    onChange={(event) => setRejectReason(event.target.value)}
+                    value={rejectReason}
+                  />
+                </label>
+                <TransferList
+                  isAdmin={user.role === UserRole.ADMIN}
+                  isLoading={transfersQuery.isLoading}
+                  items={transferItems}
+                  onApprove={(id) => approveTransfer.mutate(id)}
+                  onReject={(id) => rejectTransfer.mutate(id)}
+                  currentPage={transfersPage}
+                  onPageChange={setTransfersPage}
+                />
+              </div>
+            </section>
+          ) : null}
 
-                    <label className="field">
-                      <span>Target Branch</span>
-                      <select
-                        className="input mt-1.5"
-                        onChange={(event) => setImportBranchId(event.target.value)}
-                        required
-                        value={importBranchId}
+          {activeTab === "imports" ? (
+            <section className="grid gap-5 animate-rise-in-delay-1">
+              <div className="surface relative overflow-hidden flex items-center justify-between gap-4 p-6 max-sm:flex-col max-sm:items-start">
+                <div>
+                  <div className="mb-2 inline-flex rounded-md border border-slate-200/70 bg-slate-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-600">
+                    Cloud import
+                  </div>
+                  <h2 className="m-0 text-xl font-semibold tracking-tight text-slate-950">
+                    Spreadsheet Ingestion
+                  </h2>
+                  <p className="m-0 mt-1.5 text-sm font-normal text-slate-500">
+                    Upload, audit, preview, and commit Excel inventory files.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsUploadModalOpen(true)}
+                  className="button-primary min-h-12 px-5"
+                  type="button"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.5}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  <span>Ingest Spreadsheet</span>
+                </button>
+              </div>
+
+              {/* Ingestion Glassmorphic Modal Dialog */}
+              {isUploadModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-sm animate-macbook-backdrop">
+                  <div className="relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-xl border border-black/[0.04] bg-white p-8 shadow-[0_24px_64px_rgba(15,23,42,0.16)] animate-macbook-modal">
+                    {/* Close Modal Button */}
+                    <button
+                      onClick={() => {
+                        setIsUploadModalOpen(false);
+                        setSelectedFile(null);
+                        setUploadProgress(null);
+                        setIngestionStage(null);
+                      }}
+                      className="absolute top-5 right-5 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                      type="button"
+                    >
+                      <svg
+                        className="h-5 w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                       >
-                        <option value="">Select branch for inventory destination</option>
-                        {branchOptions.map((branch) => (
-                          <option key={branch.id} value={branch.id}>
-                            {branch.code} - {branch.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.8}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
 
-                    {/* Drag and Drop Zone */}
-                    <div className="field">
-                      <span>Spreadsheet (.xlsx)</span>
-                      {!selectedFile ? (
-                        <div
-                          className={`mt-1.5 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed p-7 text-center transition-colors duration-200 ${
-                            isDragOver
-                              ? "border-slate-400 bg-slate-50"
-                              : "border-slate-200 bg-slate-50/60 hover:border-slate-400 hover:bg-white"
-                          }`}
-                          onDragOver={(e) => {
-                            e.preventDefault();
-                            setIsDragOver(true);
-                          }}
-                          onDragLeave={() => setIsDragOver(false)}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            setIsDragOver(false);
-                            const file = e.dataTransfer.files?.[0];
-                            if (file && file.name.endsWith(".xlsx")) {
-                              setSelectedFile(file);
-                            }
-                          }}
-                          onClick={() => {
-                            const input = document.getElementById("file-upload-input");
-                            input?.click();
-                          }}
+                    <form className="grid gap-5" onSubmit={handleUpload}>
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <h2 className="m-0 text-base font-semibold text-slate-950 tracking-tight">
+                          Ingest Spreadsheet
+                        </h2>
+                        <span className="rounded-md border border-slate-200/70 bg-slate-50 px-2.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-slate-600">
+                          S3 Direct
+                        </span>
+                      </div>
+
+                      <label className="field">
+                        <span>Target Branch</span>
+                        <select
+                          className="input mt-1.5"
+                          onChange={(event) => setImportBranchId(event.target.value)}
+                          required
+                          value={importBranchId}
                         >
-                          <input
-                            id="file-upload-input"
-                            className="hidden"
-                            type="file"
-                            accept=".xlsx"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) setSelectedFile(file);
+                          <option value="">Select branch for inventory destination</option>
+                          {branchOptions.map((branch) => (
+                            <option key={branch.id} value={branch.id}>
+                              {branch.code} - {branch.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      {/* Drag and Drop Zone */}
+                      <div className="field">
+                        <span>Spreadsheet (.xlsx)</span>
+                        {!selectedFile ? (
+                          <div
+                            className={`mt-1.5 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed p-7 text-center transition-colors duration-200 ${
+                              isDragOver
+                                ? "border-slate-400 bg-slate-50"
+                                : "border-slate-200 bg-slate-50/60 hover:border-slate-400 hover:bg-white"
+                            }`}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              setIsDragOver(true);
                             }}
-                          />
-                          <svg
-                            className="mx-auto h-8 w-8 text-[#64748b]"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                            onDragLeave={() => setIsDragOver(false)}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              setIsDragOver(false);
+                              const file = e.dataTransfer.files?.[0];
+                              if (file && file.name.endsWith(".xlsx")) {
+                                setSelectedFile(file);
+                              }
+                            }}
+                            onClick={() => {
+                              const input = document.getElementById("file-upload-input");
+                              input?.click();
+                            }}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                            <input
+                              id="file-upload-input"
+                              className="hidden"
+                              type="file"
+                              accept=".xlsx"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) setSelectedFile(file);
+                              }}
                             />
-                          </svg>
-                          <p className="mt-2 text-xs font-semibold text-[#334155]">
-                            Drag and drop spreadsheet here
-                          </p>
-                          <p className="mt-1 text-[11px] text-[#64748b]">
-                            or{" "}
-                            <span className="cursor-pointer font-medium text-slate-900 underline underline-offset-4">
-                              browse your computer
-                            </span>
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="mt-1.5 flex items-center justify-between rounded-lg border border-slate-200/70 bg-white p-4">
-                          <div className="flex items-center gap-3 overflow-hidden">
-                            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-slate-100 text-slate-700">
-                              <svg
-                                className="h-5 w-5"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                />
-                              </svg>
-                            </div>
-                            <div className="overflow-hidden">
-                              <p className="truncate text-xs font-semibold text-[#1e293b]">
-                                {selectedFile.name}
-                              </p>
-                              <p className="text-[10px] text-[#64748b]">
-                                {(selectedFile.size / 1024).toFixed(1)} KB
-                              </p>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedFile(null);
-                            }}
-                            className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-600"
-                          >
                             <svg
-                              className="h-4 w-4"
+                              className="mx-auto h-8 w-8 text-[#64748b]"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -915,122 +1340,183 @@ export default function DashboardPage() {
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                                 strokeWidth={2}
-                                d="M6 18L18 6M6 6l12 12"
+                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                               />
                             </svg>
-                          </button>
+                            <p className="mt-2 text-xs font-semibold text-[#334155]">
+                              Drag and drop spreadsheet here
+                            </p>
+                            <p className="mt-1 text-[11px] text-[#64748b]">
+                              or{" "}
+                              <span className="cursor-pointer font-medium text-slate-900 underline underline-offset-4">
+                                browse your computer
+                              </span>
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="mt-1.5 flex items-center justify-between rounded-lg border border-slate-200/70 bg-white p-4">
+                            <div className="flex items-center gap-3 overflow-hidden">
+                              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-slate-100 text-slate-700">
+                                <svg
+                                  className="h-5 w-5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                  />
+                                </svg>
+                              </div>
+                              <div className="overflow-hidden">
+                                <p className="truncate text-xs font-semibold text-[#1e293b]">
+                                  {selectedFile.name}
+                                </p>
+                                <p className="text-[10px] text-[#64748b]">
+                                  {(selectedFile.size / 1024).toFixed(1)} KB
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedFile(null);
+                              }}
+                              className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-600"
+                            >
+                              <svg
+                                className="h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Progress Bar */}
+                      {uploadProgress !== null && (
+                        <div className="rounded-lg border border-slate-200/70 bg-slate-50 p-4">
+                          <div className="flex items-center justify-between text-xs font-semibold">
+                            <span className="text-[#334155] flex items-center gap-1.5 font-semibold">
+                              {ingestionStage === "uploading"
+                                ? "Uploading to S3..."
+                                : "Validating database staging..."}
+                            </span>
+                            <span className="font-medium text-slate-950">{uploadProgress}%</span>
+                          </div>
+                          <div className="mt-2 h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-slate-900 transition-all duration-300"
+                              style={{ width: `${uploadProgress}%` }}
+                            />
+                          </div>
                         </div>
                       )}
-                    </div>
 
-                    {/* Progress Bar */}
-                    {uploadProgress !== null && (
-                      <div className="rounded-lg border border-slate-200/70 bg-slate-50 p-4">
-                        <div className="flex items-center justify-between text-xs font-semibold">
-                          <span className="text-[#334155] flex items-center gap-1.5 font-semibold">
-                            {ingestionStage === "uploading"
-                              ? "Uploading to S3..."
-                              : "Validating database staging..."}
-                          </span>
-                          <span className="font-medium text-slate-950">{uploadProgress}%</span>
+                      {uploadImportDirect.error && (
+                        <div className="flex gap-2 rounded-lg border border-rose-100 bg-rose-50 p-3 text-xs text-red-600">
+                          <p>{messageFromError(uploadImportDirect.error)}</p>
                         </div>
-                        <div className="mt-2 h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-slate-900 transition-all duration-300"
-                            style={{ width: `${uploadProgress}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
+                      )}
 
-                    {uploadImportDirect.error && (
-                      <div className="flex gap-2 rounded-lg border border-rose-100 bg-rose-50 p-3 text-xs text-red-600">
-                        <p>{messageFromError(uploadImportDirect.error)}</p>
-                      </div>
-                    )}
-
-                    <button
-                      className="button-primary w-full py-2.5"
-                      disabled={uploadImportDirect.isPending || !selectedFile || !importBranchId}
-                      type="submit"
-                    >
-                      {uploadImportDirect.isPending ? "Processing Pipeline..." : "Begin Ingestion"}
-                    </button>
-                  </form>
+                      <button
+                        className="button-primary w-full py-2.5"
+                        disabled={uploadImportDirect.isPending || !selectedFile || !importBranchId}
+                        type="submit"
+                      >
+                        {uploadImportDirect.isPending
+                          ? "Processing Pipeline..."
+                          : "Begin Ingestion"}
+                      </button>
+                    </form>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <ImportJobsTable
-              isLoading={importsQuery.isLoading}
-              items={importJobs}
-              selectedId={selectedImportId}
-              onSelect={(id) => {
-                setPreviewPage(1);
-                setSelectedImportId(id);
-              }}
-              currentPage={importsPage}
-              onPageChange={setImportsPage}
+              <ImportJobsTable
+                isLoading={importsQuery.isLoading}
+                items={importJobs}
+                selectedId={selectedImportId}
+                onSelect={(id) => {
+                  setPreviewPage(1);
+                  setSelectedImportId(id);
+                }}
+                currentPage={importsPage}
+                onPageChange={setImportsPage}
+              />
+
+              {selectedImportId ? (
+                <ImportPreviewModal job={selectedImportJob} onClose={() => setSelectedImportId("")}>
+                  <ImportPreview
+                    isLoading={previewQuery.isLoading}
+                    rows={previewQuery.data ?? []}
+                    canConfirm={Boolean(selectedImportJob?.status === ImportStatus.PREVIEW_READY)}
+                    onConfirm={() => selectedImportId && confirmImport.mutate(selectedImportId)}
+                    isConfirming={confirmImport.isPending}
+                    currentPage={previewPage}
+                    onPageChange={setPreviewPage}
+                  />
+                </ImportPreviewModal>
+              ) : null}
+            </section>
+          ) : null}
+
+          {activeTab === "reports" ? (
+            <ReportsTab
+              exports={exportsQuery.data ?? []}
+              isLoading={exportsQuery.isLoading}
+              onCreateExport={(type) => createExport.mutate(type)}
+              isCreating={createExport.isPending}
+              currentPage={reportsPage}
+              onPageChange={setReportsPage}
             />
+          ) : null}
 
-            {selectedImportId ? (
-              <ImportPreviewModal job={selectedImportJob} onClose={() => setSelectedImportId("")}>
-                <ImportPreview
-                  isLoading={previewQuery.isLoading}
-                  rows={previewQuery.data ?? []}
-                  canConfirm={Boolean(selectedImportJob?.status === ImportStatus.PREVIEW_READY)}
-                  onConfirm={() => selectedImportId && confirmImport.mutate(selectedImportId)}
-                  isConfirming={confirmImport.isPending}
-                  currentPage={previewPage}
-                  onPageChange={setPreviewPage}
-                />
-              </ImportPreviewModal>
-            ) : null}
-          </section>
-        ) : null}
+          {activeTab === "dlq" && user?.role === UserRole.ADMIN ? (
+            <DlqTab
+              items={dlqQuery.data ?? []}
+              isLoading={dlqQuery.isLoading}
+              onReplay={(id) => replayDlq.mutate(id)}
+              onDiscard={(id) => discardDlq.mutate(id)}
+              isReplaying={replayDlq.isPending}
+              currentPage={dlqPage}
+              onPageChange={setDlqPage}
+            />
+          ) : null}
 
-        {activeTab === "reports" ? (
-          <ReportsTab
-            exports={exportsQuery.data ?? []}
-            isLoading={exportsQuery.isLoading}
-            onCreateExport={(type) => createExport.mutate(type)}
-            isCreating={createExport.isPending}
-            currentPage={reportsPage}
-            onPageChange={setReportsPage}
-          />
-        ) : null}
+          {activeTab === "reconciliation" && user?.role === UserRole.ADMIN ? (
+            <ReconciliationTab
+              issues={reconQuery.data ?? []}
+              isLoading={reconQuery.isLoading}
+              onRun={() => runRecon.mutate()}
+              onResolve={(id) => resolveIssue.mutate(id)}
+              isRunning={runRecon.isPending}
+              statusFilter={reconStatusFilter}
+              onStatusFilterChange={setReconStatusFilter}
+              currentPage={reconPage}
+              onPageChange={setReconPage}
+            />
+          ) : null}
 
-        {activeTab === "dlq" && user?.role === UserRole.ADMIN ? (
-          <DlqTab
-            items={dlqQuery.data ?? []}
-            isLoading={dlqQuery.isLoading}
-            onReplay={(id) => replayDlq.mutate(id)}
-            onDiscard={(id) => discardDlq.mutate(id)}
-            isReplaying={replayDlq.isPending}
-            currentPage={dlqPage}
-            onPageChange={setDlqPage}
-          />
-        ) : null}
+          {activeTab === "users" && user?.role === UserRole.ADMIN ? <UsersAdmin /> : null}
 
-        {activeTab === "reconciliation" && user?.role === UserRole.ADMIN ? (
-          <ReconciliationTab
-            issues={reconQuery.data ?? []}
-            isLoading={reconQuery.isLoading}
-            onRun={() => runRecon.mutate()}
-            onResolve={(id) => resolveIssue.mutate(id)}
-            isRunning={runRecon.isPending}
-            statusFilter={reconStatusFilter}
-            onStatusFilterChange={setReconStatusFilter}
-            currentPage={reconPage}
-            onPageChange={setReconPage}
-          />
-        ) : null}
-
-        {activeTab === "users" && user?.role === UserRole.ADMIN ? <UsersAdmin /> : null}
-
-        {activeTab === "branches" && user?.role === UserRole.ADMIN ? <BranchesAdmin /> : null}
+          {activeTab === "branches" && user?.role === UserRole.ADMIN ? <BranchesAdmin /> : null}
+        </main>
       </div>
-    </main>
+    </div>
   );
 }
 
