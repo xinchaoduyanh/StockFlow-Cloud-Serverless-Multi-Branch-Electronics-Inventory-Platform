@@ -246,7 +246,7 @@ export default function DashboardPage() {
     quantity: "1",
     note: "",
   });
-  const [rejectReason, setRejectReason] = useState("Not approved");
+  const [rejectReason, setRejectReason] = useState("Không được duyệt");
   const [importBranchId, setImportBranchId] = useState("");
   const [selectedImportId, setSelectedImportId] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -1100,12 +1100,12 @@ export default function DashboardPage() {
               <form className="surface grid h-fit gap-5 p-5" onSubmit={handleCreateTransfer}>
                 <div>
                   <p className="m-0 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
-                    Transfer
+                    Yêu cầu chuyển kho
                   </p>
-                  <h2 className="m-0 mt-1 text-lg font-semibold text-slate-950">Create request</h2>
+                  <h2 className="m-0 mt-1 text-lg font-semibold text-slate-950">Tạo yêu cầu</h2>
                 </div>
                 <label className="field">
-                  <span>From branch</span>
+                  <span>Chi nhánh gửi</span>
                   <select
                     className="input"
                     onChange={(event) =>
@@ -1117,7 +1117,7 @@ export default function DashboardPage() {
                     required
                     value={transferForm.fromBranchId}
                   >
-                    <option value="">Select branch</option>
+                    <option value="">Chọn chi nhánh gửi</option>
                     {branchOptions.map((branch) => (
                       <option key={branch.id} value={branch.id}>
                         {branch.code} - {branch.name}
@@ -1126,7 +1126,30 @@ export default function DashboardPage() {
                   </select>
                 </label>
                 <label className="field">
-                  <span>Component</span>
+                  <span>Chi nhánh nhận</span>
+                  <select
+                    className="input"
+                    onChange={(event) =>
+                      setTransferForm((current) => ({
+                        ...current,
+                        toBranchId: event.target.value,
+                      }))
+                    }
+                    required
+                    value={transferForm.toBranchId}
+                  >
+                    <option value="">Chọn chi nhánh nhận</option>
+                    {branchOptions
+                      .filter((branch) => branch.id !== transferForm.fromBranchId)
+                      .map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.code} - {branch.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Linh kiện</span>
                   <select
                     className="input"
                     onChange={(event) =>
@@ -1138,17 +1161,17 @@ export default function DashboardPage() {
                     required
                     value={transferForm.componentId}
                   >
-                    <option value="">Select stock item</option>
+                    <option value="">Chọn sản phẩm trong kho</option>
                     {transferComponents.map((item) => (
                       <option key={`${item.branchId}-${item.componentId}`} value={item.componentId}>
                         {item.component.sku} - {item.component.name} (
-                        {item.quantity - item.reservedQuantity} available)
+                        {item.quantity - item.reservedQuantity} khả dụng)
                       </option>
                     ))}
                   </select>
                 </label>
                 <label className="field">
-                  <span>Quantity</span>
+                  <span>Số lượng</span>
                   <input
                     className="input"
                     min="1"
@@ -1161,7 +1184,7 @@ export default function DashboardPage() {
                   />
                 </label>
                 <label className="field">
-                  <span>Note</span>
+                  <span>Ghi chú</span>
                   <textarea
                     className="input min-h-20"
                     onChange={(event) =>
@@ -1178,13 +1201,13 @@ export default function DashboardPage() {
                   disabled={createTransfer.isPending}
                   type="submit"
                 >
-                  {createTransfer.isPending ? "Creating..." : "Create request"}
+                  {createTransfer.isPending ? "Đang tạo..." : "Tạo yêu cầu"}
                 </button>
               </form>
 
               <div className="grid gap-4">
                 <label className="surface field p-5">
-                  <span>Reject reason</span>
+                  <span>Lý do từ chối</span>
                   <input
                     className="input"
                     onChange={(event) => setRejectReason(event.target.value)}
@@ -1209,13 +1232,13 @@ export default function DashboardPage() {
               <div className="surface relative overflow-hidden flex items-center justify-between gap-4 p-6 max-sm:flex-col max-sm:items-start">
                 <div>
                   <div className="mb-2 inline-flex rounded-md border border-slate-200/70 bg-slate-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-600">
-                    Cloud import
+                    Nhập kho từ đám mây
                   </div>
                   <h2 className="m-0 text-xl font-semibold tracking-tight text-slate-950">
-                    Spreadsheet Ingestion
+                    Nhập kho bằng bảng tính Excel
                   </h2>
                   <p className="m-0 mt-1.5 text-sm font-normal text-slate-500">
-                    Upload, audit, preview, and commit Excel inventory files.
+                    Tải lên, kiểm tra, xem trước và lưu trữ tệp hàng tồn kho Excel.
                   </p>
                 </div>
                 <button
@@ -1231,7 +1254,7 @@ export default function DashboardPage() {
                       d="M12 4v16m8-8H4"
                     />
                   </svg>
-                  <span>Ingest Spreadsheet</span>
+                  <span>Nhập bảng tính</span>
                 </button>
               </div>
 
@@ -1268,22 +1291,22 @@ export default function DashboardPage() {
                     <form className="grid gap-5" onSubmit={handleUpload}>
                       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                         <h2 className="m-0 text-base font-semibold text-slate-950 tracking-tight">
-                          Ingest Spreadsheet
+                          Nhập kho từ tệp Excel
                         </h2>
                         <span className="rounded-md border border-slate-200/70 bg-slate-50 px-2.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-slate-600">
-                          S3 Direct
+                          Tải lên S3
                         </span>
                       </div>
 
                       <label className="field">
-                        <span>Target Branch</span>
+                        <span>Chi nhánh nhận</span>
                         <select
                           className="input mt-1.5"
                           onChange={(event) => setImportBranchId(event.target.value)}
                           required
                           value={importBranchId}
                         >
-                          <option value="">Select branch for inventory destination</option>
+                          <option value="">Chọn chi nhánh nhận hàng tồn kho</option>
                           {branchOptions.map((branch) => (
                             <option key={branch.id} value={branch.id}>
                               {branch.code} - {branch.name}
@@ -1294,7 +1317,7 @@ export default function DashboardPage() {
 
                       {/* Drag and Drop Zone */}
                       <div className="field">
-                        <span>Spreadsheet (.xlsx)</span>
+                        <span>Bảng tính Excel (.xlsx)</span>
                         {!selectedFile ? (
                           <div
                             className={`mt-1.5 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed p-7 text-center transition-colors duration-200 ${
@@ -1344,12 +1367,12 @@ export default function DashboardPage() {
                               />
                             </svg>
                             <p className="mt-2 text-xs font-semibold text-[#334155]">
-                              Drag and drop spreadsheet here
+                              Kéo và thả bảng tính vào đây
                             </p>
                             <p className="mt-1 text-[11px] text-[#64748b]">
-                              or{" "}
+                              hoặc{" "}
                               <span className="cursor-pointer font-medium text-slate-900 underline underline-offset-4">
-                                browse your computer
+                                chọn tệp từ máy tính
                               </span>
                             </p>
                           </div>
@@ -1412,8 +1435,8 @@ export default function DashboardPage() {
                           <div className="flex items-center justify-between text-xs font-semibold">
                             <span className="text-[#334155] flex items-center gap-1.5 font-semibold">
                               {ingestionStage === "uploading"
-                                ? "Uploading to S3..."
-                                : "Validating database staging..."}
+                                ? "Đang tải lên S3..."
+                                : "Đang xác thực dữ liệu..."}
                             </span>
                             <span className="font-medium text-slate-950">{uploadProgress}%</span>
                           </div>
@@ -1438,8 +1461,8 @@ export default function DashboardPage() {
                         type="submit"
                       >
                         {uploadImportDirect.isPending
-                          ? "Processing Pipeline..."
-                          : "Begin Ingestion"}
+                          ? "Đang xử lý nhập kho..."
+                          : "Bắt đầu nhập kho"}
                       </button>
                     </form>
                   </div>

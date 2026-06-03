@@ -153,9 +153,11 @@ const handler = async (event: any) => {
           },
         });
 
+        let issueId: string;
+
         if (existing) {
           // Update existing open issue with latest values
-          await prisma.reconciliationIssue.update({
+          const updated = await prisma.reconciliationIssue.update({
             where: { id: existing.id },
             data: {
               expectedQuantity: issue.expected,
@@ -165,8 +167,9 @@ const handler = async (event: any) => {
               detectedAt: new Date(),
             },
           });
+          issueId = updated.id;
         } else {
-          await prisma.reconciliationIssue.create({
+          const created = await prisma.reconciliationIssue.create({
             data: {
               branchId: issue.branchId,
               componentId: issue.componentId,
@@ -177,6 +180,34 @@ const handler = async (event: any) => {
               runId,
             },
           });
+          issueId = created.id;
+        }
+
+        // Notify admins in the database
+        const admins = await prisma.user.findMany({
+          where: { role: "ADMIN" },
+        });
+
+        for (const admin of admins) {
+          try {
+            await prisma.notification.create({
+              data: {
+                userId: admin.id,
+                title: "Cảnh báo đối soát tồn kho",
+                message: `Phát hiện sai lệch tại chi nhánh ${issue.branchCode} đối với sản phẩm SKU ${issue.sku} (chênh lệch: ${issue.difference})`,
+                type: "RECONCILIATION_ALERT",
+                metadata: {
+                  issueId,
+                  branchId: issue.branchId,
+                  branchCode: issue.branchCode,
+                  sku: issue.sku,
+                  difference: issue.difference,
+                },
+              },
+            });
+          } catch (err: any) {
+            console.error(`Failed to create admin notification for user ${admin.id}:`, err);
+          }
         }
       }
 

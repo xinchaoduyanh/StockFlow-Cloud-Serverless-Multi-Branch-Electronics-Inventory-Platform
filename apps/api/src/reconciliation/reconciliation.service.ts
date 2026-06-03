@@ -10,6 +10,7 @@ import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
 import { EnvService } from "../config/env.service";
 import { PrismaService } from "../database/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 @Injectable()
 export class ReconciliationService {
@@ -18,6 +19,7 @@ export class ReconciliationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly envService: EnvService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async listIssues(query: ReconciliationListQuery): Promise<ReconciliationIssue[]> {
@@ -50,26 +52,40 @@ export class ReconciliationService {
   }
 
   async resolve(id: string): Promise<ReconciliationIssue> {
-    const issue = await this.prisma.reconciliationIssue.findUnique({ where: { id } });
+    return this.prisma.$transaction(async (tx) => {
+      const issue = await tx.reconciliationIssue.findUnique({ where: { id } });
 
-    if (!issue) {
-      throw ApiErrors.notFound("Reconciliation issue not found");
-    }
+      if (!issue) {
+        throw ApiErrors.notFound("Reconciliation issue not found");
+      }
 
-    if (issue.status !== ReconciliationStatus.OPEN) {
-      throw ApiErrors.badRequest(`Issue is already ${issue.status}`);
-    }
+      if (issue.status !== ReconciliationStatus.OPEN) {
+        throw ApiErrors.badRequest(`Issue is already ${issue.status}`);
+      }
 
-    return this.prisma.reconciliationIssue.update({
-      where: { id },
-      data: {
-        status: ReconciliationStatus.RESOLVED,
-        resolvedAt: new Date(),
-      },
-      include: {
-        branch: { select: { code: true, name: true } },
-        component: { select: { sku: true, name: true } },
-      },
+      // Create compensating StockMovement
+      await tx.stockMovement.create({
+        data: {
+          branchId: issue.branchId,
+          componentId: issue.componentId,
+          quantityChange: issue.difference,
+          movementType: "RECONCILIATION_ADJUSTMENT",
+          referenceType: "INVENTORY_ADJUSTMENT",
+          referenceId: issue.id,
+        },
+      });
+
+      return tx.reconciliationIssue.update({
+        where: { id },
+        data: {
+          status: ReconciliationStatus.RESOLVED,
+          resolvedAt: new Date(),
+        },
+        include: {
+          branch: { select: { code: true, name: true } },
+          component: { select: { sku: true, name: true } },
+        },
+      });
     }) as unknown as Promise<ReconciliationIssue>;
   }
 
@@ -107,6 +123,8 @@ export class ReconciliationService {
           },
         });
 
+        let issueId: string;
+
         if (existing) {
           await this.prisma.reconciliationIssue.update({
             where: { id: existing.id },
@@ -118,8 +136,9 @@ export class ReconciliationService {
               detectedAt: new Date(),
             },
           });
+          issueId = existing.id;
         } else {
-          await this.prisma.reconciliationIssue.create({
+          const created = await this.prisma.reconciliationIssue.create({
             data: {
               branchId: record.branchId,
               componentId: record.componentId,
@@ -130,6 +149,32 @@ export class ReconciliationService {
               runId,
             },
           });
+          issueId = created.id;
+        }
+
+        // Notify admins
+        const admins = await this.prisma.user.findMany({
+          where: { role: "ADMIN" },
+        });
+
+        for (const admin of admins) {
+          try {
+            await this.notifications.createNotification({
+              userId: admin.id,
+              title: "Cảnh báo đối soát tồn kho",
+              message: `Phát hiện sai lệch tại chi nhánh ${record.branch.code} đối với sản phẩm SKU ${record.component.sku} (chênh lệch: ${difference})`,
+              type: "RECONCILIATION_ALERT",
+              metadata: {
+                issueId,
+                branchId: record.branchId,
+                branchCode: record.branch.code,
+                sku: record.component.sku,
+                difference,
+              },
+            });
+          } catch (err: any) {
+            this.logger.error(`Failed to create admin notification: ${err.message}`);
+          }
         }
       }
     }

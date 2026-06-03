@@ -16,6 +16,7 @@ describe("AppController (e2e)", () => {
       .useValue({
         onModuleInit: jest.fn(),
         onModuleDestroy: jest.fn(),
+        $queryRaw: jest.fn().mockResolvedValue([{ "?column?": 1 }]),
       })
       .compile();
 
@@ -32,6 +33,7 @@ describe("AppController (e2e)", () => {
     return request(app.getHttpServer()).get("/api/health").expect(200).expect({
       service: "stockflow-api",
       status: "ok",
+      database: "connected",
     });
   });
 
