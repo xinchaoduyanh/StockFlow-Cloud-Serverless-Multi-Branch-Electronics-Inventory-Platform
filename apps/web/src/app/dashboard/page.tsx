@@ -44,6 +44,13 @@ type InventoryItem = {
   };
 };
 
+type TransferUser = {
+  id: string;
+  fullName: string | null;
+  role: string;
+  branch: Branch | null;
+};
+
 type Transfer = {
   id: string;
   status: TransferStatus;
@@ -60,6 +67,9 @@ type Transfer = {
       name: string;
     };
   }>;
+  requestedByUser?: TransferUser | null;
+  approvedByUser?: TransferUser | null;
+  rejectedByUser?: TransferUser | null;
 };
 
 type ImportJob = {
@@ -246,7 +256,6 @@ export default function DashboardPage() {
     quantity: "1",
     note: "",
   });
-  const [rejectReason, setRejectReason] = useState("Không được duyệt");
   const [importBranchId, setImportBranchId] = useState("");
   const [selectedImportId, setSelectedImportId] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -374,10 +383,10 @@ export default function DashboardPage() {
   });
 
   const rejectTransfer = useMutation({
-    mutationFn: (id: string) =>
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       apiRequest(`/transfers/${id}/reject`, {
         method: "POST",
-        body: JSON.stringify({ reason: rejectReason }),
+        body: JSON.stringify({ reason }),
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["transfers"] });
@@ -1205,21 +1214,13 @@ export default function DashboardPage() {
                 </button>
               </form>
 
-              <div className="grid gap-4">
-                <label className="surface field p-5">
-                  <span>Lý do từ chối</span>
-                  <input
-                    className="input"
-                    onChange={(event) => setRejectReason(event.target.value)}
-                    value={rejectReason}
-                  />
-                </label>
+              <div className="flex flex-col gap-4">
                 <TransferList
                   isAdmin={user.role === UserRole.ADMIN}
                   isLoading={transfersQuery.isLoading}
                   items={transferItems}
                   onApprove={(id) => approveTransfer.mutate(id)}
-                  onReject={(id) => rejectTransfer.mutate(id)}
+                  onReject={(id, reason) => rejectTransfer.mutate({ id, reason })}
                   currentPage={transfersPage}
                   onPageChange={setTransfersPage}
                 />
@@ -1777,13 +1778,43 @@ function TransferList({
   isLoading: boolean;
   isAdmin: boolean;
   onApprove: (id: string) => void;
-  onReject: (id: string) => void;
+  onReject: (id: string, reason: string) => void;
   currentPage: number;
   onPageChange: (page: number) => void;
 }) {
   const pageSize = 8;
   const totalPages = Math.ceil(items.length / pageSize);
   const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  function renderUserBadge(user?: TransferUser | null) {
+    if (!user) return <span className="text-slate-400 dark:text-slate-600">-</span>;
+    const branchText = user.branch ? ` (${user.branch.code})` : "";
+    return (
+      <div className="flex flex-col text-left">
+        <span className="font-medium text-slate-700 dark:text-slate-200 text-xs">
+          {user.fullName || "Ẩn danh"}
+        </span>
+        <span className="text-[10px] text-slate-400 font-medium tracking-wide uppercase">
+          {user.role}
+          {branchText}
+        </span>
+      </div>
+    );
+  }
+
+  function formatDate(dateString: string) {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("vi-VN", {
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return "-";
+    }
+  }
 
   return (
     <section className="surface overflow-hidden animate-rise-in-delay-1">
@@ -1793,18 +1824,21 @@ function TransferList({
           <thead>
             <tr>
               <th>Trạng thái</th>
+              <th>Thời gian</th>
               <th>Lộ trình</th>
               <th>Sản phẩm</th>
+              <th>Người yêu cầu</th>
+              <th>Người phê duyệt</th>
               <th>Ghi chú / Lý do</th>
               <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <TableState colSpan={5} text="Đang tải danh sách yêu cầu chuyển kho..." />
+              <TableState colSpan={8} text="Đang tải danh sách yêu cầu chuyển kho..." />
             ) : null}
             {!isLoading && items.length === 0 ? (
-              <TableState colSpan={5} text="Không có yêu cầu chuyển kho nào." />
+              <TableState colSpan={8} text="Không có yêu cầu chuyển kho nào." />
             ) : null}
             {!isLoading &&
               paginatedItems.map((item) => (
@@ -1812,13 +1846,44 @@ function TransferList({
                   <td>
                     <StatusPill status={item.status} />
                   </td>
-                  <td>
-                    {item.fromBranch.code} sang {item.toBranch.code}
+                  <td className="text-xs text-slate-500 whitespace-nowrap">
+                    {formatDate(item.createdAt)}
                   </td>
-                  <td>
-                    {item.items.map((line) => `${line.component.sku} x${line.quantity}`).join(", ")}
+                  <td className="font-semibold text-xs whitespace-nowrap">
+                    <span className="text-slate-600 dark:text-slate-400">
+                      {item.fromBranch.code}
+                    </span>
+                    <span className="mx-1 text-slate-400">→</span>
+                    <span className="text-slate-900 dark:text-white">{item.toBranch.code}</span>
                   </td>
-                  <td>{item.rejectReason ?? item.note ?? "-"}</td>
+                  <td className="text-xs">
+                    <div className="flex flex-col gap-0.5">
+                      {item.items.map((line) => (
+                        <div key={line.id} className="whitespace-nowrap">
+                          <span className="font-medium text-slate-800 dark:text-slate-300">
+                            {line.component.sku}
+                          </span>
+                          <span className="ml-1 text-slate-500">x{line.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </td>
+                  <td>{renderUserBadge(item.requestedByUser)}</td>
+                  <td>
+                    {item.status === TransferStatus.COMPLETED ? (
+                      renderUserBadge(item.approvedByUser)
+                    ) : item.status === TransferStatus.REJECTED ? (
+                      renderUserBadge(item.rejectedByUser)
+                    ) : (
+                      <span className="text-slate-400 dark:text-slate-600">-</span>
+                    )}
+                  </td>
+                  <td
+                    className="max-w-[200px] truncate text-xs text-slate-600 dark:text-slate-400"
+                    title={item.rejectReason ?? item.note ?? ""}
+                  >
+                    {item.rejectReason ?? item.note ?? "-"}
+                  </td>
                   <td>
                     {isAdmin && item.status === TransferStatus.PENDING ? (
                       <div className="flex gap-2">
@@ -1831,7 +1896,15 @@ function TransferList({
                         </button>
                         <button
                           className="button-small-secondary"
-                          onClick={() => onReject(item.id)}
+                          onClick={() => {
+                            const reason = window.prompt(
+                              "Nhập lý do từ chối yêu cầu chuyển kho này:",
+                              "Không được duyệt",
+                            );
+                            if (reason !== null) {
+                              onReject(item.id, reason || "Không được duyệt");
+                            }
+                          }}
                           type="button"
                         >
                           Từ chối

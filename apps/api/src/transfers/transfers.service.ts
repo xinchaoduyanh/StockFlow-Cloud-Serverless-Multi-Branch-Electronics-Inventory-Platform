@@ -15,10 +15,10 @@ import { PrismaService } from "../database/prisma.service";
 export class TransfersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  list(query: TransferListQuery): Promise<TransferDTO[]> {
+  async list(query: TransferListQuery): Promise<TransferDTO[]> {
     const { skip, take } = toPagination(query);
 
-    return this.prisma.transfer.findMany({
+    const transfers = await this.prisma.transfer.findMany({
       skip,
       take,
       where: query.branchId
@@ -32,7 +32,34 @@ export class TransfersService {
         items: { include: { component: true } },
       },
       orderBy: { createdAt: "desc" },
-    }) as any;
+    });
+
+    const userIds = Array.from(
+      new Set(
+        transfers
+          .flatMap((t) => [t.requestedBy, t.approvedBy, t.rejectedBy])
+          .filter(Boolean) as string[],
+      ),
+    );
+
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: {
+        id: true,
+        fullName: true,
+        role: true,
+        branch: true,
+      },
+    });
+
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    return transfers.map((t) => ({
+      ...t,
+      requestedByUser: t.requestedBy ? userMap.get(t.requestedBy) : null,
+      approvedByUser: t.approvedBy ? userMap.get(t.approvedBy) : null,
+      rejectedByUser: t.rejectedBy ? userMap.get(t.rejectedBy) : null,
+    })) as any;
   }
 
   async get(id: string): Promise<TransferDTO> {
@@ -49,7 +76,28 @@ export class TransfersService {
       throw ApiErrors.notFound("Transfer not found");
     }
 
-    return transfer as any;
+    const userIds = [transfer.requestedBy, transfer.approvedBy, transfer.rejectedBy].filter(
+      Boolean,
+    ) as string[];
+
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: {
+        id: true,
+        fullName: true,
+        role: true,
+        branch: true,
+      },
+    });
+
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    return {
+      ...transfer,
+      requestedByUser: transfer.requestedBy ? userMap.get(transfer.requestedBy) : null,
+      approvedByUser: transfer.approvedBy ? userMap.get(transfer.approvedBy) : null,
+      rejectedByUser: transfer.rejectedBy ? userMap.get(transfer.rejectedBy) : null,
+    } as any;
   }
 
   async create(input: CreateTransferBody, actorId?: string): Promise<TransferDTO> {

@@ -58,4 +58,20 @@ export interface TransferDTO {
   fromBranch: { id: string; code: string; name: string };
   toBranch: { id: string; code: string; name: string };
   items: TransferItemDTO[];
+  requestedByUser?: {
+    id: string;
+    fullName: string | null;
+    role: string;
+    branch: { id: string; code: string; name: string } | null;
+  } | null;
+  approvedByUser?: {
+    id: string;
+    fullName: string | null;
+    role: string;
+  } | null;
+  rejectedByUser?: {
+    id: string;
+    fullName: string | null;
+    role: string;
+  } | null;
 }

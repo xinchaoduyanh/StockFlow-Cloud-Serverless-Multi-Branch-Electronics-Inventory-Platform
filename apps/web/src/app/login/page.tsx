@@ -137,7 +137,7 @@ export default function LoginPage() {
               </label>
 
               <label className="field">
-                <span>Mật khẩu tạm thời</span>
+                <span>Mật khẩu</span>
                 <div className="relative flex items-center">
                   <span className="absolute left-4 text-slate-400 dark:text-slate-500">
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
