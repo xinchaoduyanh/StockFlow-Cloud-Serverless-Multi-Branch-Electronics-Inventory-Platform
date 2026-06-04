@@ -193,12 +193,16 @@ Frontend Next.js (`apps/web`) được build ở dạng static export để host
 
 ---
 
-## ⚡ Điểm sáng Thiết kế & Tối ưu Hệ thống
+## ⚡ Tối ưu Hệ thống
 
 ### 1. Đảm bảo Idempotency (Tránh ghi đè kho trùng lặp)
 
 Khi một tác vụ Lambda Writer thực hiện ghi dữ liệu từ file Excel vào Database, nếu kết nối mạng lỗi giữa chừng, SQS sẽ tự động retry gửi lại message xử lý. Để tránh việc hàng hóa bị cộng dồn hai lần, hệ thống sử dụng thuật toán Hash:
-$$\text{idempotency\_key} = \text{SHA256}(\text{import\_job\_id} + \text{row\_number} + \text{sku})$$
+
+```text
+idempotency_key = SHA256(import_job_id + row_number + sku)
+```
+
 Trước khi ghi dòng dữ liệu vào database, hệ thống sẽ thực hiện kiểm tra `idempotency_key` đã tồn tại trong DB chưa. Nếu đã có, hệ thống lập tức bỏ qua (Skip) dòng này và chuyển sang dòng tiếp theo.
 
 ### 2. Ngăn ngừa Xung đột bằng Optimistic Locking (Khóa lạc quan)
