@@ -1,1792 +1,278 @@
-# Electronics Inventory Management System (EIMS)
+# StockFlow Cloud — Serverless Multi-Branch Electronics Inventory Platform
 
-## 1. Project Overview
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2014-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![NestJS](https://img.shields.io/badge/Backend-NestJS%2010-red?style=flat-square&logo=nestjs)](https://nestjs.com/)
+[![AWS Lambda](https://img.shields.io/badge/AWS-Lambda-orange?style=flat-square&logo=amazon-aws)](https://aws.amazon.com/lambda/)
+[![AWS Step Functions](https://img.shields.io/badge/AWS-Step%20Functions-pink?style=flat-square&logo=amazon-aws)](https://aws.amazon.com/step-functions/)
+[![PostgreSQL](https://img.shields.io/badge/Database-Neon%20Postgres-blue?style=flat-square&logo=postgresql)](https://neon.tech/)
+[![Pusher](https://img.shields.io/badge/Realtime-Pusher%20Channels-purple?style=flat-square&logo=pusher)](https://pusher.com/)
+[![AWS Cognito](https://img.shields.io/badge/Auth-AWS%20Cognito-red?style=flat-square&logo=amazon-aws)](https://aws.amazon.com/cognito/)
 
-**EIMS — Electronics Inventory Management System** là hệ thống quản lý kho linh kiện điện tử cho chuỗi cửa hàng nhiều chi nhánh.
-
-Hệ thống hỗ trợ Store Manager nhập kho bằng file Excel, quản lý tồn kho theo chi nhánh, tạo yêu cầu chuyển hàng giữa các chi nhánh, và cho phép Admin/Warehouse phê duyệt transfer, theo dõi tồn kho thấp, export báo cáo và giám sát hệ thống bằng AWS CloudWatch.
-
-Mục tiêu của dự án là xây dựng một hệ thống backend/cloud thực tế, có thể dùng làm portfolio cho vị trí:
-
-- Backend Developer with AWS
-- Junior/Middle AWS Developer
-- Middle Backend Engineer có kinh nghiệm serverless
-- Cloud-aware Backend Developer
+**StockFlow Cloud** là hệ thống quản lý kho linh kiện điện tử chuyên nghiệp cho chuỗi cửa hàng nhiều chi nhánh. Dự án được thiết kế theo kiến trúc Serverless lai (Hybrid Serverless Architecture) trên nền tảng AWS, kết hợp giữa NestJS API chạy trên hạ tầng containerized và hệ thống Lambda Workers điều phối bởi Step Functions để xử lý các tác vụ bất đồng bộ nặng (Heavy Asynchronous Ingestion Job).
 
 ---
 
-## 2. Main Goals
+## 🚀 Tính năng & Khả năng của Hệ thống (Capabilities)
 
-Dự án tập trung vào 4 mục tiêu chính:
+### 1. Quản lý Tồn kho Đa chi nhánh Thời gian thực
 
-1. **Import Excel bất đồng bộ**
-   - Upload file Excel lên S3 bằng presigned URL.
-   - Xử lý file bằng Lambda/SQS/Step Functions.
-   - Validate từng dòng.
-   - Có import preview trước khi commit tồn kho.
-   - Có progress tracking.
-   - Có row-level errors.
-   - Có idempotency để tránh cộng kho trùng khi retry.
+- **Theo dõi trạng thái tồn kho**: Tự động phân tách số lượng tồn kho thành 3 trạng thái:
+  - `quantity` (Tổng tồn kho vật lý)
+  - `reserved_quantity` (Tồn kho bị tạm giữ để chờ chuyển hàng)
+  - `available_quantity` (Tồn kho thực tế có sẵn sàng kinh doanh/chuyển kho = `quantity` - `reserved_quantity`).
+- **Cảnh báo tồn kho thấp (Low Stock Alert)**: Hệ thống tự động quét và đưa ra cảnh báo thời gian thực khi hàng hóa xuống dưới ngưỡng an toàn thiết lập cho từng chi nhánh.
 
-2. **Inventory Management**
-   - Quản lý linh kiện theo chi nhánh.
-   - Tìm kiếm theo SKU/tên.
-   - Filter theo category/brand/branch.
-   - Theo dõi tồn kho hiện tại, reserved quantity, available quantity.
-   - Cảnh báo low stock.
+### 2. Pipeline Import Excel Bất đồng bộ Hiệu năng cao
 
-3. **Transfer Workflow**
-   - Store Manager tạo yêu cầu chuyển hàng.
-   - Hệ thống reserve stock khi tạo transfer.
-   - Admin/Warehouse approve hoặc reject.
-   - Khi approve, hệ thống cập nhật tồn kho bằng transaction.
-   - Ghi stock movement ledger và audit log.
+- **Hỗ trợ tải lên trực tiếp**: Upload file Excel dung lượng lớn trực tiếp từ trình duyệt lên AWS S3 thông qua Presigned URL bảo mật.
+- **Xử lý luồng Event-Driven**: S3 Event Notification kích hoạt AWS Step Functions để điều phối quá trình xử lý bất đồng bộ mà không gây tải cho API chính.
+- **Xử lý luồng lớn an toàn**: Stream-parse file Excel dung lượng lớn bằng thư viện chuyên dụng, ghi nhận trạng thái kiểm tra (Validate) chi tiết tới từng dòng dữ liệu trước khi lưu vào DB staging.
+- **Cơ chế Duyệt trước (Import Preview)**: Người dùng có thể kiểm tra danh sách dòng hợp lệ, dòng lỗi và tác động tồn kho dự kiến trước khi xác nhận lưu vào kho thật.
+- **Đảm bảo Idempotency (Tránh trùng lặp)**: Hash key duy nhất trên mỗi dòng Excel đảm bảo không bị cộng dồn kho hai lần khi có sự cố retry.
 
-4. **Production-readiness**
-   - CloudWatch metrics, alarms, dashboard.
-   - DLQ và DLQ replay.
-   - Daily reconciliation job.
-   - CI/CD.
-   - Infrastructure as Code.
-   - ADR documents.
-   - Performance benchmark.
+### 3. Luồng Chuyển kho Nguyên tố & An toàn (Secure Transfer Workflow)
 
----
+- **Luồng phê duyệt chặt chẽ**: Quản lý chi nhánh tạo yêu cầu chuyển kho -> Hệ thống lập tức trừ `available_quantity` và tăng `reserved_quantity` để giữ hàng -> Admin hoặc Thủ kho duyệt hoặc từ chối yêu cầu.
+- **Giao dịch Cơ sở dữ liệu Nguyên tố (Database Transactions)**: Khi phê duyệt chuyển kho, hệ thống thực hiện transaction đảm bảo tính nhất quán (trừ chi nhánh gửi, cộng chi nhánh nhận, ghi ledger). Mọi lỗi phát sinh đều thực hiện Rollback hoàn toàn.
+- **Nhật ký Vận động Kho (Stock Movement Ledger)**: Ghi lại lịch sử chi tiết mọi thay đổi số lượng kho (`IMPORT_IN`, `TRANSFER_OUT`, `TRANSFER_IN`, `RESERVATION_CREATED`...) làm cơ sở đối soát.
 
-## 3. Actors
+### 4. Đối soát Kho tự động Hằng ngày (Daily Auto-Reconciliation)
 
-### 3.1 Store Manager
+- **Phát hiện sai lệch**: Một Lambda Cron Job được lập lịch chạy hằng đêm, quét và so khớp dữ liệu tồn kho hiện thời (`inventory.quantity`) với tổng lịch sử biến động trong Ledger (`stock_movements`).
+- **Quản lý sự cố đối soát**: Khi phát hiện chênh lệch, hệ thống tự động sinh `Reconciliation Issue` cảnh báo và lưu lại báo cáo đối soát để Admin kiểm tra và xử lý.
 
-Quản lý một chi nhánh cụ thể.
+### 5. Quản trị lỗi chủ động với Bảng điều khiển DLQ (Dead Letter Queue Replay)
 
-Có thể:
+- **Giám sát thông tin lỗi**: Các công việc import bị lỗi hệ thống nghiêm trọng sẽ rơi vào SQS DLQ.
+- **Bảng điều khiển Replay**: Admin có giao diện riêng để xem nội dung message lỗi trong DLQ, quyết định hủy bỏ (Discard) hoặc phát lại (Replay) tác vụ một cách an toàn nhờ tính năng Idempotency.
 
-- Upload Excel nhập kho cho chi nhánh của mình.
-- Xem import progress.
-- Xem lỗi import từng dòng.
-- Confirm import sau khi preview.
-- Xem tồn kho chi nhánh mình.
-- Search/filter linh kiện.
-- Tạo yêu cầu chuyển hàng sang chi nhánh khác.
-- Xem lịch sử transfer liên quan đến chi nhánh mình.
-- Xem low stock của chi nhánh mình.
+### 6. Xuất Báo cáo Bất đồng bộ (Async Report Generation)
 
-### 3.2 Admin
+- **Tải báo cáo dung lượng lớn**: Hỗ trợ xuất dữ liệu báo cáo tồn kho, lịch sử chuyển kho, xuất báo cáo tồn thấp ra Excel/CSV.
+- **Xử lý ngầm**: Yêu cầu được đẩy vào SQS queue, xử lý qua Report Lambda, lưu file vào S3 và gửi link tải qua Presigned URL bảo mật tới Frontend.
 
-Quản lý toàn bộ hệ thống.
+### 7. Tích hợp Real-time Notifications & Enterprise Authentication
 
-Có thể:
-
-- Xem inventory toàn chuỗi.
-- Xem tất cả branch.
-- Approve/reject transfer.
-- Xem báo cáo low stock toàn hệ thống.
-- Export report.
-- Xem audit logs.
-- Xem import history.
-- Quản lý user/role nếu có.
-- Xem CloudWatch dashboard.
-
-### 3.3 Warehouse
-
-Có thể xem như role vận hành kho.
-
-Có thể:
-
-- Xem tồn kho toàn chuỗi hoặc theo quyền được cấp.
-- Approve/reject transfer.
-- Theo dõi stock movement.
-- Xem low stock.
-- Xử lý failed import/replay DLQ nếu được cấp quyền.
+- **Thông báo tức thời**: Tích hợp Pusher Channels đẩy thông báo WebSocket real-time tới giao diện người dùng ngay khi có yêu cầu chuyển kho mới, cảnh báo tồn thấp, hoặc hoàn thành import.
+- **Bảo mật chuẩn Enterprise**: Sử dụng AWS Cognito User Pool quản lý tài khoản bảo mật cao, kết hợp phân quyền Role-based Access Control (RBAC) chặt chẽ giữa 3 vai trò: `ADMIN`, `STORE_MANAGER`, và `WAREHOUSE`.
 
 ---
 
-## 4. Suggested Tech Stack
+## 🗺️ Kiến trúc Hệ thống (System Architecture)
 
-### Frontend
+### 1. Kiến trúc Tổng thể (High-Level Architecture)
 
-- React
-- TypeScript
-- Tailwind CSS
-- React Query
-- Zustand hoặc Redux Toolkit
-- Vite
+```mermaid
+graph TD
+    Client["Next.js Web Client"] -- "HTTPS (Custom Domain + ACM)" --> CF["AWS CloudFront CDN"]
+    CF -- "Phục vụ Static Assets" --> S3Front["S3 Static Web Bucket (Private Access)"]
 
-### Backend
+    Client -- "REST API Requests (HTTPS)" --> ALB["Application Load Balancer (ALB)"]
+    ALB -- "Routing / Target Groups" --> ECS["ECS Fargate (NestJS API Task)"]
 
-Có thể chọn một trong hai hướng:
+    subgraph VPC ["AWS VPC (Virtual Private Cloud)"]
+        ALB
+        ECS
+    end
 
-#### Option A — Express/NestJS chạy trên Lambda
+    ECS -- "Quản lý User & Đăng nhập" --> Cognito["AWS Cognito User Pool"]
+    ECS -- "Đọc / Ghi dữ liệu kho" --> DB[("Neon PostgreSQL (Database)")]
+    ECS -- "Push Notifications (WebSockets)" --> Pusher["Real-Time Notifications (Pusher)"]
 
-- Node.js
-- TypeScript
-- Express hoặc NestJS
-- Serverless Framework / AWS SAM / CDK
-
-#### Option B — Modular Monolith Backend
-
-- Node.js
-- TypeScript
-- NestJS
-- Module-based architecture
-- Deploy lên Lambda hoặc container sau này
-
-### Database
-
-Khuyến nghị dùng:
-
-- PostgreSQL cho core inventory, transfer, reporting
-- Prisma hoặc TypeORM làm ORM
-
-Lý do chọn PostgreSQL:
-
-- Cần transaction mạnh cho transfer.
-- Cần relational query giữa branch, component, inventory, transfer.
-- Dễ làm report.
-- Dễ dùng optimistic locking.
-- Phù hợp với business logic inventory.
-
-### AWS Services
-
-- S3 — lưu file Excel import và report export
-- API Gateway — public API
-- Lambda — xử lý API và async jobs
-- SQS — queue import/report/retry
-- DLQ — lưu failed messages
-- Step Functions — orchestration import pipeline
-- CloudWatch Logs — log hệ thống
-- CloudWatch Metrics — custom metrics
-- CloudWatch Alarms — cảnh báo lỗi
-- EventBridge — event-driven communication, optional
-- Secrets Manager — lưu DB credentials
-- Cognito — authentication, optional
-- SNS/SES — notification, optional
-- RDS PostgreSQL — database chính
-
----
-
-## 5. High-Level Architecture
-
-```text
-React Frontend
-    |
-    | HTTPS
-    v
-API Gateway
-    |
-    v
-Lambda API Layer
-    |
-    +----------------------+
-    |                      |
-    v                      v
-PostgreSQL              S3 Bucket
-Core DB                 Excel files / Reports
-    |
-    v
-Business Modules
-    |
-    +--> Inventory Module
-    +--> Import Module
-    +--> Transfer Module
-    +--> Report Module
-    +--> Audit Module
-    +--> Notification Module
-```
-
-Async import flow:
-
-```text
-Frontend
-  |
-  | POST /imports/init
-  v
-API Gateway + Lambda
-  |
-  | create import_job
-  | generate presigned URL
-  v
-S3 Presigned Upload
-  |
-  | upload Excel file
-  v
-S3
-  |
-  | publish import requested event
-  v
-SQS / Step Functions
-  |
-  v
-Parser Lambda
-  |
-  v
-Validator Lambda
-  |
-  v
-Preview Result
-  |
-  | user confirms import
-  v
-Writer Lambda
-  |
-  v
-PostgreSQL inventory update
-  |
-  v
-CloudWatch metrics + audit log
+    subgraph Serverless_Ingestion ["Hạ tầng Serverless Batch Ingestion"]
+        Client -- "1. Upload Excel qua Presigned URL" --> S3Bucket["S3 Ingestion Bucket"]
+        S3Bucket -- "2. Object Created Event" --> EB["Amazon EventBridge"]
+        EB -- "3. Kích hoạt Workflow" --> SFN["AWS Step Functions (Orchestrator)"]
+        SFN -- "4. Gọi các Lambda xử lý độc lập" --> Lambdas["AWS Lambda Workers"]
+        Lambdas -- "5. Lưu trữ Staging / Commit" --> DB
+    end
 ```
 
 ---
 
-## 6. Core Modules
+### 2. Luồng xử lý File của Step Functions (State Machine Ingestion Flow)
 
-### 6.1 Auth Module
+Đây là **điểm sáng kỹ thuật cốt lõi** của dự án. Hệ thống sử dụng mô hình **Human-in-the-Loop** thông qua tính năng `waitForTaskToken` của Step Functions. Luồng xử lý cụ thể như sau:
 
-Mục tiêu:
+```mermaid
+graph TD
+    Start([Start: File Uploaded to S3]) --> ValidateFileStructure["ValidateFileStructure<br/>(Task: Validator Lambda)"]
 
-- Login.
-- Xác định user hiện tại.
-- Phân quyền theo role.
-- Branch-level access control.
+    ValidateFileStructure --> CatchError1{Có lỗi hệ thống?}
+    CatchError1 -- "Yes (Lỗi cấu trúc file)" --> MarkJobFailed["MarkJobFailed<br/>(Task: Fail Handler Lambda)"]
 
-Roles:
+    CatchError1 -- "No" --> CheckIntegrity{"CheckIntegrity<br/>(Choice)"}
+    CheckIntegrity -- "isValid == false" --> MarkJobFailed
+    CheckIntegrity -- "isValid == true" --> ParseAndStageRows["ParseAndStageRows<br/>(Task: Parser Lambda)"]
 
-```text
-STORE_MANAGER
-WAREHOUSE
-ADMIN
+    ParseAndStageRows --> CatchError2{Có lỗi khi Parse?}
+    CatchError2 -- "Yes" --> MarkJobFailed
+
+    CatchError2 -- "No" --> HaltForUserApproval["HaltForUserApproval<br/>(Task: Register Token & Pause)"]
+
+    HaltForUserApproval --> RegisterToken["Register Token Lambda<br/>(Lưu Task Token & đổi status Job sang PREVIEW_READY)"]
+    RegisterToken --> WaitForConfirm["Execution Paused<br/>(Chờ Frontend gửi Confirm kèm Task Token)"]
+
+    WaitForConfirm -- "Nhận API Confirm (SendTaskSuccess)" --> CommitInventory["CommitInventory<br/>(Task: Writer Lambda)"]
+
+    CommitInventory --> CatchError3{Có lỗi khi Write DB?}
+    CatchError3 -- "Yes" --> MarkJobFailed
+
+    CommitInventory -- "Success (Ghi DB theo batches)" --> End([End: COMPLETED])
+    MarkJobFailed --> FailEnd([End: FAILED])
+
+    style HaltForUserApproval fill:#f9f,stroke:#333,stroke-width:2px
+    style WaitForConfirm fill:#bbf,stroke:#333,stroke-width:2px
 ```
 
-Permission examples:
+#### Chi tiết Luồng Phê duyệt (Confirm/Cancel Workflow):
 
-```text
-inventory:read
-inventory:update
-import:create
-import:confirm
-transfer:create
-transfer:approve
-report:export
-audit:read
-admin:manage-users
+1. Khi file được tải lên S3, EventBridge kích hoạt State Machine.
+2. **Validator Lambda** kiểm tra định dạng MIME, kiểm tra tiêu đề các cột (headers) có đúng chuẩn template.
+3. **Parser Lambda** đọc dữ liệu Excel dạng stream (tiết kiệm bộ nhớ), validate dữ liệu từng dòng rồi ghi vào bảng tạm `import_job_rows` đồng thời tạo mã hash để tránh trùng lặp.
+4. **HaltForUserApproval**: State Machine gọi Lambda `ImportApprovalTokenRegisterFunction` để lưu `taskToken` (mã giao dịch Step Functions) vào Database ứng với `importJobId` rồi **tạm dừng (Pause)**.
+5. Người dùng xem bảng Preview hiển thị trên frontend. Nếu dữ liệu ổn, người dùng bấm nút **Xác nhận nhập kho (Confirm)**.
+6. API Backend nhận yêu cầu Confirm, đọc `taskToken` trong DB ra và gửi tín hiệu `SendTaskSuccess` lên Step Functions.
+7. State Machine tự động **tiếp tục (Resume)** chạy bước **CommitInventory (Writer Lambda)** thực hiện ghi dữ liệu chính thức vào bảng Tồn kho thật theo từng lô (Batch 500 dòng) nằm trong một DB Transaction an toàn.
+
+---
+
+## 🛠️ Hướng dẫn Triển khai Hệ thống (Deployment Guide)
+
+Hệ thống được tổ chức theo cấu trúc Monorepo (quản lý bởi Turborepo) chia làm 3 mảng triển khai chính: NestJS API (đóng gói Container), Web Client (Next.js Static Export), và Serverless Workers (AWS SAM).
+
+### 1. Chuẩn bị & Biên dịch Lambdas
+
+Tất cả mã nguồn Lambdas viết bằng TypeScript cần được biên dịch và đóng gói thành file Javascript tối giản (minified) sử dụng `esbuild` nhằm tối ưu thời gian khởi động lạnh (cold-start < 100ms):
+
+```bash
+# Cài đặt dependencies tại thư mục gốc
+npm install
+
+# Build & đóng gói toàn bộ Lambdas vào thư mục /dist/lambdas
+npm run build:lambdas
 ```
 
 ---
 
-### 6.2 Branch Module
+### 2. Triển khai API Backend (NestJS) lên AWS ECS Fargate & ALB
 
-Quản lý chi nhánh.
+Ứng dụng NestJS chính (`apps/api`) được deploy dạng container để chạy 24/7 ổn định.
 
-Branch fields:
+#### Bước A: Đóng gói và Đẩy Docker Image lên ECR
 
-```text
-id
-code
-name
-address
-status
-created_at
-updated_at
-```
+1. Khởi tạo một Repository trên AWS ECR: `stockflow-api`.
+2. Build Docker image từ Dockerfile trong thư mục `apps/api`:
+   ```bash
+   docker build -t stockflow-api ./apps/api
+   ```
+3. Login vào AWS ECR và đẩy image lên:
+   ```bash
+   aws ecr get-login-password --region <REGION> | docker login --username AWS --password-stdin <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com
+   docker tag stockflow-api:latest <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/stockflow-api:latest
+   docker push <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/stockflow-api:latest
+   ```
 
-API:
+#### Bước B: Cấu hình ECS Fargate & ALB
 
-```text
-GET /branches
-GET /branches/:id
-POST /branches
-PATCH /branches/:id
-```
-
-MVP có thể seed branch bằng script thay vì làm UI quản lý branch.
-
----
-
-### 6.3 Component Module
-
-Quản lý thông tin linh kiện.
-
-Component fields:
-
-```text
-id
-sku
-name
-brand
-category
-specs
-unit_price
-supplier
-warranty_months
-created_at
-updated_at
-```
-
-Category examples:
-
-```text
-RAM
-CPU
-SSD
-GPU
-MAINBOARD
-PSU
-CASE
-COOLER
-```
-
-`specs` là JSONB để lưu thông số khác nhau theo từng category.
-
-Ví dụ RAM:
-
-```json
-{
-  "ddr_generation": "DDR4",
-  "speed_mhz": 3200,
-  "capacity_gb": 8
-}
-```
-
-Ví dụ CPU:
-
-```json
-{
-  "socket": "LGA1700",
-  "cores": 6,
-  "threads": 12
-}
-```
-
-Ví dụ SSD:
-
-```json
-{
-  "interface": "NVMe",
-  "capacity_gb": 1000,
-  "form_factor": "M.2 2280"
-}
-```
+1. **Khởi tạo VPC**: Sử dụng Public subnets cho Load Balancer và Private subnets cho ECS Tasks nhằm tối ưu bảo mật.
+2. **Cấu hình ACM (AWS Certificate Manager)**: Đăng ký chứng chỉ SSL/TLS miễn phí cho domain của bạn (ví dụ: `api.yourdomain.com`).
+3. **Cấu hình Application Load Balancer (ALB)**:
+   - Tạo ALB đặt ở các Public subnets của VPC.
+   - Tạo **Target Group** cấu hình kiểu Target Type là `IP` (bắt buộc cho Fargate), cổng `80` hoặc `3000` tùy cấu hình Docker, thiết lập Health Check endpoint chỉ tới `/health` hoặc `/api/health`.
+   - Cấu hình Listener HTTPS (cổng 443) trên ALB, gắn chứng chỉ ACM SSL đã tạo ở trên và chuyển tiếp traffic tới Target Group.
+4. **Cấu hình ECS Task & Service**:
+   - Khởi tạo ECS Cluster.
+   - Tạo ECS Task Definition kiểu khởi chạy Fargate. Khai báo Image URI từ ECR ở bước A, định nghĩa các biến môi trường cấu hình kết nối database, Pusher, Cognito User Pool, S3 Bucket...
+   - Tạo ECS Service chạy Task Definition trên ở các Private subnets.
+   - **Security Group (SG) Rules**:
+     - SG của ECS Service chỉ cho phép kết nối Ingress từ SG của ALB (ngăn chặn truy cập trực tiếp từ Internet bypass load balancer).
+     - SG của ALB cho phép Ingress cổng 80 (để redirect sang 443) và cổng 443 từ mọi nơi (`0.0.0.0/0`).
 
 ---
 
-### 6.4 Inventory Module
+### 3. Triển khai Hạ tầng Serverless (AWS SAM)
 
-Quản lý tồn kho hiện tại.
+Mảng xử lý file Excel, đối soát và báo cáo được cấu hình bằng template SAM (`apps/lambdas/template.yaml`).
 
-Inventory cần có:
+1. Di chuyển vào thư mục ứng dụng:
+   ```bash
+   cd apps/lambdas
+   ```
+2. Kiểm tra tính hợp lệ của template:
+   ```bash
+   sam validate -t template.yaml
+   ```
+3. Build các tài nguyên CloudFormation:
+   ```bash
+   sam build -t template.yaml
+   ```
+4. Triển khai hạ tầng lên AWS (sử dụng chế độ tương tác ban đầu):
 
-```text
-branch_id
-component_id
-quantity
-reserved_quantity
-available_quantity
-min_stock_threshold
-version
-updated_at
-```
+   ```bash
+   sam deploy --guided
+   ```
 
-Trong đó:
-
-```text
-available_quantity = quantity - reserved_quantity
-```
-
-Ý nghĩa:
-
-- `quantity`: tổng số lượng vật lý đang có.
-- `reserved_quantity`: số lượng đã được giữ cho transfer pending.
-- `available_quantity`: số có thể dùng để transfer.
-- `version`: dùng cho optimistic locking.
-
-API:
-
-```text
-GET /inventory
-GET /inventory/:sku
-GET /branches/:branchId/inventory
-PATCH /inventory/:id
-GET /reports/low-stock
-```
-
-Query examples:
-
-```text
-GET /inventory?branch_id=BR001&category=RAM&search=kingston&page=1&limit=20
-GET /inventory?low_stock=true
-```
+   - **Stack Name**: `stockflow-serverless-pipeline`
+   - **AWS Region**: Nhập region mong muốn (ví dụ: `ap-southeast-1`).
+   - **Parameter DATABASE_URL**: Nhập connection string PostgreSQL của Neon.
+     > [!WARNING]
+     > **Lưu ý Pool Size**: Để tránh làm quá tải Neon Database khi các Lambda scale tự động, đường dẫn kết nối của bạn phải đi qua pgbouncer transaction pooler và giới hạn kết nối bằng cách thêm: `&pgbouncer=true&connection_limit=1` vào chuỗi connection string.
+   - Đồng ý tạo các IAM Role và lưu file cấu hình `samconfig.toml`.
 
 ---
 
-### 6.5 Import Module
+### 4. Triển khai Frontend Web (Next.js) lên S3 & CloudFront
 
-Đây là module quan trọng nhất.
+Frontend Next.js (`apps/web`) được build ở dạng static export để host trực tiếp trên CDN giá rẻ và tốc độ siêu nhanh.
 
-Mục tiêu:
-
-- Upload Excel.
-- Parse file.
-- Validate row-level.
-- Tạo preview trước khi commit.
-- Confirm import.
-- Commit inventory update.
-- Track progress.
-- Save errors.
-- Retry an toàn.
-- Không cộng kho trùng khi retry.
-
-Import statuses:
-
-```text
-UPLOADED
-PARSING
-VALIDATING
-PREVIEW_READY
-CONFIRMING
-COMMITTING
-COMPLETED
-PARTIAL_FAILED
-FAILED
-CANCELLED
-```
-
-Import flow:
-
-```text
-1. User calls POST /imports/init
-2. System creates import_job
-3. System returns presigned URL
-4. User uploads Excel to S3
-5. System starts async parsing
-6. System validates rows
-7. System saves preview result
-8. User reviews preview
-9. User confirms import
-10. System commits valid rows
-11. System updates inventory
-12. System records stock movements
-13. System marks job completed or partial failed
-```
-
-API:
-
-```text
-POST /imports/init
-POST /imports/:id/start
-GET /imports
-GET /imports/:id
-GET /imports/:id/progress
-GET /imports/:id/errors
-GET /imports/:id/preview
-POST /imports/:id/confirm
-POST /imports/:id/cancel
-POST /imports/:id/retry-failed-rows
-```
+1. Cấu hình các biến môi trường trong `.env.production` ở thư mục `apps/web` chỉ tới URL của ALB API (`api.yourdomain.com`) và cấu hình Cognito Client ID.
+2. Build và xuất bản static files:
+   ```bash
+   # Chạy lệnh tại thư mục gốc monorepo
+   npm run build:web
+   ```
+   Lệnh này sinh ra các file tĩnh tại thư mục `apps/web/out`.
+3. Khởi tạo một S3 Bucket với chính sách truy cập Private (không public ra ngoài).
+4. Đồng bộ các files tĩnh lên S3:
+   ```bash
+   aws s3 sync apps/web/out s3://your-nextjs-s3-bucket-name/
+   ```
+5. **Cấu hình AWS CloudFront**:
+   - Khởi tạo một CloudFront Distribution, chọn Origin Domain chỉ tới S3 Bucket chứa Next.js assets ở trên.
+   - **Bảo mật truy cập S3**: Sử dụng **OAC (Origin Access Control)** hoặc **OAI (Origin Access Identity)** để cấp quyền cho CloudFront đọc file từ S3, và cập nhật Bucket Policy trên S3 chỉ cho phép đọc từ CloudFront.
+   - Gắn chứng chỉ ACM SSL cho tên miền frontend (ví dụ: `app.yourdomain.com`).
+   - Thiết lập **Error Pages**: Định cấu hình lỗi `404` trả về file `/index.html` với mã HTTP `200` để hỗ trợ cơ chế Client-side Routing của ứng dụng Single Page (Next.js Static Export).
 
 ---
 
-### 6.6 Transfer Module
+## ⚡ Điểm sáng Thiết kế & Tối ưu Hệ thống
 
-Mục tiêu:
+### 1. Đảm bảo Idempotency (Tránh ghi đè kho trùng lặp)
 
-- Tạo yêu cầu chuyển hàng giữa chi nhánh.
-- Reserve stock khi tạo request.
-- Admin/Warehouse approve/reject.
-- Cập nhật inventory bằng transaction.
-- Ghi stock movement.
-- Ghi audit log.
+Khi một tác vụ Lambda Writer thực hiện ghi dữ liệu từ file Excel vào Database, nếu kết nối mạng lỗi giữa chừng, SQS sẽ tự động retry gửi lại message xử lý. Để tránh việc hàng hóa bị cộng dồn hai lần, hệ thống sử dụng thuật toán Hash:
+$$\text{idempotency\_key} = \text{SHA256}(\text{import\_job\_id} + \text{row\_number} + \text{sku})$$
+Trước khi ghi dòng dữ liệu vào database, hệ thống sẽ thực hiện kiểm tra `idempotency_key` đã tồn tại trong DB chưa. Nếu đã có, hệ thống lập tức bỏ qua (Skip) dòng này và chuyển sang dòng tiếp theo.
 
-Transfer statuses:
+### 2. Ngăn ngừa Xung đột bằng Optimistic Locking (Khóa lạc quan)
 
-```text
-PENDING
-APPROVED
-REJECTED
-COMPLETED
-FAILED
-CANCELLED
-```
-
-Transfer flow:
-
-```text
-1. Store Manager creates transfer request.
-2. System checks available quantity.
-3. System increases reserved_quantity.
-4. Transfer status = PENDING.
-5. Admin/Warehouse reviews request.
-6. If rejected:
-   - Decrease reserved_quantity.
-   - Transfer status = REJECTED.
-7. If approved:
-   - Start DB transaction.
-   - Decrease source quantity.
-   - Decrease source reserved_quantity.
-   - Increase destination quantity.
-   - Create stock movement records.
-   - Transfer status = COMPLETED.
-```
-
-API:
-
-```text
-POST /transfers
-GET /transfers
-GET /transfers/:id
-POST /transfers/:id/approve
-POST /transfers/:id/reject
-POST /transfers/:id/cancel
-```
-
----
-
-### 6.7 Stock Movement Ledger
-
-Inventory table chỉ lưu current state.
-
-Stock movement ledger lưu toàn bộ lịch sử thay đổi kho.
-
-Movement types:
-
-```text
-IMPORT_IN
-TRANSFER_OUT
-TRANSFER_IN
-ADJUSTMENT_IN
-ADJUSTMENT_OUT
-RESERVATION_CREATED
-RESERVATION_RELEASED
-RECONCILIATION_ADJUSTMENT
-```
-
-Fields:
-
-```text
-id
-branch_id
-component_id
-movement_type
-quantity_change
-reference_type
-reference_id
-created_by
-created_at
-```
-
-Lợi ích:
-
-- Có audit trail rõ ràng.
-- Dễ debug sai lệch tồn kho.
-- Là nền tảng cho reconciliation job.
-- Dễ làm report.
-
----
-
-### 6.8 Reconciliation Module
-
-Mục tiêu:
-
-Kiểm tra tồn kho hiện tại có khớp với stock movement ledger hay không.
-
-Daily reconciliation flow:
-
-```text
-1. Lambda scheduled by EventBridge runs daily.
-2. System scans inventory.
-3. For each branch/component:
-   - Calculate expected quantity from stock_movements.
-   - Compare with inventory.quantity.
-4. If mismatch:
-   - Create reconciliation issue.
-   - Notify admin.
-   - Save report.
-```
-
-Example:
-
-```text
-Current inventory.quantity = 124
-
-From ledger:
-Opening stock = 100
-IMPORT_IN = +50
-TRANSFER_OUT = -20
-ADJUSTMENT_OUT = -5
-
-Expected quantity = 125
-
-Result:
-Mismatch detected: expected 125, actual 124
-```
-
-API:
-
-```text
-GET /reconciliation/issues
-GET /reconciliation/reports
-POST /reconciliation/run
-POST /reconciliation/issues/:id/resolve
-```
-
----
-
-### 6.9 Report Module
-
-Mục tiêu:
-
-- Low stock report.
-- Inventory value report.
-- Transfer history report.
-- Import summary report.
-- Export CSV/Excel async.
-
-Report export flow:
-
-```text
-User requests export
-  |
-  v
-Create export job
-  |
-  v
-Push message to SQS
-  |
-  v
-Report Lambda generates file
-  |
-  v
-Upload report to S3
-  |
-  v
-User downloads by presigned URL
-```
-
-API:
-
-```text
-GET /reports/low-stock
-GET /reports/inventory-value
-POST /reports/export
-GET /reports/export/:jobId
-GET /reports/export/:jobId/download
-```
-
----
-
-### 6.10 Audit Module
-
-Mục tiêu:
-
-Ghi lại các hành động quan trọng.
-
-Audit actions:
-
-```text
-USER_LOGIN
-IMPORT_CREATED
-IMPORT_STARTED
-IMPORT_CONFIRMED
-IMPORT_COMPLETED
-TRANSFER_CREATED
-TRANSFER_APPROVED
-TRANSFER_REJECTED
-INVENTORY_ADJUSTED
-REPORT_EXPORTED
-DLQ_MESSAGE_REPLAYED
-RECONCILIATION_RUN
-```
-
-Audit fields:
-
-```text
-id
-actor_id
-action
-entity_type
-entity_id
-before_data
-after_data
-ip_address
-user_agent
-created_at
-```
-
----
-
-### 6.11 DLQ Replay Module
-
-Mục tiêu:
-
-Không chỉ để message lỗi nằm trong DLQ, mà có thể xem và replay an toàn.
-
-API:
-
-```text
-GET /admin/dlq/imports
-POST /admin/dlq/imports/:messageId/replay
-POST /admin/dlq/imports/:messageId/discard
-```
-
-Yêu cầu:
-
-- Replay phải an toàn nhờ idempotency.
-- Ghi audit log khi replay/discard.
-- Có CloudWatch alarm nếu DLQ có message.
-
----
-
-## 7. Excel Template
-
-Các cột chung:
-
-```text
-sku
-name
-brand
-category
-quantity
-unit_price
-supplier
-warranty_months
-```
-
-Các cột specs:
-
-```text
-ddr_generation
-speed_mhz
-capacity_gb
-socket
-cores
-threads
-interface
-form_factor
-vram_gb
-chipset
-```
-
-Example:
-
-| sku                 | name                 | brand    | category | quantity | unit_price | supplier | warranty_months | ddr_generation | speed_mhz | capacity_gb | socket  | cores | interface |
-| ------------------- | -------------------- | -------- | -------- | -------: | ---------: | -------- | --------------: | -------------- | --------: | ----------: | ------- | ----: | --------- |
-| RAM-KING-8-DDR4     | Kingston 8GB DDR4    | Kingston | RAM      |       20 |     550000 | ABC      |              36 | DDR4           |      3200 |           8 |         |       |           |
-| CPU-INTEL-I5-12400F | Intel Core i5 12400F | Intel    | CPU      |        8 |    3200000 | XYZ      |              36 |                |           |             | LGA1700 |     6 |           |
-| SSD-SAM-980-1TB     | Samsung 980 1TB      | Samsung  | SSD      |       15 |    1600000 | DEF      |              60 |                |           |        1000 |         |       | NVMe      |
-
----
-
-## 8. Validation Rules
-
-### 8.1 Common Validation
-
-Required:
-
-```text
-sku
-name
-category
-quantity
-unit_price
-```
-
-Rules:
-
-```text
-sku must be unique within file
-sku must not be empty
-category must be valid
-quantity must be >= 0
-unit_price must be >= 0
-warranty_months must be >= 0
-```
-
-### 8.2 RAM Validation
-
-Required:
-
-```text
-ddr_generation
-speed_mhz
-capacity_gb
-```
-
-Allowed ddr_generation:
-
-```text
-DDR3
-DDR4
-DDR5
-```
-
-### 8.3 CPU Validation
-
-Required:
-
-```text
-socket
-cores
-```
-
-Rules:
-
-```text
-cores > 0
-threads >= cores if provided
-```
-
-### 8.4 SSD Validation
-
-Required:
-
-```text
-interface
-capacity_gb
-```
-
-Allowed interface:
-
-```text
-NVMe
-SATA
-```
-
-### 8.5 GPU Validation
-
-Required:
-
-```text
-vram_gb
-```
-
-Rules:
-
-```text
-vram_gb > 0
-```
-
-### 8.6 Mainboard Validation
-
-Required:
-
-```text
-socket
-chipset
-```
-
----
-
-## 9. Database Schema Draft
-
-### 9.1 users
-
-```sql
-CREATE TABLE users (
-  id UUID PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  full_name VARCHAR(255),
-  role VARCHAR(50) NOT NULL,
-  branch_id UUID,
-  status VARCHAR(50) DEFAULT 'ACTIVE',
-  created_at TIMESTAMP DEFAULT now(),
-  updated_at TIMESTAMP DEFAULT now()
-);
-```
-
-### 9.2 branches
-
-```sql
-CREATE TABLE branches (
-  id UUID PRIMARY KEY,
-  code VARCHAR(50) UNIQUE NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  address TEXT,
-  status VARCHAR(50) DEFAULT 'ACTIVE',
-  created_at TIMESTAMP DEFAULT now(),
-  updated_at TIMESTAMP DEFAULT now()
-);
-```
-
-### 9.3 components
-
-```sql
-CREATE TABLE components (
-  id UUID PRIMARY KEY,
-  sku VARCHAR(100) UNIQUE NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  brand VARCHAR(100),
-  category VARCHAR(50) NOT NULL,
-  specs JSONB,
-  unit_price NUMERIC(12, 2),
-  supplier VARCHAR(255),
-  warranty_months INT,
-  created_at TIMESTAMP DEFAULT now(),
-  updated_at TIMESTAMP DEFAULT now()
-);
-```
-
-### 9.4 inventory
-
-```sql
-CREATE TABLE inventory (
-  branch_id UUID NOT NULL REFERENCES branches(id),
-  component_id UUID NOT NULL REFERENCES components(id),
-  quantity INT NOT NULL DEFAULT 0,
-  reserved_quantity INT NOT NULL DEFAULT 0,
-  min_stock_threshold INT DEFAULT 5,
-  version INT NOT NULL DEFAULT 0,
-  updated_at TIMESTAMP DEFAULT now(),
-  PRIMARY KEY (branch_id, component_id)
-);
-```
-
-### 9.5 import_jobs
-
-```sql
-CREATE TABLE import_jobs (
-  id UUID PRIMARY KEY,
-  branch_id UUID NOT NULL REFERENCES branches(id),
-  file_name VARCHAR(255),
-  s3_key TEXT,
-  status VARCHAR(50) NOT NULL,
-  total_rows INT DEFAULT 0,
-  processed_rows INT DEFAULT 0,
-  valid_rows INT DEFAULT 0,
-  invalid_rows INT DEFAULT 0,
-  committed_rows INT DEFAULT 0,
-  created_by UUID REFERENCES users(id),
-  created_at TIMESTAMP DEFAULT now(),
-  updated_at TIMESTAMP DEFAULT now(),
-  completed_at TIMESTAMP
-);
-```
-
-### 9.6 import_job_rows
-
-```sql
-CREATE TABLE import_job_rows (
-  id UUID PRIMARY KEY,
-  import_job_id UUID NOT NULL REFERENCES import_jobs(id),
-  row_number INT NOT NULL,
-  sku VARCHAR(100),
-  raw_data JSONB,
-  normalized_data JSONB,
-  validation_status VARCHAR(50),
-  error_message TEXT,
-  idempotency_key VARCHAR(255) UNIQUE,
-  processed_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT now()
-);
-```
-
-### 9.7 transfers
-
-```sql
-CREATE TABLE transfers (
-  id UUID PRIMARY KEY,
-  from_branch_id UUID NOT NULL REFERENCES branches(id),
-  to_branch_id UUID NOT NULL REFERENCES branches(id),
-  status VARCHAR(50) NOT NULL,
-  requested_by UUID REFERENCES users(id),
-  approved_by UUID REFERENCES users(id),
-  rejected_by UUID REFERENCES users(id),
-  note TEXT,
-  reject_reason TEXT,
-  created_at TIMESTAMP DEFAULT now(),
-  approved_at TIMESTAMP,
-  rejected_at TIMESTAMP,
-  completed_at TIMESTAMP
-);
-```
-
-### 9.8 transfer_items
-
-```sql
-CREATE TABLE transfer_items (
-  id UUID PRIMARY KEY,
-  transfer_id UUID NOT NULL REFERENCES transfers(id),
-  component_id UUID NOT NULL REFERENCES components(id),
-  quantity INT NOT NULL
-);
-```
-
-### 9.9 stock_movements
-
-```sql
-CREATE TABLE stock_movements (
-  id UUID PRIMARY KEY,
-  branch_id UUID NOT NULL REFERENCES branches(id),
-  component_id UUID NOT NULL REFERENCES components(id),
-  movement_type VARCHAR(50) NOT NULL,
-  quantity_change INT NOT NULL,
-  reference_type VARCHAR(50),
-  reference_id UUID,
-  created_by UUID REFERENCES users(id),
-  created_at TIMESTAMP DEFAULT now()
-);
-```
-
-### 9.10 audit_logs
-
-```sql
-CREATE TABLE audit_logs (
-  id UUID PRIMARY KEY,
-  actor_id UUID REFERENCES users(id),
-  action VARCHAR(100) NOT NULL,
-  entity_type VARCHAR(100),
-  entity_id UUID,
-  before_data JSONB,
-  after_data JSONB,
-  ip_address VARCHAR(100),
-  user_agent TEXT,
-  created_at TIMESTAMP DEFAULT now()
-);
-```
-
-### 9.11 reconciliation_issues
-
-```sql
-CREATE TABLE reconciliation_issues (
-  id UUID PRIMARY KEY,
-  branch_id UUID NOT NULL REFERENCES branches(id),
-  component_id UUID NOT NULL REFERENCES components(id),
-  expected_quantity INT NOT NULL,
-  actual_quantity INT NOT NULL,
-  difference INT NOT NULL,
-  status VARCHAR(50) DEFAULT 'OPEN',
-  detected_at TIMESTAMP DEFAULT now(),
-  resolved_at TIMESTAMP
-);
-```
-
----
-
-## 10. API Summary
-
-### Auth
-
-```text
-POST /auth/login
-GET /auth/me
-```
-
-### Branches
-
-```text
-GET /branches
-GET /branches/:id
-POST /branches
-PATCH /branches/:id
-```
-
-### Inventory
-
-```text
-GET /inventory
-GET /inventory/:sku
-GET /branches/:branchId/inventory
-PATCH /inventory/:id
-GET /reports/low-stock
-```
-
-### Imports
-
-```text
-POST /imports/init
-POST /imports/:id/start
-GET /imports
-GET /imports/:id
-GET /imports/:id/progress
-GET /imports/:id/errors
-GET /imports/:id/preview
-POST /imports/:id/confirm
-POST /imports/:id/cancel
-POST /imports/:id/retry-failed-rows
-```
-
-### Transfers
-
-```text
-POST /transfers
-GET /transfers
-GET /transfers/:id
-POST /transfers/:id/approve
-POST /transfers/:id/reject
-POST /transfers/:id/cancel
-```
-
-### Reports
-
-```text
-GET /reports/low-stock
-GET /reports/inventory-value
-POST /reports/export
-GET /reports/export/:jobId
-GET /reports/export/:jobId/download
-```
-
-### Reconciliation
-
-```text
-GET /reconciliation/issues
-GET /reconciliation/reports
-POST /reconciliation/run
-POST /reconciliation/issues/:id/resolve
-```
-
-### Admin DLQ
-
-```text
-GET /admin/dlq/imports
-POST /admin/dlq/imports/:messageId/replay
-POST /admin/dlq/imports/:messageId/discard
-```
-
----
-
-## 11. Important Business Rules
-
-### 11.1 Branch Access Rule
-
-Store Manager chỉ được thao tác trên branch của mình.
-
-```text
-If user.role = STORE_MANAGER:
-  user.branch_id must match resource.branch_id
-```
-
-Admin có thể xem toàn bộ branch.
-
-Warehouse có quyền tùy cấu hình.
-
----
-
-### 11.2 Import Rule
-
-Import không được commit inventory ngay sau khi upload.
-
-Flow đúng:
-
-```text
-Upload
-→ Parse
-→ Validate
-→ Preview
-→ Confirm
-→ Commit
-```
-
-Lý do:
-
-- Tránh cộng kho sai.
-- Cho user sửa file nếu có lỗi.
-- Cho user biết import sẽ ảnh hưởng tồn kho như thế nào.
-
----
-
-### 11.3 Idempotency Rule
-
-Mỗi import row phải có idempotency key.
-
-Example:
-
-```text
-idempotency_key = hash(import_job_id + row_number + sku)
-```
-
-Nếu Lambda/SQS retry, hệ thống kiểm tra key này trước.
-
-Nếu row đã processed:
-
-```text
-skip
-```
-
-Nếu chưa processed:
-
-```text
-process normally
-```
-
-Mục tiêu:
-
-- Không cộng kho hai lần.
-- Retry an toàn.
-
----
-
-### 11.4 Transfer Reservation Rule
-
-Khi tạo transfer pending, hệ thống reserve stock.
-
-Example:
-
-```text
-quantity = 10
-reserved_quantity = 4
-available_quantity = 6
-```
-
-Nếu user muốn transfer 8 nhưng available chỉ có 6:
-
-```text
-reject request
-```
-
----
-
-### 11.5 Transfer Approval Rule
-
-Approve transfer phải dùng database transaction.
-
-Trong transaction:
-
-```text
-1. Check transfer status = PENDING.
-2. Check source inventory has enough reserved quantity.
-3. Decrease source quantity.
-4. Decrease source reserved_quantity.
-5. Increase destination quantity.
-6. Create TRANSFER_OUT stock movement.
-7. Create TRANSFER_IN stock movement.
-8. Update transfer status = COMPLETED.
-```
-
-Nếu bất kỳ bước nào lỗi:
-
-```text
-rollback
-```
-
----
-
-### 11.6 Optimistic Locking Rule
-
-Inventory update nên dùng `version`.
-
-Example:
+Khi nhiều store manager hoặc thủ kho thao tác cùng lúc trên một mặt hàng linh kiện tại cùng một chi nhánh (ví dụ: duyệt chuyển kho đồng thời), hệ thống sử dụng cơ chế Khóa lạc quan thông qua cột `version` trong bảng `inventory`:
 
 ```sql
 UPDATE inventory
-SET quantity = quantity - 5,
+SET quantity = quantity - $requested_qty,
     version = version + 1
-WHERE branch_id = $1
-  AND component_id = $2
-  AND quantity >= 5
-  AND version = $3;
+WHERE branch_id = $branch_id
+  AND component_id = $component_id
+  AND quantity >= $requested_qty
+  AND version = $current_version;
 ```
 
-Nếu affected rows = 0:
+Nếu hàng số lượng đã bị thay đổi bởi giao dịch trước đó, số dòng bị ảnh hưởng (`affected rows`) trả về sẽ là `0`. Hệ thống nhận biết điều này, lập tức huỷ giao dịch hiện thời (Rollback) và thông báo lỗi tới Client để người dùng thử lại.
 
-```text
-stock changed by another request or insufficient quantity
-```
+### 3. Tối ưu hóa Kết nối PostgreSQL trong môi trường Serverless
 
----
+Mô hình Lambda tự động scale-out theo lượng requests đồng thời rất dễ làm cạn kiệt connection pool của cơ sở dữ liệu truyền thống. Hệ thống đã tối ưu bằng cách:
 
-## 12. Observability Plan
-
-### Logs
-
-Dùng structured logging.
-
-Mỗi request/job nên có:
-
-```text
-correlation_id
-user_id
-import_job_id
-transfer_id
-branch_id
-status
-duration_ms
-error_code
-```
-
-### Metrics
-
-Import metrics:
-
-```text
-ImportJobCount
-ImportJobFailedCount
-ImportDuration
-RowsProcessed
-RowsFailed
-ImportRetryCount
-```
-
-Transfer metrics:
-
-```text
-TransferRequestedCount
-TransferApprovedCount
-TransferRejectedCount
-TransferFailedCount
-StockUpdateConflictCount
-```
-
-System metrics:
-
-```text
-LambdaErrorRate
-LambdaDuration
-APIGateway5xx
-SQSQueueDepth
-DLQMessageCount
-DatabaseConnectionCount
-```
-
-### Alarms
-
-Create alarms for:
-
-```text
-DLQMessageCount > 0
-LambdaErrorRate > threshold
-APIGateway5xx > threshold
-SQSApproximateAgeOfOldestMessage > threshold
-ImportJobFailedCount too high
-```
-
-### Dashboard
-
-Dashboard should show:
-
-```text
-Import success/failure rate
-Average import duration
-Rows processed
-Top validation errors
-Transfer volume
-Low stock count
-DLQ messages
-Lambda errors
-SQS queue depth
-```
-
----
-
-## 13. Security Plan
-
-### Authentication
-
-Options:
-
-- Cognito
-- Custom JWT
-
-MVP có thể dùng custom JWT.
-
-Production-style version nên dùng Cognito.
-
-### Authorization
-
-Use RBAC + branch-level access control.
-
-### S3 Security
-
-Rules:
-
-```text
-S3 bucket private
-Upload using presigned URL
-Presigned URL expires quickly
-Limit file size
-Validate content type
-Use SSE-S3 or SSE-KMS
-```
-
-### IAM
-
-Apply least privilege:
-
-```text
-Import Lambda can only read imports/*
-Report Lambda can only write reports/*
-API Lambda can only access required resources
-```
-
-### Secrets
-
-Database credentials should be stored in:
-
-```text
-AWS Secrets Manager
-```
-
-### Validation
-
-Validate:
-
-```text
-API body
-query params
-Excel rows
-file name
-file size
-content type
-```
-
----
-
-## 14. Failure Handling
-
-### Import Lambda Fails
-
-Expected behavior:
-
-```text
-SQS retries message.
-If retry limit exceeded, message goes to DLQ.
-Import job status becomes FAILED or PARTIAL_FAILED.
-Admin can replay DLQ message.
-Idempotency prevents duplicated stock updates.
-```
-
-### Database Timeout During Import
-
-Expected behavior:
-
-```text
-Batch fails.
-Message is retried.
-Already processed rows are skipped.
-Failed rows are logged.
-```
-
-### Transfer Approval Fails
-
-Expected behavior:
-
-```text
-Database transaction rolls back.
-Inventory remains consistent.
-Transfer status stays PENDING or becomes FAILED depending on failure stage.
-Audit log records failure.
-```
-
-### Two Admins Approve Same Transfer
-
-Expected behavior:
-
-```text
-Only one transaction succeeds.
-Second transaction fails because transfer status is no longer PENDING.
-```
-
-### Stock Mismatch Detected
-
-Expected behavior:
-
-```text
-Reconciliation job creates issue.
-Admin reviews issue.
-Admin can resolve or create adjustment.
-```
-
----
-
-## 15. Roadmap
-
-### Phase 1 — MVP
-
-Goal: make the core flow work.
-
-Features:
-
-```text
-Auth mock/custom JWT
-Branch seed data
-Excel upload
-Parse Excel
-Validate rows
-Save import job
-Save row errors
-Inventory list
-Search/filter
-Create transfer
-Approve transfer
-Basic low stock report
-```
-
-### Phase 2 — AWS Junior Version
-
-Goal: add serverless architecture.
-
-Features:
-
-```text
-S3 presigned upload
-Lambda import processor
-SQS import queue
-Import progress tracking
-CloudWatch logs
-Export CSV/Excel
-Basic RBAC
-```
-
-### Phase 3 — Middle Version
-
-Goal: production-style reliability.
-
-Features:
-
-```text
-Step Functions import workflow
-Import preview + confirmation
-Idempotency
-DLQ
-DLQ replay
-Stock movement ledger
-Stock reservation
-Optimistic locking
-Audit logs
-CloudWatch metrics/alarms/dashboard
-IaC
-CI/CD
-Integration tests
-```
-
-### Phase 4 — Middle+ Version
-
-Goal: stronger platform design.
-
-Features:
-
-```text
-Daily reconciliation job
-EventBridge events
-Notification service
-Async report generation
-X-Ray tracing
-Performance benchmark
-Cost optimization
-ADR docs
-Architecture diagram
-```
-
----
-
-## 16. Suggested Folder Structure
-
-```text
-eims/
-  apps/
-    web/
-      src/
-        pages/
-        components/
-        features/
-        api/
-        stores/
-    api/
-      src/
-        modules/
-          auth/
-          branches/
-          components/
-          inventory/
-          imports/
-          transfers/
-          reports/
-          audit/
-          reconciliation/
-          dlq/
-        common/
-        config/
-        database/
-        main.ts
-  infrastructure/
-    terraform/
-      modules/
-      envs/
-        dev/
-        staging/
-        prod/
-  docs/
-    architecture.md
-    database-schema.md
-    api.md
-    failure-handling.md
-    performance.md
-    demo-script.md
-    adr/
-      001-use-postgresql-for-core-inventory.md
-      002-use-s3-presigned-url-for-upload.md
-      003-use-sqs-for-async-import.md
-      004-use-step-functions-for-import-orchestration.md
-      005-use-stock-movement-ledger.md
-      006-use-optimistic-locking.md
-  scripts/
-    seed.ts
-    generate-sample-excel.ts
-  README.md
-```
-
----
-
-## 17. Demo Script
-
-Use this script to demonstrate the system:
-
-```text
-1. Login as Store Manager.
-2. Open Import page.
-3. Upload Excel with mixed valid and invalid rows.
-4. Watch import progress.
-5. Open import preview.
-6. Show valid rows, invalid rows, estimated inventory changes.
-7. Confirm import.
-8. Open Inventory page.
-9. Search SKU and filter by category.
-10. Show updated stock.
-11. Create transfer request from Branch A to Branch B.
-12. Show reserved quantity updated.
-13. Login as Admin/Warehouse.
-14. Approve transfer.
-15. Show Branch A quantity decreased and Branch B quantity increased.
-16. Open stock movement ledger.
-17. Show TRANSFER_OUT and TRANSFER_IN records.
-18. Open low stock report.
-19. Trigger/export report.
-20. Show CloudWatch dashboard and alarms.
-```
-
----
-
-## 18. Performance Targets
-
-Initial target:
-
-```text
-Support 100 branches
-Support 100,000 SKUs
-Support Excel imports up to 50,000 rows
-Process import in batches of 500 rows
-Support 100 concurrent users
-Prevent duplicated stock updates during retry
-Keep audit logs for 1 year
-Keep raw import files for 30 days
-Keep exported reports for 90 days
-```
-
-Benchmark document should include:
-
-```text
-Test file size
-Number of rows
-Batch size
-Average processing time
-Failed row count
-Lambda memory
-Lambda duration
-Database write time
-SQS retry count
-```
-
----
-
-## 19. What Makes This Project Impressive
-
-This project is impressive because it is not just CRUD.
-
-It demonstrates:
-
-```text
-Serverless architecture
-Async processing
-Excel import pipeline
-Idempotency
-Retry safety
-DLQ replay
-Inventory consistency
-Transaction handling
-Optimistic locking
-Stock reservation
-Stock movement ledger
-Audit logging
-Reconciliation job
-CloudWatch observability
-Security best practices
-IaC
-CI/CD
-Performance thinking
-```
-
----
-
-## 20. CV Pitch
-
-### English
-
-```text
-Designed and built a serverless multi-branch electronics inventory platform using AWS Lambda, API Gateway, S3, SQS, Step Functions, PostgreSQL, and CloudWatch.
-
-Implemented an asynchronous Excel import pipeline with preview, row-level validation, idempotent batch processing, retry handling, DLQ replay, and progress tracking.
-
-Designed a transfer approval workflow with stock reservation, transactional inventory updates, optimistic locking, stock movement ledger, audit logs, and daily reconciliation jobs.
-
-Built operational monitoring with structured logs, custom CloudWatch metrics, alarms, dashboards, and failure tracking for import and transfer workflows.
-
-Provisioned AWS infrastructure using Terraform/CDK and configured CI/CD pipeline with automated tests and environment-based deployments.
-```
-
-### Vietnamese
-
-```text
-Thiết kế và xây dựng nền tảng quản lý kho linh kiện điện tử đa chi nhánh bằng AWS Lambda, API Gateway, S3, SQS, Step Functions, PostgreSQL và CloudWatch.
-
-Triển khai pipeline import Excel bất đồng bộ với preview, validate từng dòng, xử lý batch idempotent, retry, DLQ replay và theo dõi tiến độ.
-
-Thiết kế workflow chuyển kho có stock reservation, transaction cập nhật tồn kho, optimistic locking, stock movement ledger, audit log và reconciliation job hằng ngày.
-
-Xây dựng monitoring với structured logs, custom CloudWatch metrics, alarms, dashboard và failure tracking cho import/transfer workflow.
-
-Triển khai hạ tầng bằng Terraform/CDK và CI/CD pipeline với automated test theo từng môi trường.
-```
-
----
-
-## 21. First Coding Milestone
-
-Before building everything, start with this small vertical slice:
-
-```text
-1. Create PostgreSQL schema for branches, components, inventory, import_jobs, import_job_rows.
-2. Seed 2 branches and 2 users.
-3. Build POST /imports/init.
-4. Upload Excel locally first or via S3 presigned URL.
-5. Parse Excel.
-6. Validate rows.
-7. Save import preview.
-8. Confirm import.
-9. Update inventory.
-10. Show inventory table on frontend.
-```
-
-After this works, add:
-
-```text
-SQS
-Lambda
-Step Functions
-DLQ
-CloudWatch metrics
-Transfer workflow
-Stock reservation
-Reconciliation job
-```
-
-Do not start with all AWS services at once. Build the business flow first, then make it serverless and production-ready.
-
----
-
-## 22. Final Scope Decision
-
-The recommended final version for portfolio:
-
-```text
-Serverless multi-branch inventory platform with asynchronous Excel import, import preview, idempotent batch processing, transfer approval workflow, stock reservation, transactional inventory updates, stock movement ledger, reconciliation job, DLQ replay, and CloudWatch observability.
-```
-
-This scope is strong enough for a Middle Backend with AWS portfolio project.
+- Sử dụng Neon Serverless Postgres tích hợp sẵn **PgBouncer** ở chế độ Transaction Mode.
+- Cấu hình Prisma Client trong mỗi function Lambda khởi tạo kết nối với tùy chọn `connection_limit=1`. Điều này đảm bảo mỗi container Lambda chỉ giữ tối đa 1 kết nối duy nhất đến database trong suốt vòng đời của nó.
