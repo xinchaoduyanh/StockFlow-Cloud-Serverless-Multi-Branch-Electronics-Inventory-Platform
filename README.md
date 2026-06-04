@@ -62,31 +62,7 @@
 
 ### 1. Kiến trúc Tổng thể (High-Level Architecture)
 
-```mermaid
-graph TD
-    Client["Next.js Web Client"] -- "HTTPS (Custom Domain + ACM)" --> CF["AWS CloudFront CDN"]
-    CF -- "Phục vụ Static Assets" --> S3Front["S3 Static Web Bucket (Private Access)"]
-
-    Client -- "REST API Requests (HTTPS)" --> ALB["Application Load Balancer (ALB)"]
-    ALB -- "Routing / Target Groups" --> ECS["ECS Fargate (NestJS API Task)"]
-
-    subgraph VPC ["AWS VPC (Virtual Private Cloud)"]
-        ALB
-        ECS
-    end
-
-    ECS -- "Quản lý User & Đăng nhập" --> Cognito["AWS Cognito User Pool"]
-    ECS -- "Đọc / Ghi dữ liệu kho" --> DB[("Neon PostgreSQL (Database)")]
-    ECS -- "Push Notifications (WebSockets)" --> Pusher["Real-Time Notifications (Pusher)"]
-
-    subgraph Serverless_Ingestion ["Hạ tầng Serverless Batch Ingestion"]
-        Client -- "1. Upload Excel qua Presigned URL" --> S3Bucket["S3 Ingestion Bucket"]
-        S3Bucket -- "2. Object Created Event" --> EB["Amazon EventBridge"]
-        EB -- "3. Kích hoạt Workflow" --> SFN["AWS Step Functions (Orchestrator)"]
-        SFN -- "4. Gọi các Lambda xử lý độc lập" --> Lambdas["AWS Lambda Workers"]
-        Lambdas -- "5. Lưu trữ Staging / Commit" --> DB
-    end
-```
+![High-Level Architecture](docs/Serverless%20Ingestion-2026-06-04-074910.svg)
 
 ---
 
@@ -94,36 +70,7 @@ graph TD
 
 Đây là **điểm sáng kỹ thuật cốt lõi** của dự án. Hệ thống sử dụng mô hình **Human-in-the-Loop** thông qua tính năng `waitForTaskToken` của Step Functions. Luồng xử lý cụ thể như sau:
 
-```mermaid
-graph TD
-    Start([Start: File Uploaded to S3]) --> ValidateFileStructure["ValidateFileStructure<br/>(Task: Validator Lambda)"]
-
-    ValidateFileStructure --> CatchError1{Có lỗi hệ thống?}
-    CatchError1 -- "Yes (Lỗi cấu trúc file)" --> MarkJobFailed["MarkJobFailed<br/>(Task: Fail Handler Lambda)"]
-
-    CatchError1 -- "No" --> CheckIntegrity{"CheckIntegrity<br/>(Choice)"}
-    CheckIntegrity -- "isValid == false" --> MarkJobFailed
-    CheckIntegrity -- "isValid == true" --> ParseAndStageRows["ParseAndStageRows<br/>(Task: Parser Lambda)"]
-
-    ParseAndStageRows --> CatchError2{Có lỗi khi Parse?}
-    CatchError2 -- "Yes" --> MarkJobFailed
-
-    CatchError2 -- "No" --> HaltForUserApproval["HaltForUserApproval<br/>(Task: Register Token & Pause)"]
-
-    HaltForUserApproval --> RegisterToken["Register Token Lambda<br/>(Lưu Task Token & đổi status Job sang PREVIEW_READY)"]
-    RegisterToken --> WaitForConfirm["Execution Paused<br/>(Chờ Frontend gửi Confirm kèm Task Token)"]
-
-    WaitForConfirm -- "Nhận API Confirm (SendTaskSuccess)" --> CommitInventory["CommitInventory<br/>(Task: Writer Lambda)"]
-
-    CommitInventory --> CatchError3{Có lỗi khi Write DB?}
-    CatchError3 -- "Yes" --> MarkJobFailed
-
-    CommitInventory -- "Success (Ghi DB theo batches)" --> End([End: COMPLETED])
-    MarkJobFailed --> FailEnd([End: FAILED])
-
-    style HaltForUserApproval fill:#f9f,stroke:#333,stroke-width:2px
-    style WaitForConfirm fill:#bbf,stroke:#333,stroke-width:2px
-```
+![Step Functions State Machine Flow](docs/Serverless%20Ingestion-2026-06-04-074926.svg)
 
 #### Chi tiết Luồng Phê duyệt (Confirm/Cancel Workflow):
 
