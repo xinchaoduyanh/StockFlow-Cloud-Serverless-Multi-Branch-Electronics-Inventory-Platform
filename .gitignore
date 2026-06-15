@@ -14,3 +14,22 @@ coverage/
 .aws-sam/
 samconfig.toml
 out/
+.claude/
+
+# Terraform
+# (git KHÔNG hỗ trợ comment cùng dòng với pattern → mọi comment phải nằm trên dòng riêng)
+# thư mục cache provider plugins (nặng, tải lại được bằng terraform init)
+**/.terraform/
+# state = "sổ ghi nhớ" resource đã tạo, chứa cả secrets → KHÔNG commit
+*.tfstate
+*.tfstate.*
+# giá trị thật của variables (chứa secrets) → KHÔNG commit
+*.tfvars
+crash.log
+# LƯU Ý: .terraform.lock.hcl thì NÊN commit (khóa version provider cho cả team)
+
+infrastructure/terraform/*.tfstate
+infrastructure/terraform/*.tfstate.backup
+infrastructure/terraform/*.tfvars
+# zip code lambda Terraform sinh ra (~600MB), tạo lại bằng apply
+infrastructure/terraform/builds/

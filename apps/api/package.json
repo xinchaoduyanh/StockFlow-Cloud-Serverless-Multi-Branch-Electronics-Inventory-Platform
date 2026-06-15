@@ -45,10 +45,13 @@
     "@types/multer": "^2.1.0",
     "aws-jwt-verify": "^5.1.1",
     "exceljs": "^4.4.0",
+    "prisma": "^6.19.3",
     "pusher": "^5.3.3",
     "reflect-metadata": "latest",
     "rxjs": "latest",
     "swagger-ui-express": "^5.0.1",
+    "ts-node": "latest",
+    "typescript": "~5.9.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -60,13 +63,10 @@
     "@types/node": "latest",
     "@types/supertest": "latest",
     "jest": "latest",
-    "prisma": "^6.19.3",
     "source-map-support": "latest",
     "supertest": "latest",
     "ts-jest": "latest",
     "ts-loader": "latest",
-    "ts-node": "latest",
-    "tsconfig-paths": "latest",
-    "typescript": "~5.9.3"
+    "tsconfig-paths": "latest"
   }
 }

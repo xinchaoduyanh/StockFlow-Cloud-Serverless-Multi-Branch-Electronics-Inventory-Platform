@@ -84,6 +84,12 @@ COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=builder /app/apps/api/node_modules/.prisma ./apps/api/node_modules/.prisma
 COPY --from=builder /app/apps/api/node_modules/@prisma/client ./apps/api/node_modules/@prisma/client
 
+# Copy TS source + tsconfigs so one-off `ts-node prisma/seed.ts` works (seed.ts imports ../src/auth/password).
+# Only needed for the one-off DB seed task; harmless for the API runtime.
+COPY --from=builder /app/apps/api/src ./apps/api/src
+COPY --from=builder /app/apps/api/tsconfig.json ./apps/api/tsconfig.json
+COPY --from=builder /app/tsconfig.base.json ./tsconfig.base.json
+
 # Set working directory to the API folder
 WORKDIR /app/apps/api
 

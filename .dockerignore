@@ -13,7 +13,8 @@ dist/
 .env.local
 .env.*
 !.env.example
-**/prisma/migrations/
+# LƯU Ý: KHÔNG ignore prisma/migrations — cần trong image để chạy `prisma migrate deploy`
+# (one-off ECS task ở Phase 6 đổ bảng vào Aurora)
 
 # Git and Configs
 .git/
