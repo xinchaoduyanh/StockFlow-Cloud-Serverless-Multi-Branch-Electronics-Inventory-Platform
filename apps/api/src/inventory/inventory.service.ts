@@ -15,7 +15,7 @@ import { PrismaService } from "../database/prisma.service";
 export class InventoryService {
   constructor(private readonly prisma: PrismaService) {}
 
-  list(query: InventoryQuery): Promise<InventoryItem[]> {
+  async list(query: InventoryQuery): Promise<InventoryItem[]> {
     const { skip, take } = toPagination(query);
     const where: Prisma.InventoryWhereInput = {
       ...(query.branchId ? { branchId: query.branchId } : {}),
@@ -33,18 +33,53 @@ export class InventoryService {
     };
 
     if (query.lowStock) {
-      return this.prisma.inventory
-        .findMany({
-          where,
-          include: {
-            branch: true,
-            component: true,
-          },
-          orderBy: [{ branch: { code: "asc" } }, { component: { sku: "asc" } }],
-        })
-        .then((items) =>
-          items.filter((item) => item.quantity <= item.minStockThreshold).slice(skip, skip + take),
-        ) as any;
+      const filters = [
+        Prisma.sql`i.quantity - i.reserved_quantity <= i.min_stock_threshold`,
+        query.branchId ? Prisma.sql`i.branch_id = ${query.branchId}::uuid` : Prisma.sql`TRUE`,
+        query.category
+          ? Prisma.sql`c.category = ${query.category}::"ComponentCategory"`
+          : Prisma.sql`TRUE`,
+        query.search
+          ? Prisma.sql`(c.sku ILIKE ${`%${query.search}%`} OR c.name ILIKE ${`%${query.search}%`})`
+          : Prisma.sql`TRUE`,
+      ];
+      const lowStockKeys = await this.prisma.$queryRaw<
+        Array<{ branchId: string; componentId: string }>
+      >`
+        SELECT i.branch_id AS "branchId", i.component_id AS "componentId"
+        FROM inventory i
+        INNER JOIN components c ON c.id = i.component_id
+        INNER JOIN branches b ON b.id = i.branch_id
+        WHERE ${Prisma.join(filters, " AND ")}
+        ORDER BY b.code ASC, c.sku ASC
+        LIMIT ${take} OFFSET ${skip}
+      `;
+
+      if (!lowStockKeys.length) {
+        return [] as InventoryItem[];
+      }
+
+      const items = await this.prisma.inventory.findMany({
+        where: {
+          OR: lowStockKeys.map(({ branchId, componentId }) => ({ branchId, componentId })),
+        },
+        include: {
+          branch: true,
+          component: true,
+        },
+      });
+      const order = new Map(
+        lowStockKeys.map(({ branchId, componentId }, index) => [
+          `${branchId}:${componentId}`,
+          index,
+        ]),
+      );
+
+      return items.sort(
+        (left, right) =>
+          (order.get(`${left.branchId}:${left.componentId}`) ?? 0) -
+          (order.get(`${right.branchId}:${right.componentId}`) ?? 0),
+      ) as any;
     }
 
     return this.prisma.inventory.findMany({
@@ -102,6 +137,13 @@ export class InventoryService {
 
       if (nextQuantity < 0) {
         throw ApiErrors.badRequest("Inventory quantity cannot become negative");
+      }
+
+      if (existing && nextQuantity < existing.reservedQuantity) {
+        throw ApiErrors.badRequest("Inventory quantity cannot be below reserved quantity", {
+          reservedQuantity: existing.reservedQuantity,
+          nextQuantity,
+        });
       }
 
       const inventory = await tx.inventory.upsert({

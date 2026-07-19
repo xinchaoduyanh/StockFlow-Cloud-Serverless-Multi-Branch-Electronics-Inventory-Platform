@@ -1,7 +1,7 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { PrismaClient, ImportStatus, ImportRowStatus, Prisma } from "@prisma/client";
 import * as ExcelJS from "exceljs";
-import { importRowInputSchema } from "@stockflow/shared";
+import { importRowInputSchema, importRowIdempotencyKey } from "@stockflow/shared";
 
 const s3Client = new S3Client({});
 const prisma = new PrismaClient();
@@ -172,13 +172,14 @@ const handler = async (event: any) => {
           errorMessage,
           rawData: rowData as Prisma.InputJsonValue,
           normalizedData: finalNormalizedData as Prisma.InputJsonValue,
-          idempotencyKey: `${importJobId}-${row.number}`,
+          idempotencyKey: importRowIdempotencyKey(importJobId, row.number),
         });
 
         // Chunk insert to staging database
         if (rowsStaging.length >= CHUNK_SIZE) {
           await prisma.importJobRow.createMany({
             data: rowsStaging.slice(),
+            skipDuplicates: true,
           });
           rowsStaging.length = 0;
         }
@@ -190,6 +191,7 @@ const handler = async (event: any) => {
     if (rowsStaging.length > 0) {
       await prisma.importJobRow.createMany({
         data: rowsStaging,
+        skipDuplicates: true,
       });
     }
 

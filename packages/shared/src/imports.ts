@@ -2,6 +2,10 @@ import { z } from "zod";
 import { ComponentCategory } from "./index";
 import { paginationQuerySchema } from "./reconciliation";
 
+export function importRowIdempotencyKey(importJobId: string, rowNumber: number): string {
+  return `${importJobId}:${rowNumber}`;
+}
+
 export const importRowInputSchema = z
   .object({
     sku: z.string().trim().min(1),

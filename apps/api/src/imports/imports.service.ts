@@ -7,9 +7,9 @@ import {
   InitImportBody,
   StartImportBody,
   PresignedPostRequest,
+  importRowIdempotencyKey,
 } from "@stockflow/shared";
-import { createHash } from "node:crypto";
-import { Injectable, OnModuleInit } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { SFNClient, SendTaskSuccessCommand } from "@aws-sdk/client-sfn";
 import { ImportRowStatus, ImportStatus, Prisma, StockMovementType } from "@prisma/client";
 import ExcelJS from "exceljs";
@@ -28,133 +28,11 @@ type PreparedImportRow = {
 };
 
 @Injectable()
-export class ImportsService implements OnModuleInit {
-  private lastCleanupTime = 0;
-
+export class ImportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly s3Service: S3Service,
   ) {}
-
-  onModuleInit() {
-    this.runPollingLoop();
-  }
-
-  private async runPollingLoop() {
-    let nextDelay = 10000;
-
-    try {
-      // Trigger cleanup check at most once every 1 minute to save DB performance
-      if (Date.now() - this.lastCleanupTime > 60000) {
-        this.lastCleanupTime = Date.now();
-        await this.cleanupStuckJobs().catch((err) => {
-          console.error("[Import-Cleanup] Error during stuck jobs cleanup:", err);
-        });
-      }
-
-      // 1. Check if there are any jobs currently in-progress
-      const activeJobsCount = await this.prisma.importJob.count({
-        where: {
-          status: {
-            in: [ImportStatus.UPLOADED, ImportStatus.VALIDATING, ImportStatus.PREVIEW_READY],
-          },
-        },
-      });
-
-      if (activeJobsCount > 0) {
-        // Active job in progress! Poll fast (1 second) to auto-approve instantly
-        await this.autoApprovePendingJobs();
-        nextDelay = 1000;
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error("[Auto-Approve] Polling loop error:", msg);
-    } finally {
-      // Schedule the next execution recursively
-      setTimeout(() => {
-        this.runPollingLoop();
-      }, nextDelay);
-    }
-  }
-
-  private async autoApprovePendingJobs() {
-    const pendingJobs = await this.prisma.importJob.findMany({
-      where: {
-        status: ImportStatus.PREVIEW_READY,
-        awsTaskToken: { not: null },
-      },
-    });
-
-    for (const job of pendingJobs) {
-      console.log(`[Auto-Approve] Triggering auto-confirm for Job ${job.id}`);
-      await this.confirm(job.id).catch(async (err) => {
-        console.error(`[Auto-Approve] Failed to auto-confirm Job ${job.id}:`, err.message);
-
-        // If the task token is expired, invalid or the execution is already terminated, clear the token so we don't loop endlessly
-        const msg = (err.message || "").toLowerCase();
-        if (
-          msg.includes("does not exist") ||
-          msg.includes("invalid token") ||
-          msg.includes("timed out") ||
-          err.name === "TaskDoesNotExist" ||
-          err.name === "InvalidToken"
-        ) {
-          console.log(`[Auto-Approve] Clearing invalid/expired token for Job ${job.id}`);
-          await this.prisma.importJob.update({
-            where: { id: job.id },
-            data: { awsTaskToken: null },
-          });
-        }
-      });
-    }
-  }
-
-  private async cleanupStuckJobs(): Promise<void> {
-    const now = new Date();
-    const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
-    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-    // 1. Clean up active processing jobs that are stuck (> 30 mins)
-    const stuckJobs = await this.prisma.importJob.updateMany({
-      where: {
-        status: {
-          in: [
-            ImportStatus.PARSING,
-            ImportStatus.VALIDATING,
-            ImportStatus.CONFIRMING,
-            ImportStatus.COMMITTING,
-          ],
-        },
-        updatedAt: { lt: thirtyMinutesAgo },
-      },
-      data: {
-        status: ImportStatus.FAILED,
-        errorMessage: "Import job timed out during processing (exceeded 30 minutes limit).",
-      },
-    });
-
-    if (stuckJobs.count > 0) {
-      console.log(`[Import-Cleanup] Marked ${stuckJobs.count} stuck processing jobs as FAILED.`);
-    }
-
-    // 2. Clean up inactive jobs that have expired (> 24 hours)
-    const expiredJobs = await this.prisma.importJob.updateMany({
-      where: {
-        status: {
-          in: [ImportStatus.UPLOADED, ImportStatus.PREVIEW_READY],
-        },
-        updatedAt: { lt: twentyFourHoursAgo },
-      },
-      data: {
-        status: ImportStatus.CANCELLED,
-        errorMessage: "Import job expired after 24 hours of inactivity.",
-      },
-    });
-
-    if (expiredJobs.count > 0) {
-      console.log(`[Import-Cleanup] Marked ${expiredJobs.count} expired/stale jobs as CANCELLED.`);
-    }
-  }
 
   async getPresignedPost(input: PresignedPostRequest, actorId?: string) {
     const job = await this.prisma.importJob.create({
@@ -370,15 +248,28 @@ export class ImportsService implements OnModuleInit {
       }
     }
 
-    const rows = await this.prisma.importJobRow.findMany({
-      where: {
-        importJobId: id,
-        validationStatus: ImportRowStatus.VALID,
-      },
-      orderBy: { rowNumber: "asc" },
-    });
-
     const result = await this.prisma.$transaction(async (tx) => {
+      const claimedJob = await tx.importJob.updateMany({
+        where: {
+          id,
+          status: ImportStatus.PREVIEW_READY,
+          awsTaskToken: null,
+        },
+        data: { status: ImportStatus.COMMITTING },
+      });
+
+      if (claimedJob.count !== 1) {
+        throw ApiErrors.conflict("Import job is already being processed");
+      }
+
+      const rows = await tx.importJobRow.findMany({
+        where: {
+          importJobId: id,
+          validationStatus: ImportRowStatus.VALID,
+        },
+        orderBy: { rowNumber: "asc" },
+      });
+
       let committedRows = 0;
 
       for (const row of rows) {
@@ -507,8 +398,9 @@ export class ImportsService implements OnModuleInit {
         normalizedData: row.normalizedData,
         validationStatus: row.validationStatus,
         errorMessage: row.errorMessage,
-        idempotencyKey: this.idempotencyKey(importJobId, row.rowNumber, row.sku || "missing-sku"),
+        idempotencyKey: importRowIdempotencyKey(importJobId, row.rowNumber),
       })),
+      skipDuplicates: true,
     });
   }
 
@@ -681,11 +573,46 @@ export class ImportsService implements OnModuleInit {
       throw ApiErrors.notFound("Import job not found");
     }
 
-    return job;
+    return this.recoverStaleJob(job);
   }
 
-  private idempotencyKey(importJobId: string, rowNumber: number, sku: string) {
-    return createHash("sha256").update(`${importJobId}:${rowNumber}:${sku}`).digest("hex");
+  private async recoverStaleJob<T extends { id: string; status: ImportStatus; updatedAt: Date }>(
+    job: T,
+  ) {
+    if (!(job.updatedAt instanceof Date)) {
+      return job;
+    }
+
+    const ageMs = Date.now() - job.updatedAt.getTime();
+    const processingStatuses: ImportStatus[] = [
+      ImportStatus.PARSING,
+      ImportStatus.VALIDATING,
+      ImportStatus.CONFIRMING,
+      ImportStatus.COMMITTING,
+    ];
+    const inactiveStatuses: ImportStatus[] = [ImportStatus.UPLOADED, ImportStatus.PREVIEW_READY];
+
+    if (processingStatuses.includes(job.status) && ageMs > 30 * 60 * 1000) {
+      return this.prisma.importJob.update({
+        where: { id: job.id },
+        data: {
+          status: ImportStatus.FAILED,
+          errorMessage: "Import job timed out during processing (exceeded 30 minutes limit).",
+        },
+      });
+    }
+
+    if (inactiveStatuses.includes(job.status) && ageMs > 24 * 60 * 60 * 1000) {
+      return this.prisma.importJob.update({
+        where: { id: job.id },
+        data: {
+          status: ImportStatus.CANCELLED,
+          errorMessage: "Import job expired after 24 hours of inactivity.",
+        },
+      });
+    }
+
+    return job;
   }
 
   private toSpecs(row: ImportRowInput) {

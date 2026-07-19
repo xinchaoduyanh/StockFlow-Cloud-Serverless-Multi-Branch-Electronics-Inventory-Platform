@@ -102,38 +102,41 @@ export class TransfersService {
 
   async create(input: CreateTransferBody, actorId?: string): Promise<TransferDTO> {
     return this.prisma.$transaction(async (tx) => {
-      for (const item of input.items) {
-        const inventory = await tx.inventory.findUnique({
-          where: {
-            branchId_componentId: {
-              branchId: input.fromBranchId,
-              componentId: item.componentId,
+      const itemsByLockOrder = [...input.items].sort((left, right) =>
+        left.componentId.localeCompare(right.componentId),
+      );
+
+      for (const item of itemsByLockOrder) {
+        // The stock check and reservation must be one database operation. A read followed by
+        // an increment allows two concurrent transfers to observe the same available quantity.
+        const reserved = await tx.$executeRaw`
+          UPDATE "inventory"
+          SET
+            "reserved_quantity" = "reserved_quantity" + ${item.quantity},
+            "version" = "version" + 1,
+            "updated_at" = CURRENT_TIMESTAMP
+          WHERE "branch_id" = ${input.fromBranchId}::uuid
+            AND "component_id" = ${item.componentId}::uuid
+            AND "quantity" - "reserved_quantity" >= ${item.quantity}
+        `;
+
+        if (reserved !== 1) {
+          const inventory = await tx.inventory.findUnique({
+            where: {
+              branchId_componentId: {
+                branchId: input.fromBranchId,
+                componentId: item.componentId,
+              },
             },
-          },
-        });
+          });
+          const available = (inventory?.quantity ?? 0) - (inventory?.reservedQuantity ?? 0);
 
-        const available = (inventory?.quantity ?? 0) - (inventory?.reservedQuantity ?? 0);
-
-        if (available < item.quantity) {
           throw ApiErrors.badRequest("Insufficient available stock", {
             componentId: item.componentId,
             available,
             requested: item.quantity,
           });
         }
-
-        await tx.inventory.update({
-          where: {
-            branchId_componentId: {
-              branchId: input.fromBranchId,
-              componentId: item.componentId,
-            },
-          },
-          data: {
-            reservedQuantity: { increment: item.quantity },
-            version: { increment: 1 },
-          },
-        });
       }
 
       const transfer = await tx.transfer.create({

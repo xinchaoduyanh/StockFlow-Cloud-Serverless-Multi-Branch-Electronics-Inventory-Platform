@@ -84,9 +84,25 @@ const handler = async (event: any) => {
       );
 
       try {
-        await prisma.$transaction(
+        const committedInChunk = await prisma.$transaction(
           async (tx) => {
+            let committed = 0;
+
             for (const row of chunk) {
+              // Claim the staged row first. A duplicate writer invocation will wait on this
+              // conditional update and then observe count=0, so it cannot add stock twice.
+              const claimed = await tx.importJobRow.updateMany({
+                where: { id: row.id, validationStatus: ImportRowStatus.VALID },
+                data: {
+                  validationStatus: ImportRowStatus.COMMITTED,
+                  processedAt: new Date(),
+                },
+              });
+
+              if (claimed.count === 0) {
+                continue;
+              }
+
               const data = row.normalizedData as any;
 
               // Upsert the core component record
@@ -145,22 +161,17 @@ const handler = async (event: any) => {
                 },
               });
 
-              // Update staged row state to COMMITTED
-              await tx.importJobRow.update({
-                where: { id: row.id },
-                data: {
-                  validationStatus: ImportRowStatus.COMMITTED,
-                  processedAt: new Date(),
-                },
-              });
+              committed += 1;
             }
+
+            return committed;
           },
           {
             timeout: 20000, // 20s timeout limit to protect Neon pgBouncer pool
           },
         );
 
-        committedRows += chunk.length;
+        committedRows += committedInChunk;
         console.log(`Successfully committed chunk. Progressive total: ${committedRows}`);
       } catch (chunkErr: any) {
         console.error(`Chunk transaction failed: ${chunkErr.message}`);
@@ -168,7 +179,10 @@ const handler = async (event: any) => {
         // Mark only the failed rows in this chunk as FAILED so remaining batches aren't locked out
         const chunkIds = chunk.map((r) => r.id);
         await prisma.importJobRow.updateMany({
-          where: { id: { in: chunkIds } },
+          where: {
+            id: { in: chunkIds },
+            validationStatus: ImportRowStatus.VALID,
+          },
           data: {
             validationStatus: ImportRowStatus.FAILED,
             errorMessage: `Transaction failed: ${chunkErr.message}`,
@@ -184,10 +198,18 @@ const handler = async (event: any) => {
     }
 
     // 5. Finalize Parent Job Status
+    const [committedTotal, failedTotal] = await Promise.all([
+      prisma.importJobRow.count({
+        where: { importJobId, validationStatus: ImportRowStatus.COMMITTED },
+      }),
+      prisma.importJobRow.count({
+        where: { importJobId, validationStatus: ImportRowStatus.FAILED },
+      }),
+    ]);
     const finalStatus =
-      committedRows === stagedRows.length
+      failedTotal === 0
         ? ImportStatus.COMPLETED
-        : committedRows > 0
+        : committedTotal > 0
           ? ImportStatus.PARTIAL_FAILED
           : ImportStatus.FAILED;
 
@@ -196,10 +218,11 @@ const handler = async (event: any) => {
       data: {
         status: finalStatus,
         completedAt: new Date(),
+        committedRows: committedTotal,
       },
     });
 
-    console.log(`Job finishing with status: ${finalStatus}. Total committed: ${committedRows}`);
+    console.log(`Job finishing with status: ${finalStatus}. Total committed: ${committedTotal}`);
 
     // Trigger Success/Partial Success email and In-app alert notification
     try {
@@ -215,7 +238,7 @@ const handler = async (event: any) => {
             finalStatus === ImportStatus.COMPLETED
               ? "Inventory Import Succeeded"
               : "Inventory Import Success with Warnings",
-          message: `Spreadsheet '${updatedJob.fileName}' processed. Committed ${committedRows} items.`,
+          message: `Spreadsheet '${updatedJob.fileName}' processed. Committed ${committedTotal} items.`,
           type: "IMPORT_SUCCESS",
           metadata: {
             jobId: updatedJob.id,
@@ -224,7 +247,7 @@ const handler = async (event: any) => {
             totalRows: updatedJob.totalRows,
             validRows: updatedJob.validRows,
             invalidRows: updatedJob.invalidRows,
-            committedRows: committedRows,
+            committedRows: committedTotal,
           },
         });
       }
@@ -235,7 +258,7 @@ const handler = async (event: any) => {
     return {
       status: finalStatus,
       importJobId,
-      committedRows,
+      committedRows: committedTotal,
     };
   } catch (err: any) {
     console.error("Critical writer execution exception:", err);

@@ -202,6 +202,7 @@ model ImportJobRow {
   importJob ImportJob @relation(fields: [importJobId], references: [id])
 
   @@index([importJobId])
+  @@unique([importJobId, rowNumber])
   @@map("import_job_rows")
 }
 

@@ -1,6 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
-import { NotificationType, ImportSuccessEmail, ImportFailureEmail } from "@stockflow/shared";
+import {
+  NotificationType,
+  ImportSuccessEmail,
+  ImportFailureEmail,
+  ReconciliationAlertEmail,
+} from "@stockflow/shared";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -39,6 +44,8 @@ export class EmailService {
         htmlContent = ImportSuccessEmail(props as any);
       } else if (type === NotificationType.IMPORT_FAILED) {
         htmlContent = ImportFailureEmail(props as any);
+      } else if (type === NotificationType.RECONCILIATION_ALERT) {
+        htmlContent = ReconciliationAlertEmail(props as any);
       } else {
         throw new Error(`Unsupported notification template type: ${type}`);
       }
@@ -79,6 +86,9 @@ export class EmailService {
     } else {
       // Local Development: Write to file and log to console for instant developer preview
       try {
+        if (!fs.existsSync(this.tempEmailsDir)) {
+          fs.mkdirSync(this.tempEmailsDir, { recursive: true });
+        }
         const fileName = `${Date.now()}-${type.toLowerCase()}.html`;
         const filePath = path.join(this.tempEmailsDir, fileName);
         fs.writeFileSync(filePath, htmlContent, "utf8");

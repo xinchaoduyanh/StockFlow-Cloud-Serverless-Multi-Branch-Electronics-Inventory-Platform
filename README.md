@@ -41,15 +41,15 @@
 - **Phát hiện sai lệch**: Một Lambda Cron Job được lập lịch chạy hằng đêm, quét và so khớp dữ liệu tồn kho hiện thời (`inventory.quantity`) với tổng lịch sử biến động trong Ledger (`stock_movements`).
 - **Quản lý sự cố đối soát**: Khi phát hiện chênh lệch, hệ thống tự động sinh `Reconciliation Issue` cảnh báo và lưu lại báo cáo đối soát để Admin kiểm tra và xử lý.
 
-### 5. Quản trị lỗi chủ động với Bảng điều khiển DLQ (Dead Letter Queue Replay)
+### 5. Quản trị lỗi import với bảng điều khiển recovery
 
-- **Giám sát thông tin lỗi**: Các công việc import bị lỗi hệ thống nghiêm trọng sẽ rơi vào SQS DLQ.
-- **Bảng điều khiển Replay**: Admin có giao diện riêng để xem nội dung message lỗi trong DLQ, quyết định hủy bỏ (Discard) hoặc phát lại (Replay) tác vụ một cách an toàn nhờ tính năng Idempotency.
+- **Giám sát thông tin lỗi hiện tại**: Các job import `FAILED` hoặc `PARTIAL_FAILED` được lưu trong PostgreSQL và hiển thị trên bảng điều khiển recovery.
+- **Replay/Discard hiện tại**: Admin thao tác trên bản ghi job; replay được gửi trực tiếp tới Lambda khi đã cấu hình ARN. SQS DLQ và redrive policy là hạng mục FR-3, chưa phải capability đang chạy.
 
 ### 6. Xuất Báo cáo Bất đồng bộ (Async Report Generation)
 
 - **Tải báo cáo dung lượng lớn**: Hỗ trợ xuất dữ liệu báo cáo tồn kho, lịch sử chuyển kho, xuất báo cáo tồn thấp ra Excel/CSV.
-- **Xử lý ngầm**: Yêu cầu được đẩy vào SQS queue, xử lý qua Report Lambda, lưu file vào S3 và gửi link tải qua Presigned URL bảo mật tới Frontend.
+- **Xử lý ngầm hiện tại**: API tạo `ExportJob` rồi invoke Report Lambda bất đồng bộ; Lambda lưu file vào S3 và frontend nhận Presigned URL. Việc chuyển sang SQS queue + DLQ nằm trong FR-3.
 
 ### 7. Tích hợp Real-time Notifications & Enterprise Authentication
 
@@ -76,7 +76,7 @@
 
 1. Khi file được tải lên S3, EventBridge kích hoạt State Machine.
 2. **Validator Lambda** kiểm tra định dạng MIME, kiểm tra tiêu đề các cột (headers) có đúng chuẩn template.
-3. **Parser Lambda** đọc dữ liệu Excel dạng stream (tiết kiệm bộ nhớ), validate dữ liệu từng dòng rồi ghi vào bảng tạm `import_job_rows` đồng thời tạo mã hash để tránh trùng lặp.
+3. **Parser Lambda** đọc dữ liệu Excel dạng stream (tiết kiệm bộ nhớ), validate dữ liệu từng dòng rồi ghi vào bảng tạm `import_job_rows` với idempotency key ổn định theo `importJobId:rowNumber`.
 4. **HaltForUserApproval**: State Machine gọi Lambda `ImportApprovalTokenRegisterFunction` để lưu `taskToken` (mã giao dịch Step Functions) vào Database ứng với `importJobId` rồi **tạm dừng (Pause)**.
 5. Người dùng xem bảng Preview hiển thị trên frontend. Nếu dữ liệu ổn, người dùng bấm nút **Xác nhận nhập kho (Confirm)**.
 6. API Backend nhận yêu cầu Confirm, đọc `taskToken` trong DB ra và gửi tín hiệu `SendTaskSuccess` lên Step Functions.
@@ -197,29 +197,30 @@ Frontend Next.js (`apps/web`) được build ở dạng static export để host
 
 ### 1. Đảm bảo Idempotency (Tránh ghi đè kho trùng lặp)
 
-Khi một tác vụ Lambda Writer thực hiện ghi dữ liệu từ file Excel vào Database, nếu kết nối mạng lỗi giữa chừng, SQS sẽ tự động retry gửi lại message xử lý. Để tránh việc hàng hóa bị cộng dồn hai lần, hệ thống sử dụng thuật toán Hash:
+Khi Step Functions hoặc Lambda retry Writer sau lỗi tạm thời, cùng một dòng có thể được giao lại. Để tránh việc hàng hóa bị cộng dồn hai lần, hệ thống sử dụng một idempotency key ổn định theo import job và số dòng:
 
 ```text
-idempotency_key = SHA256(import_job_id + row_number + sku)
+idempotency_key = import_job_id + ":" + row_number
 ```
 
-Trước khi ghi dòng dữ liệu vào database, hệ thống sẽ thực hiện kiểm tra `idempotency_key` đã tồn tại trong DB chưa. Nếu đã có, hệ thống lập tức bỏ qua (Skip) dòng này và chuyển sang dòng tiếp theo.
+`import_job_rows.idempotency_key` có unique constraint. Parser dùng `skipDuplicates`, còn Writer claim row bằng
+`UPDATE ... WHERE validation_status = 'VALID'` trước khi cộng kho; vì vậy retry hoặc event trùng không cộng
+inventory hai lần.
 
-### 2. Ngăn ngừa Xung đột bằng Optimistic Locking (Khóa lạc quan)
+### 2. Ngăn ngừa oversell bằng Conditional Reservation
 
-Khi nhiều store manager hoặc thủ kho thao tác cùng lúc trên một mặt hàng linh kiện tại cùng một chi nhánh (ví dụ: duyệt chuyển kho đồng thời), hệ thống sử dụng cơ chế Khóa lạc quan thông qua cột `version` trong bảng `inventory`:
+Khi hai yêu cầu tạo chuyển kho cùng lúc, hệ thống dùng một conditional update atomic trên PostgreSQL:
 
 ```sql
 UPDATE inventory
-SET quantity = quantity - $requested_qty,
+SET reserved_quantity = reserved_quantity + $requested_qty,
     version = version + 1
 WHERE branch_id = $branch_id
   AND component_id = $component_id
-  AND quantity >= $requested_qty
-  AND version = $current_version;
+  AND quantity - reserved_quantity >= $requested_qty;
 ```
 
-Nếu hàng số lượng đã bị thay đổi bởi giao dịch trước đó, số dòng bị ảnh hưởng (`affected rows`) trả về sẽ là `0`. Hệ thống nhận biết điều này, lập tức huỷ giao dịch hiện thời (Rollback) và thông báo lỗi tới Client để người dùng thử lại.
+PostgreSQL khóa row trong lúc update; request thứ hai nhận `affected rows = 0` khi phần tồn khả dụng không còn đủ và transaction được rollback.
 
 ### 3. Tối ưu hóa Kết nối PostgreSQL trong môi trường Serverless
 
