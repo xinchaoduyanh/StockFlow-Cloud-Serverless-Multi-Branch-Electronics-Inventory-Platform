@@ -10,18 +10,25 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
+  ForbiddenException,
+  BadRequestException,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { NotificationsService } from "./notifications.service";
 import { JwtAuthGuard, AuthenticatedRequest } from "../auth/jwt-auth.guard";
-import { NotificationType } from "@stockflow/shared";
+import { notificationCallbackPayloadSchema, NotificationType } from "@stockflow/shared";
+import { EnvService } from "../config/env.service";
+import { isAllowedSnsSubscriptionUrl, verifySnsEnvelope } from "./sns-verification";
 
 @ApiTags("notifications")
 @Controller("notifications")
 export class NotificationsController {
   private readonly logger = new Logger(NotificationsController.name);
 
-  constructor(private readonly notificationsService: NotificationsService) {}
+  constructor(
+    private readonly notificationsService: NotificationsService,
+    private readonly env: EnvService,
+  ) {}
 
   @ApiOperation({ summary: "Get all in-app notifications for the logged-in user." })
   @ApiBearerAuth()
@@ -52,32 +59,56 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   @Post("sns-callback")
   async handleSnsCallback(@Body() body: any) {
+    const isLocal =
+      this.env.get("NODE_ENV") !== "production" && this.env.get("SNS_CALLBACK_ALLOW_LOCAL");
+    const isSnsEnvelope =
+      body?.Type === "Notification" || body?.Type === "SubscriptionConfirmation";
+    if (isSnsEnvelope) {
+      const region = this.env.get("AWS_REGION");
+      const topicArn = this.env.get("NOTIFICATION_SNS_TOPIC_ARN");
+      if (!topicArn || body.TopicArn !== topicArn || !(await verifySnsEnvelope(body, region))) {
+        throw new ForbiddenException("Invalid SNS signature or topic");
+      }
+    } else if (!isLocal) {
+      throw new ForbiddenException("Direct notification payloads are disabled");
+    }
+
     // 1. AWS SNS Subscription Confirmation Challenge
     if (body.Type === "SubscriptionConfirmation") {
       const subscribeUrl = body.SubscribeURL;
       this.logger.log(`SNS Subscription Confirmation request received. URL: ${subscribeUrl}`);
-      if (subscribeUrl) {
-        await fetch(subscribeUrl);
-        this.logger.log("SNS Subscription successfully confirmed.");
+      if (!subscribeUrl || !isAllowedSnsSubscriptionUrl(subscribeUrl, this.env.get("AWS_REGION")))
+        throw new BadRequestException("Invalid SNS confirmation URL");
+      const confirmation = await fetch(subscribeUrl, {
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!confirmation.ok) {
+        throw new Error(`SNS confirmation failed with status ${confirmation.status}`);
       }
+      this.logger.log("SNS Subscription successfully confirmed.");
       return { status: "CONFIRMED" };
     }
 
     // 2. AWS SNS Notification message processing
     if (body.Type === "Notification") {
       try {
-        const payload = JSON.parse(body.Message);
-        await this.notificationsService.createNotification(payload);
+        const payload = notificationCallbackPayloadSchema.parse(JSON.parse(body.Message));
+        await this.notificationsService.createNotification({
+          ...payload,
+          sourceMessageId: body.MessageId,
+        });
         return { status: "PROCESSED" };
       } catch (err: any) {
         this.logger.error(`Failed to process SNS callback: ${err.message}`, err.stack);
-        return { status: "FAILED", error: err.message };
+        throw err;
       }
     }
 
     // 3. Fallback: Direct Local JSON post (for local mock sam pipelines)
     try {
-      await this.notificationsService.createNotification(body);
+      await this.notificationsService.createNotification(
+        notificationCallbackPayloadSchema.parse(body),
+      );
       return { status: "PROCESSED_DIRECT" };
     } catch (err: any) {
       this.logger.error(

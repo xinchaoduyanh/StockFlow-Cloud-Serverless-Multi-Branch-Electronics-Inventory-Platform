@@ -9,7 +9,7 @@ const handler = async (event: any) => {
 
   if (!importJobId || !taskToken) {
     console.error("Missing required importJobId or taskToken payload.");
-    return { success: false, error: "Missing required parameters" };
+    throw new Error("Missing required parameters");
   }
 
   try {
@@ -30,10 +30,7 @@ const handler = async (event: any) => {
     };
   } catch (err: any) {
     console.error("Failed to register task token:", err);
-    return {
-      success: false,
-      error: err.message,
-    };
+    throw err;
   } finally {
     await prisma.$disconnect();
   }

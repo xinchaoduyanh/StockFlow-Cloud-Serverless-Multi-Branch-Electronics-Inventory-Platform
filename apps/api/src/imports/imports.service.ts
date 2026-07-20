@@ -33,11 +33,11 @@ export class ImportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly s3Service: S3Service,
-    private readonly authorization?: AuthorizationPolicyService,
+    private readonly authorization: AuthorizationPolicyService,
   ) {}
 
   async getPresignedPost(input: PresignedPostRequest, actorId?: string, actor?: PolicyActor) {
-    if (actor) this.authorization?.assertCanWriteImport(actor, input.branchId);
+    if (actor) this.authorization.assertCanWriteImport(actor, input.branchId);
     const job = await this.prisma.importJob.create({
       data: {
         branchId: input.branchId,
@@ -75,7 +75,7 @@ export class ImportsService {
   }
 
   async init(input: InitImportBody, actorId?: string, actor?: PolicyActor) {
-    if (actor) this.authorization?.assertCanWriteImport(actor, input.branchId);
+    if (actor) this.authorization.assertCanWriteImport(actor, input.branchId);
     const preparedRows = this.prepareRows(input.rows ?? []);
     const job = await this.prisma.importJob.create({
       data: {
@@ -106,7 +106,7 @@ export class ImportsService {
     actorId?: string,
     actor?: PolicyActor,
   ) {
-    if (actor) this.authorization?.assertCanWriteImport(actor, branchId);
+    if (actor) this.authorization.assertCanWriteImport(actor, branchId);
     if (!file) {
       throw ApiErrors.badRequest("Excel file is required");
     }
@@ -164,14 +164,14 @@ export class ImportsService {
     if (!job) {
       throw ApiErrors.notFound("Import job not found");
     }
-    if (actor) this.authorization?.assertCanReadImport(actor, job.branchId);
+    if (actor) this.authorization.assertCanReadImport(actor, job.branchId);
 
     return job;
   }
 
   async start(id: string, input: StartImportBody, actor?: PolicyActor) {
     const job = await this.assertJob(id, actor);
-    if (actor) this.authorization?.assertCanWriteImport(actor, job.branchId);
+    if (actor) this.authorization.assertCanWriteImport(actor, job.branchId);
     const preparedRows = this.prepareRows(input.rows);
     const validRows = preparedRows.filter(
       (row) => row.validationStatus === ImportRowStatus.VALID,
@@ -229,7 +229,7 @@ export class ImportsService {
 
   async confirm(id: string, actorId?: string, actor?: PolicyActor) {
     const job = await this.assertJob(id, actor);
-    if (actor) this.authorization?.assertCanWriteImport(actor, job.branchId);
+    if (actor) this.authorization.assertCanWriteImport(actor, job.branchId);
 
     if (job.status !== ImportStatus.PREVIEW_READY) {
       throw ApiErrors.badRequest("Import job is not ready to confirm");
@@ -369,7 +369,7 @@ export class ImportsService {
 
   async cancel(id: string, actor?: PolicyActor) {
     const job = await this.assertJob(id, actor);
-    if (actor) this.authorization?.assertCanWriteImport(actor, job.branchId);
+    if (actor) this.authorization.assertCanWriteImport(actor, job.branchId);
 
     if (job.awsTaskToken) {
       const sfnClient = new SFNClient({});
@@ -589,57 +589,18 @@ export class ImportsService {
     if (!job) {
       throw ApiErrors.notFound("Import job not found");
     }
-    if (actor) this.authorization?.assertCanReadImport(actor, job.branchId);
+    if (actor) this.authorization.assertCanReadImport(actor, job.branchId);
 
-    return this.recoverStaleJob(job);
+    return job;
   }
 
   private scopeBranchId(branchId: string | undefined, actor?: PolicyActor) {
     if (!actor || actor.role === "ADMIN") return branchId;
-    if (branchId) this.authorization?.assertCanReadImport(actor, branchId);
+    if (branchId) this.authorization.assertCanReadImport(actor, branchId);
     if (!actor.branchId) {
-      this.authorization?.assertCanReadImport(actor, "__forbidden__");
+      this.authorization.assertCanReadImport(actor, "__forbidden__");
     }
     return actor.branchId ?? "__forbidden__";
-  }
-
-  private async recoverStaleJob<T extends { id: string; status: ImportStatus; updatedAt: Date }>(
-    job: T,
-  ) {
-    if (!(job.updatedAt instanceof Date)) {
-      return job;
-    }
-
-    const ageMs = Date.now() - job.updatedAt.getTime();
-    const processingStatuses: ImportStatus[] = [
-      ImportStatus.PARSING,
-      ImportStatus.VALIDATING,
-      ImportStatus.CONFIRMING,
-      ImportStatus.COMMITTING,
-    ];
-    const inactiveStatuses: ImportStatus[] = [ImportStatus.UPLOADED, ImportStatus.PREVIEW_READY];
-
-    if (processingStatuses.includes(job.status) && ageMs > 30 * 60 * 1000) {
-      return this.prisma.importJob.update({
-        where: { id: job.id },
-        data: {
-          status: ImportStatus.FAILED,
-          errorMessage: "Import job timed out during processing (exceeded 30 minutes limit).",
-        },
-      });
-    }
-
-    if (inactiveStatuses.includes(job.status) && ageMs > 24 * 60 * 60 * 1000) {
-      return this.prisma.importJob.update({
-        where: { id: job.id },
-        data: {
-          status: ImportStatus.CANCELLED,
-          errorMessage: "Import job expired after 24 hours of inactivity.",
-        },
-      });
-    }
-
-    return job;
   }
 
   private toSpecs(row: ImportRowInput) {

@@ -10,6 +10,13 @@
 - No `.github/workflows` files exist.
 - Terraform CLI was not installed in the scout environment, so Terraform findings are static until Phase 2.
 
+## E3 implementation addendum — 2026-07-20
+
+- Terraform v1.15.5 was made available in a temporary path for read-only `fmt`, `validate`, and `plan` checks.
+- AWS identity is account `186818869522` / user `stockflowcloud`; `stockflow-pipeline` is absent and no stockflow serverless resources were found.
+- The deployable SAM template and old direct replay Lambda were removed. Terraform plan output is retained outside the repository at `/tmp/stockflow-e3.tfplan`.
+- Local code/IaC gates pass; cloud smoke acceptance remains pending an explicit apply checkpoint.
+
 ## Baseline evidence
 
 - `npm test -- --runInBand`: 8 suites passed, 1 skipped; 24 tests passed, 4 skipped.

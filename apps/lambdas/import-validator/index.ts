@@ -52,6 +52,13 @@ const handler = async (event: any) => {
       return { isValid: false, error: "Import job not found" };
     }
 
+    if (event.executionArn) {
+      await prisma.importJob.update({
+        where: { id: jobId },
+        data: { executionArn: event.executionArn },
+      });
+    }
+
     if (size > 20971520) {
       const errMsg = "File exceeds maximum size limit of 20MB.";
       console.error(errMsg);
@@ -124,10 +131,7 @@ const handler = async (event: any) => {
     };
   } catch (err: any) {
     console.error("Validation exception:", err);
-    return {
-      isValid: false,
-      error: err.message,
-    };
+    throw err;
   } finally {
     await prisma.$disconnect();
   }

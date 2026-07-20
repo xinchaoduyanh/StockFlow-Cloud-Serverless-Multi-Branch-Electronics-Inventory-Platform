@@ -1,5 +1,6 @@
 import { TransfersService } from "./transfers.service";
 import { PrismaService } from "../database/prisma.service";
+import { AuthorizationPolicyService } from "../auth/authorization-policy.service";
 
 const input = {
   fromBranchId: "11111111-1111-4111-8111-111111111111",
@@ -13,6 +14,8 @@ const input = {
 };
 
 describe("TransfersService reservation", () => {
+  const authorization = new AuthorizationPolicyService();
+
   it("uses a conditional SQL update for the reservation", async () => {
     const executeRaw = jest.fn().mockResolvedValue(1);
     const transferCreate = jest.fn().mockResolvedValue({ id: "transfer-1" });
@@ -26,7 +29,7 @@ describe("TransfersService reservation", () => {
       $transaction: jest.fn((callback: (client: typeof tx) => unknown) => callback(tx)),
     } as unknown as PrismaService;
 
-    await new TransfersService(prisma).create(input);
+    await new TransfersService(prisma, authorization).create(input);
 
     expect(executeRaw).toHaveBeenCalledTimes(1);
     expect(executeRaw.mock.calls[0][0][0]).toContain('UPDATE "inventory"');
@@ -48,7 +51,7 @@ describe("TransfersService reservation", () => {
       $transaction: jest.fn((callback: (client: typeof tx) => unknown) => callback(tx)),
     } as unknown as PrismaService;
 
-    await expect(new TransfersService(prisma).create(input)).rejects.toMatchObject({
+    await expect(new TransfersService(prisma, authorization).create(input)).rejects.toMatchObject({
       message: expect.stringContaining("Insufficient available stock"),
     });
     expect(findUnique).toHaveBeenCalledTimes(1);
@@ -68,7 +71,7 @@ describe("TransfersService reservation", () => {
     const higherComponentId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
     const lowerComponentId = "00000000-0000-4000-8000-000000000001";
 
-    await new TransfersService(prisma).create({
+    await new TransfersService(prisma, authorization).create({
       ...input,
       items: [
         { componentId: higherComponentId, quantity: 1 },

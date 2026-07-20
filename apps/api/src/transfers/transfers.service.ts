@@ -16,7 +16,7 @@ import { AuthorizationPolicyService, PolicyActor } from "../auth/authorization-p
 export class TransfersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly authorization?: AuthorizationPolicyService,
+    private readonly authorization: AuthorizationPolicyService,
   ) {}
 
   async list(query: TransferListQuery, actor?: PolicyActor): Promise<TransferDTO[]> {
@@ -81,7 +81,7 @@ export class TransfersService {
       throw ApiErrors.notFound("Transfer not found");
     }
     if (actor)
-      this.authorization?.assertCanReadTransfer(actor, transfer.fromBranchId, transfer.toBranchId);
+      this.authorization.assertCanReadTransfer(actor, transfer.fromBranchId, transfer.toBranchId);
 
     const userIds = [transfer.requestedBy, transfer.approvedBy, transfer.rejectedBy].filter(
       Boolean,
@@ -109,7 +109,7 @@ export class TransfersService {
 
   async create(input: CreateTransferBody, actor?: PolicyActor): Promise<TransferDTO> {
     if (actor)
-      this.authorization?.assertCanCreateTransfer(actor, input.fromBranchId, input.toBranchId);
+      this.authorization.assertCanCreateTransfer(actor, input.fromBranchId, input.toBranchId);
     const actorId = actor?.sub ?? actor?.id;
     return this.prisma.$transaction(async (tx) => {
       const itemsByLockOrder = [...input.items].sort((left, right) =>
@@ -197,7 +197,7 @@ export class TransfersService {
       if (!transfer) {
         throw ApiErrors.notFound("Transfer not found");
       }
-      if (actor) this.authorization?.assertCanApproveTransfer(actor, transfer);
+      if (actor) this.authorization.assertCanApproveTransfer(actor, transfer);
 
       if (transfer.status !== TransferStatus.PENDING) {
         throw ApiErrors.conflict("Only pending transfers can be approved");
@@ -318,9 +318,9 @@ export class TransfersService {
       }
       if (actor) {
         if (nextStatus === TransferStatus.CANCELLED) {
-          this.authorization?.assertCanCancelTransfer(actor, transfer);
+          this.authorization.assertCanCancelTransfer(actor, transfer);
         } else {
-          this.authorization?.assertCanApproveTransfer(actor, transfer);
+          this.authorization.assertCanApproveTransfer(actor, transfer);
         }
       }
 
@@ -375,10 +375,10 @@ export class TransfersService {
   private scopeBranchId(branchId: string | undefined, actor?: PolicyActor) {
     if (!actor || actor.role === "ADMIN") return branchId;
     if (!actor.branchId) {
-      this.authorization?.assertCanReadTransfer(actor, "__forbidden__", "__forbidden__");
+      this.authorization.assertCanReadTransfer(actor, "__forbidden__", "__forbidden__");
     }
     if (branchId && branchId !== actor.branchId) {
-      this.authorization?.assertCanReadTransfer(actor, branchId, "__other__");
+      this.authorization.assertCanReadTransfer(actor, branchId, "__other__");
     }
     return actor.branchId ?? "__forbidden__";
   }

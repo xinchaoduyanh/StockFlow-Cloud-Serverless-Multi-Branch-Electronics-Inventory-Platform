@@ -3,13 +3,13 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ExportJobStatus, ReportType as PrismaReportType, type ExportJob } from "@prisma/client";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
 import { EnvService } from "../config/env.service";
 import { PrismaService } from "../database/prisma.service";
 import { S3Service } from "../imports/s3.service";
 import { AuthorizationPolicyService, PolicyActor } from "../auth/authorization-policy.service";
+import { ReportDispatcher } from "./report-dispatcher";
 
 const prismaReportTypeByExternal: Record<ReportType, PrismaReportType> = {
   [ReportType.INVENTORY]: PrismaReportType.INVENTORY,
@@ -35,13 +35,14 @@ export class ReportsService {
     private readonly prisma: PrismaService,
     private readonly envService: EnvService,
     private readonly s3Service: S3Service,
-    private readonly authorization?: AuthorizationPolicyService,
+    private readonly authorization: AuthorizationPolicyService,
+    private readonly dispatcher: ReportDispatcher,
   ) {}
 
   async createExport(input: CreateExportBody, actor?: PolicyActor): Promise<ExportJobDTO> {
     const actorId = actor?.sub ?? actor?.id;
     const branchId = input.filters?.branchId ?? actor?.branchId;
-    if (actor) this.authorization?.assertCanReadReport(actor, branchId, actorId);
+    if (actor) this.authorization.assertCanCreateReport(actor, branchId);
     const filters = { ...(input.filters ?? {}), ...(actor?.role !== "ADMIN" ? { branchId } : {}) };
     const job = await this.prisma.exportJob.create({
       data: {
@@ -52,16 +53,25 @@ export class ReportsService {
       },
     });
 
-    // Try async Lambda invocation, fall back to sync
-    const lambdaArn = this.envService.get("REPORT_EXPORTER_LAMBDA_ARN");
-
-    if (lambdaArn) {
-      await this.invokeLambda(lambdaArn, { exportJobId: job.id });
-      this.logger.log(`Report export ${job.id} dispatched to Lambda`);
-    } else {
-      // Sync fallback for local dev
-      this.logger.warn(`No Lambda ARN configured — running export synchronously`);
-      await this.runExportSync(job.id);
+    try {
+      if (this.envService.get("REPORT_DISPATCH_MODE") === "local") {
+        this.logger.warn(`Report export ${job.id} running in local synchronous mode`);
+        await this.runExportSync(job.id);
+      } else {
+        await this.dispatcher.dispatch(job.id);
+        this.logger.log(`Report export ${job.id} dispatched to SQS`);
+      }
+    } catch (error) {
+      await this.prisma.exportJob.update({
+        where: { id: job.id },
+        data: {
+          status: ExportJobStatus.FAILED,
+          lastErrorCode: "DISPATCH_FAILED",
+          errorMessage: "Report dispatch failed; retry the report from recovery operations.",
+        },
+      });
+      this.logger.error(`Report export ${job.id} dispatch failed`, error);
+      throw ApiErrors.badRequest("Report dispatch failed");
     }
 
     return this.getExport(job.id, actor);
@@ -83,7 +93,7 @@ export class ReportsService {
     if (!job) throw ApiErrors.notFound("Export job not found");
     if (actor) {
       const filters = (job.filters as { branchId?: string } | null) ?? null;
-      this.authorization?.assertCanReadReport(actor, filters?.branchId, job.createdBy);
+      this.authorization.assertCanReadReport(actor, filters?.branchId, job.createdBy);
     }
     return this.serializeExportJob(job) as any;
   }
@@ -125,19 +135,6 @@ export class ReportsService {
     return externalReportTypeByPrisma[reportType];
   }
 
-  private async invokeLambda(arn: string, payload: Record<string, unknown>) {
-    const region = this.envService.get("AWS_REGION");
-    const client = new LambdaClient({ region });
-
-    await client.send(
-      new InvokeCommand({
-        FunctionName: arn,
-        InvocationType: "Event", // async fire-and-forget
-        Payload: Buffer.from(JSON.stringify(payload)),
-      }),
-    );
-  }
-
   private async runExportSync(exportJobId: string) {
     const job = await this.prisma.exportJob.findUnique({ where: { id: exportJobId } });
     if (!job) return;
@@ -149,18 +146,17 @@ export class ReportsService {
       });
 
       const filters = (job.filters as Record<string, any>) || {};
-      let csvContent: string;
       let totalRecords: number;
 
       switch (job.reportType) {
         case PrismaReportType.INVENTORY:
-          ({ csv: csvContent, total: totalRecords } = await this.generateInventoryReport(filters));
+          ({ total: totalRecords } = await this.generateInventoryReport(filters));
           break;
         case PrismaReportType.LOW_STOCK:
-          ({ csv: csvContent, total: totalRecords } = await this.generateLowStockReport(filters));
+          ({ total: totalRecords } = await this.generateLowStockReport(filters));
           break;
         default:
-          ({ csv: csvContent, total: totalRecords } = await this.generateInventoryReport(filters));
+          ({ total: totalRecords } = await this.generateInventoryReport(filters));
       }
 
       // For local dev without S3, just mark as complete with data in DB

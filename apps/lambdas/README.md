@@ -1,6 +1,6 @@
 # AWS Serverless Lambda Workers & Infrastructure Deployment Guide
 
-This workspace contains the codebase for all high-performance, asynchronous serverless workers, accompanied by an AWS SAM (Serverless Application Model) blueprint to provision the cloud infrastructure.
+This workspace contains the codebase for the asynchronous serverless workers. Terraform in `infrastructure/terraform` is the only production infrastructure owner.
 
 ---
 
@@ -8,7 +8,7 @@ This workspace contains the codebase for all high-performance, asynchronous serv
 
 ```text
 apps/lambdas/
-├── template.yaml                         # AWS SAM Infrastructure template
+├── import-recovery-worker/                # Terminal execution event persistence + stale scan
 ├── README.md                             # This deployment manual
 ├── import-validator/                     # Security Check & Header verification handler
 ├── import-parser/                        # ExcelJS Event-driven stream parser handler
@@ -33,58 +33,40 @@ AWS Lambda environments are resource-constrained and charge per millisecond of e
 
 ---
 
-## 🚀 Step 2: Deployment via AWS SAM (Serverless Application Model)
+## 🚀 Step 2: Infrastructure ownership
 
-We use AWS SAM CLI to compile cloud blueprints, upload packages to S3, and trigger CloudFormation deployments.
+Terraform is the only production deployment owner. Verify Terraform before creating a plan:
 
-### 1. Installation & Login
-Verify that AWS SAM CLI and AWS CLI are installed, and you have configured active credentials:
 ```bash
-aws configure
-sam --version
+terraform -version
 ```
 
-### 2. SAM Validation
-Verify that the `template.yaml` resource properties are valid and conform to CloudFormation schemas:
+### 1. Terraform validation
+
 ```bash
-sam validate -t template.yaml
+terraform -chdir=../../infrastructure/terraform validate
 ```
 
-### 3. Build & Package
-Prepare SAM artifacts for deployment:
+### 2. Build & plan
+
 ```bash
-sam build -t template.yaml
+npm run build:lambdas
+terraform -chdir=../../infrastructure/terraform plan
 ```
 
-### 4. SAM Guided Deployment
-Perform a guided deployment to create the cloud resources and configure environment parameters:
-```bash
-sam deploy --guided
-```
-
-#### Guided Prompts Configuration:
-* **Stack Name:** `stockflow-serverless-pipeline`
-* **AWS Region:** `ap-southeast-1` (Singapore, recommended)
-* **Parameter DATABASE_URL:** Provide your high-performance pooled database connection URL (e.g., Neon `pgbouncer` pooler link).
-* **Confirm changes before deploy:** `Yes`
-* **Allow SAM CLI IAM role creation:** `Yes`
-* **Save arguments to configuration file:** `Yes` (creates `samconfig.toml`)
+Do not run a second SAM/CloudFormation deployment for these handlers.
 
 ---
 
 ## 🧪 Step 3: Local Testing & Validation
 
-You can invoke individual Lambda handlers locally using SAM CLI local execution simulators:
+Run the repository test and build gates locally:
 
-### 1. Test Validator Handler:
-Create a mockup S3 notification event payload `event.json` and invoke locally:
 ```bash
-sam local invoke ImportValidatorFunction --event event.json
-```
-
-### 2. Test Parser Handler:
-```bash
-sam local invoke ImportParserFunction --event parser_event.json
+npm test -- --runInBand
+npm run build:lambdas
+terraform -chdir=../../infrastructure/terraform fmt -check
+terraform -chdir=../../infrastructure/terraform validate
 ```
 
 ---

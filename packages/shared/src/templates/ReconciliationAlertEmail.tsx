@@ -1,3 +1,6 @@
+// The JSX transform uses this runtime helper even though the source import is
+// not referenced directly by TypeScript's semantic analysis.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { jsx } from "./jsx-runtime";
 
 export interface ReconciliationAlertEmailProps {

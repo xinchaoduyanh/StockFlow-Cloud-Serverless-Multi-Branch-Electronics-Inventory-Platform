@@ -29,6 +29,12 @@ export class NotificationsService {
   ): Promise<NotificationBase<T>> {
     // 1. Double-Delivery Deduplication Check (using Job ID in metadata)
     const jobId = (dto.metadata as any).jobId;
+    if (dto.sourceMessageId) {
+      const existingByMessage = await this.prisma.notification.findUnique({
+        where: { sourceMessageId: dto.sourceMessageId },
+      });
+      if (existingByMessage) return castNotificationRow<T>(existingByMessage);
+    }
     if (jobId) {
       const existing = await this.prisma.notification.findFirst({
         where: {
@@ -49,15 +55,31 @@ export class NotificationsService {
     }
 
     // 2. Safe Database Persistence using Prisma InputJsonValue (avoiding "as any")
-    const record = await this.prisma.notification.create({
-      data: {
-        userId: dto.userId,
-        title: dto.title,
-        message: dto.message,
-        type: dto.type,
-        metadata: dto.metadata as unknown as Prisma.InputJsonValue,
-      },
-    });
+    let record;
+    try {
+      record = await this.prisma.notification.create({
+        data: {
+          userId: dto.userId,
+          sourceMessageId: dto.sourceMessageId,
+          title: dto.title,
+          message: dto.message,
+          type: dto.type,
+          metadata: dto.metadata as unknown as Prisma.InputJsonValue,
+        },
+      });
+    } catch (error) {
+      if (
+        dto.sourceMessageId &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const existing = await this.prisma.notification.findUnique({
+          where: { sourceMessageId: dto.sourceMessageId },
+        });
+        if (existing) return castNotificationRow<T>(existing);
+      }
+      throw error;
+    }
 
     // 3. Trigger Pusher Real-time Push (Fire-and-forget)
     this.pusherService

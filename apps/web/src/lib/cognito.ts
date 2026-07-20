@@ -55,7 +55,7 @@ export async function loginWithCognito(email: string, password: string): Promise
       onFailure: (err) => {
         reject(err);
       },
-      newPasswordRequired: (userAttributes, requiredAttributes) => {
+      newPasswordRequired: (_userAttributes, _requiredAttributes) => {
         // Resolve indicating new password is required, giving the caller the user object to complete it
         resolve({
           newPasswordRequired: true,

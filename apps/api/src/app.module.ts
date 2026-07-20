@@ -14,6 +14,7 @@ import { TransfersModule } from "./transfers/transfers.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { UsersModule } from "./users/users.module";
 import { BranchesModule } from "./branches/branches.module";
+import { RecoveryModule } from "./recovery/recovery.module";
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { BranchesModule } from "./branches/branches.module";
     NotificationsModule,
     UsersModule,
     BranchesModule,
+    RecoveryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

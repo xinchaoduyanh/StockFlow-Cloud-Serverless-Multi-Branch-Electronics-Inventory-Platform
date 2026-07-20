@@ -1,7 +1,13 @@
-import { Controller, Get, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { UserRole } from "@prisma/client";
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from "@nestjs/swagger";
-import { DlqListQuery, dlqListQuerySchema, ImportJobDTO } from "@stockflow/shared";
+import {
+  DlqListQuery,
+  dlqListQuerySchema,
+  ImportJobDTO,
+  RecoveryActionBody,
+  recoveryActionBodySchema,
+} from "@stockflow/shared";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
@@ -32,8 +38,9 @@ export class DlqController {
   replay(
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
     @Req() request: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(recoveryActionBodySchema)) body: RecoveryActionBody,
   ): Promise<any> {
-    return this.dlqService.replay(params.id, request.user);
+    return this.dlqService.replay(params.id, body?.reason, request.user);
   }
 
   @Post("imports/:id/discard")
@@ -41,7 +48,8 @@ export class DlqController {
   discard(
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
     @Req() request: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(recoveryActionBodySchema)) body: RecoveryActionBody,
   ): Promise<any> {
-    return this.dlqService.discard(params.id, request.user);
+    return this.dlqService.discard(params.id, body?.reason, request.user);
   }
 }

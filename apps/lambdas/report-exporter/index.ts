@@ -1,6 +1,7 @@
-import { ReportType as ExternalReportType } from "@stockflow/shared";
+import { reportJobMessageSchema, ReportType as ExternalReportType } from "@stockflow/shared";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { PrismaClient, ExportJobStatus, ReportType as PrismaReportType } from "@prisma/client";
+import type { SQSHandler } from "aws-lambda";
 
 const s3Client = new S3Client({});
 const prisma = new PrismaClient();
@@ -19,33 +20,45 @@ const externalReportTypeByPrisma: Record<PrismaReportType, ExternalReportType> =
  * Generates CSV reports from inventory/transfer data and uploads to S3.
  * Supports report types: inventory, low-stock, transfers, import-history, stock-movements
  *
- * Input event: { exportJobId: string }
+ * Input event: SQS batch containing { version, exportJobId } messages.
  */
-const handler = async (event: any) => {
-  console.log("Report exporter event received:", JSON.stringify(event));
-
-  const { exportJobId } = event;
-
-  if (!exportJobId) {
-    console.error("Missing exportJobId in payload.");
-    return { status: "FAILED", error: "Missing exportJobId" };
-  }
+async function processReport(exportJobId: string, receiveCount: number): Promise<void> {
+  const claimStartedAt = new Date();
+  const leaseSeconds = Number(process.env.REPORT_PROCESSING_LEASE_SECONDS || "900");
+  const staleBefore = new Date(claimStartedAt.getTime() - leaseSeconds * 1000);
 
   try {
-    const job = await prisma.exportJob.findUnique({
-      where: { id: exportJobId },
+    const claim = await prisma.exportJob.updateMany({
+      where: {
+        id: exportJobId,
+        OR: [
+          { status: ExportJobStatus.PENDING },
+          { status: ExportJobStatus.PROCESSING, processingStartedAt: { lt: staleBefore } },
+        ],
+      },
+      data: {
+        status: ExportJobStatus.PROCESSING,
+        processingStartedAt: claimStartedAt,
+        attemptCount: { increment: 1 },
+      },
     });
 
-    if (!job) {
-      console.error(`Export job ${exportJobId} not found.`);
-      return { status: "FAILED", error: "Export job not found" };
+    if (claim.count !== 1) {
+      const current = await prisma.exportJob.findUnique({ where: { id: exportJobId } });
+      if (!current) throw new Error("Export job not found");
+      if (
+        current.status === ExportJobStatus.COMPLETED ||
+        current.status === ExportJobStatus.DISCARDED
+      ) {
+        return;
+      }
+      // Another worker owns an active processing lease. The message is safe to
+      // acknowledge because the owning worker is responsible for completion.
+      return;
     }
 
-    // 1. Transition to PROCESSING
-    await prisma.exportJob.update({
-      where: { id: exportJobId },
-      data: { status: ExportJobStatus.PROCESSING },
-    });
+    const job = await prisma.exportJob.findUnique({ where: { id: exportJobId } });
+    if (!job) throw new Error("Export job not found");
 
     const filters = (job.filters as Record<string, any>) || {};
     let csvContent: string;
@@ -74,10 +87,9 @@ const handler = async (event: any) => {
 
     // 3. Upload CSV to S3
     const bucket = process.env.S3_BUCKET || process.env.AWS_S3_BUCKET || "";
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const externalReportType = externalReportTypeByPrisma[job.reportType];
-    const s3Key = `reports/${externalReportType}/${timestamp}-${exportJobId}.csv`;
-    const fileName = `${externalReportType}-${timestamp}.csv`;
+    const s3Key = `reports/${externalReportType}/${exportJobId}.csv`;
+    const fileName = `${externalReportType}-${exportJobId}.csv`;
 
     await s3Client.send(
       new PutObjectCommand({
@@ -91,9 +103,13 @@ const handler = async (event: any) => {
 
     console.log(`Report uploaded to s3://${bucket}/${s3Key}. Total records: ${totalRecords}`);
 
-    // 4. Finalize export job
-    await prisma.exportJob.update({
-      where: { id: exportJobId },
+    // 4. Finalize only the current processing claim.
+    const finalized = await prisma.exportJob.updateMany({
+      where: {
+        id: exportJobId,
+        status: ExportJobStatus.PROCESSING,
+        processingStartedAt: claimStartedAt,
+      },
       data: {
         status: ExportJobStatus.COMPLETED,
         s3Key,
@@ -102,33 +118,66 @@ const handler = async (event: any) => {
         completedAt: new Date(),
       },
     });
-
-    return {
-      status: "COMPLETED",
-      exportJobId,
-      s3Key,
-      totalRecords,
-    };
-  } catch (err: any) {
-    console.error("Report export failed:", err);
-    await prisma.exportJob.update({
-      where: { id: exportJobId },
+    if (finalized.count !== 1) {
+      throw new Error("Report claim expired before completion");
+    }
+  } catch (error) {
+    const maxReceiveCount = Number(process.env.REPORT_MAX_RECEIVE_COUNT || "5");
+    const exhausted = receiveCount >= maxReceiveCount;
+    await prisma.exportJob.updateMany({
+      where: {
+        id: exportJobId,
+        status: ExportJobStatus.PROCESSING,
+        processingStartedAt: claimStartedAt,
+      },
       data: {
-        status: ExportJobStatus.FAILED,
-        errorMessage: `Export failed: ${err.message}`,
+        status: exhausted ? ExportJobStatus.FAILED : ExportJobStatus.PENDING,
+        lastErrorCode: "REPORT_EXPORT_FAILED",
+        errorMessage: exhausted
+          ? "Report export failed after the configured retry limit."
+          : "Report export failed and will be retried.",
+        processingStartedAt: null,
       },
     });
-    return {
-      status: "FAILED",
-      exportJobId,
-      error: err.message,
-    };
-  } finally {
-    await prisma.$disconnect();
+    throw error;
   }
-};
+}
 
-module.exports = { handler };
+export const handler: SQSHandler = async (event) => {
+  const batchItemFailures: Array<{ itemIdentifier: string }> = [];
+
+  for (const record of event.Records) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(record.body);
+    } catch {
+      batchItemFailures.push({ itemIdentifier: record.messageId });
+      continue;
+    }
+
+    const message = reportJobMessageSchema.safeParse(parsed);
+    if (!message.success) {
+      batchItemFailures.push({ itemIdentifier: record.messageId });
+      continue;
+    }
+
+    try {
+      await processReport(
+        message.data.exportJobId,
+        Number(record.attributes.ApproximateReceiveCount || "1"),
+      );
+    } catch (error) {
+      console.error("Report export failed", {
+        messageId: record.messageId,
+        exportJobId: message.data.exportJobId,
+        errorCode: error instanceof Error ? error.name : "UNKNOWN_ERROR",
+      });
+      batchItemFailures.push({ itemIdentifier: record.messageId });
+    }
+  }
+
+  return { batchItemFailures };
+};
 
 // ---------------------------------------------------------------------------
 // Report Generators

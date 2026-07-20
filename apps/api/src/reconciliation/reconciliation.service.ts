@@ -21,14 +21,14 @@ export class ReconciliationService {
     private readonly prisma: PrismaService,
     private readonly envService: EnvService,
     private readonly notifications: NotificationsService,
-    private readonly authorization?: AuthorizationPolicyService,
+    private readonly authorization: AuthorizationPolicyService,
   ) {}
 
   async listIssues(
     query: ReconciliationListQuery,
     actor?: PolicyActor,
   ): Promise<ReconciliationIssue[]> {
-    if (actor) this.authorization?.assertAdmin(actor);
+    if (actor) this.authorization.assertAdmin(actor);
     const { skip, take } = toPagination(query);
 
     return this.prisma.reconciliationIssue.findMany({
@@ -44,7 +44,7 @@ export class ReconciliationService {
   }
 
   async run(actor?: PolicyActor): Promise<ReconciliationRunResponse> {
-    if (actor) this.authorization?.assertAdmin(actor);
+    if (actor) this.authorization.assertAdmin(actor);
     const lambdaArn = this.envService.get("RECONCILIATION_LAMBDA_ARN");
 
     if (lambdaArn) {
@@ -59,7 +59,7 @@ export class ReconciliationService {
   }
 
   async resolve(id: string, actor?: PolicyActor): Promise<ReconciliationIssue> {
-    if (actor) this.authorization?.assertAdmin(actor);
+    if (actor) this.authorization.assertAdmin(actor);
     return this.prisma.$transaction(async (tx) => {
       const issue = await tx.reconciliationIssue.findUnique({ where: { id } });
 

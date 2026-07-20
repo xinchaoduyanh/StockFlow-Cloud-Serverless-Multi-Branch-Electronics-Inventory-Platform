@@ -26,4 +26,22 @@ describe("E3 recovery environment schema", () => {
     expect(env.REPORT_MAX_RECEIVE_COUNT).toBe(7);
     expect(env.IMPORT_MAX_REPLAY_COUNT).toBe(4);
   });
+
+  it("fails closed when production is configured for local report dispatch", () => {
+    expect(() =>
+      envSchema.parse({
+        NODE_ENV: "production",
+        REPORT_DISPATCH_MODE: "local",
+      }),
+    ).toThrow("Production report dispatch must use SQS");
+  });
+
+  it("requires a report queue URL for production SQS dispatch", () => {
+    expect(() =>
+      envSchema.parse({
+        NODE_ENV: "production",
+        REPORT_DISPATCH_MODE: "sqs",
+      }),
+    ).toThrow("REPORT_QUEUE_URL is required in production");
+  });
 });

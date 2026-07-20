@@ -1,7 +1,7 @@
 # Implementation Plan: E3 Event-Driven Recovery
 
 > Created: 2026-07-20 15:32:13 +0700
-> Status: Draft
+> Status: Code/IaC complete; cloud acceptance pending TF apply and smoke evidence
 
 ## Objective
 
@@ -77,13 +77,13 @@ Design decisions:
 
 ## Phases
 
-- [ ] **Phase 1: Close E2 and establish the gate** — Goal: make authorization fail closed and restore a trustworthy quality baseline.
-- [ ] **Phase 2: Audit Terraform ownership** — Goal: prove there is one production owner before adding queues or subscriptions.
+- [x] **Phase 1: Close E2 and establish the gate** — Goal: make authorization fail closed and restore a trustworthy quality baseline.
+- [x] **Phase 2: Audit Terraform ownership** — Goal: prove there is one production owner before adding queues or subscriptions.
 - [x] **Phase 3: Add recovery persistence and contracts** — Goal: introduce forward-compatible schema and typed event/API boundaries.
-- [ ] **Phase 4: Build the report queue pipeline** — Goal: deliver an idempotent SQS-to-Lambda report flow with a real DLQ.
-- [ ] **Phase 5: Add report recovery operations** — Goal: expose safe, audited report retry/redrive/discard controls.
-- [ ] **Phase 6: Harden import orchestration and recovery** — Goal: make Step Functions failures observable, retry-correct, and recoverable.
-- [ ] **Phase 7: Reproduce notification delivery** — Goal: manage the SNS subscription in Terraform and safely process retries.
+- [x] **Phase 4: Build the report queue pipeline** — Goal: deliver an idempotent SQS-to-Lambda report flow with a real DLQ.
+- [x] **Phase 5: Add report recovery operations** — Goal: expose safe, audited report retry/redrive/discard controls.
+- [x] **Phase 6: Harden import orchestration and recovery** — Goal: make Step Functions failures observable, retry-correct, and recoverable.
+- [x] **Phase 7: Reproduce notification delivery** — Goal: manage the SNS subscription in Terraform and safely process retries.
 - [ ] **Phase 8: Integrate the recovery console and prove E3** — Goal: finish the targeted UI, cloud smoke tests, docs, and rollback evidence.
 
 ## Key Changes

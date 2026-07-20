@@ -1,12 +1,11 @@
 import { DlqListQuery, ImportJobDTO } from "@stockflow/shared";
 import { Injectable, Logger } from "@nestjs/common";
-import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 import { ImportStatus } from "@prisma/client";
 import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
-import { EnvService } from "../config/env.service";
 import { PrismaService } from "../database/prisma.service";
 import { AuthorizationPolicyService, PolicyActor } from "../auth/authorization-policy.service";
+import { RecoveryService } from "../recovery/recovery.service";
 
 @Injectable()
 export class DlqService {
@@ -14,12 +13,12 @@ export class DlqService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly envService: EnvService,
-    private readonly authorization?: AuthorizationPolicyService,
+    private readonly authorization: AuthorizationPolicyService,
+    private readonly recovery: RecoveryService,
   ) {}
 
   async listFailedJobs(query: DlqListQuery, actor?: PolicyActor): Promise<ImportJobDTO[]> {
-    if (actor) this.authorization?.assertAdmin(actor);
+    if (actor) this.authorization.assertAdmin(actor);
     const { skip, take } = toPagination(query);
 
     return this.prisma.importJob.findMany({
@@ -34,8 +33,8 @@ export class DlqService {
     }) as any;
   }
 
-  async replay(id: string, actor?: PolicyActor) {
-    if (actor) this.authorization?.assertAdmin(actor);
+  async replay(id: string, reason: string, actor?: PolicyActor) {
+    if (actor) this.authorization.assertAdmin(actor);
     const job = await this.prisma.importJob.findUnique({ where: { id } });
 
     if (!job) {
@@ -46,26 +45,12 @@ export class DlqService {
       throw ApiErrors.badRequest(`Job status is ${job.status}, not FAILED/PARTIAL_FAILED`);
     }
 
-    const lambdaArn = this.envService.get("DLQ_REPLAY_LAMBDA_ARN");
-
-    if (lambdaArn) {
-      await this.invokeLambda(lambdaArn, { importJobId: id });
-      this.logger.log(`DLQ replay for ${id} dispatched to Lambda`);
-    } else {
-      // Sync fallback: reset job status so the polling loop or manual confirm can pick it up
-      this.logger.warn(`No Lambda ARN — resetting job ${id} to UPLOADED for manual retry`);
-
-      await this.prisma.importJobRow.deleteMany({ where: { importJobId: id } });
-      await this.prisma.importJob.update({
-        where: { id },
-        data: {
-          status: ImportStatus.UPLOADED,
-          errorMessage: null,
-          awsTaskToken: null,
-          committedRows: 0,
-        },
-      });
-    }
+    const recoveryItem = await this.prisma.importRecoveryItem.findFirst({
+      where: { importJobId: id, status: "OPEN" },
+    });
+    if (!recoveryItem)
+      throw ApiErrors.badRequest("No open recovery item exists for this import job");
+    await this.recovery.replayImport(recoveryItem.id, { reason }, actor);
 
     return this.prisma.importJob.findUnique({
       where: { id },
@@ -73,8 +58,8 @@ export class DlqService {
     });
   }
 
-  async discard(id: string, actor?: PolicyActor) {
-    if (actor) this.authorization?.assertAdmin(actor);
+  async discard(id: string, reason: string, actor?: PolicyActor) {
+    if (actor) this.authorization.assertAdmin(actor);
     const job = await this.prisma.importJob.findUnique({ where: { id } });
 
     if (!job) {
@@ -85,23 +70,12 @@ export class DlqService {
       throw ApiErrors.badRequest(`Job status is ${job.status}, cannot discard`);
     }
 
-    return this.prisma.importJob.update({
-      where: { id },
-      data: { status: ImportStatus.CANCELLED },
-      include: { branch: true },
+    const recoveryItem = await this.prisma.importRecoveryItem.findFirst({
+      where: { importJobId: id, status: "OPEN" },
     });
-  }
-
-  private async invokeLambda(arn: string, payload: Record<string, unknown>) {
-    const region = this.envService.get("AWS_REGION");
-    const client = new LambdaClient({ region });
-
-    await client.send(
-      new InvokeCommand({
-        FunctionName: arn,
-        InvocationType: "Event",
-        Payload: Buffer.from(JSON.stringify(payload)),
-      }),
-    );
+    if (!recoveryItem)
+      throw ApiErrors.badRequest("No open recovery item exists for this import job");
+    await this.recovery.discardImport(recoveryItem.id, { reason }, actor);
+    return this.prisma.importJob.findUnique({ where: { id }, include: { branch: true } });
   }
 }

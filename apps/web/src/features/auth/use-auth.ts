@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { getAuthToken, setAuthToken } from "@/lib/auth-token";
+import { getAuthToken } from "@/lib/auth-token";
 import { getCurrentUser } from "./api";
 
 export const currentUserQueryKey = ["auth", "me"] as const;

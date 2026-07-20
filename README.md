@@ -43,13 +43,13 @@
 
 ### 5. Quản trị lỗi import với bảng điều khiển recovery
 
-- **Giám sát thông tin lỗi hiện tại**: Các job import `FAILED` hoặc `PARTIAL_FAILED` được lưu trong PostgreSQL và hiển thị trên bảng điều khiển recovery.
-- **Replay/Discard hiện tại**: Admin thao tác trên bản ghi job; replay được gửi trực tiếp tới Lambda khi đã cấu hình ARN. SQS DLQ và redrive policy là hạng mục FR-3, chưa phải capability đang chạy.
+- **Giám sát lỗi đầu-cuối**: EventBridge chuyển trạng thái terminal của Step Functions vào SQS recovery queue; worker lưu recovery item bền vững trong PostgreSQL.
+- **Replay/Discard có kiểm soát**: Admin thao tác qua bảng điều khiển recovery với lý do bắt buộc, giới hạn số lần replay và audit log. Replay giữ nguyên các row đã commit để tránh cộng tồn kho hai lần.
 
 ### 6. Xuất Báo cáo Bất đồng bộ (Async Report Generation)
 
 - **Tải báo cáo dung lượng lớn**: Hỗ trợ xuất dữ liệu báo cáo tồn kho, lịch sử chuyển kho, xuất báo cáo tồn thấp ra Excel/CSV.
-- **Xử lý ngầm hiện tại**: API tạo `ExportJob` rồi invoke Report Lambda bất đồng bộ; Lambda lưu file vào S3 và frontend nhận Presigned URL. Việc chuyển sang SQS queue + DLQ nằm trong FR-3.
+- **Xử lý qua queue**: API tạo `ExportJob` rồi gửi message có version vào SQS; Report Lambda consumer claim job có điều kiện, lưu artifact với key xác định và trả partial batch failures. Message hết retry được chuyển sang DLQ thật để Admin replay, discard hoặc redrive.
 
 ### 7. Tích hợp Real-time Notifications & Enterprise Authentication
 
@@ -86,7 +86,7 @@
 
 ## 🛠️ Hướng dẫn Triển khai Hệ thống (Deployment Guide)
 
-Hệ thống được tổ chức theo cấu trúc Monorepo (quản lý bởi Turborepo) chia làm 3 mảng triển khai chính: NestJS API (đóng gói Container), Web Client (Next.js Static Export), và Serverless Workers (AWS SAM).
+Hệ thống được tổ chức theo cấu trúc Monorepo (quản lý bởi Turborepo) chia làm 3 mảng triển khai chính: NestJS API (đóng gói Container), Web Client (Next.js Static Export), và Serverless Workers do Terraform quản lý.
 
 ### 1. Chuẩn bị & Biên dịch Lambdas
 
@@ -138,34 +138,18 @@ npm run build:lambdas
 
 ---
 
-### 3. Triển khai Hạ tầng Serverless (AWS SAM)
+### 3. Triển khai hạ tầng serverless
 
-Mảng xử lý file Excel, đối soát và báo cáo được cấu hình bằng template SAM (`apps/lambdas/template.yaml`).
+Terraform là owner production duy nhất cho Lambda, SQS, Step Functions, EventBridge và SNS. Build handler rồi kiểm tra plan trước khi apply:
 
-1. Di chuyển vào thư mục ứng dụng:
-   ```bash
-   cd apps/lambdas
-   ```
-2. Kiểm tra tính hợp lệ của template:
-   ```bash
-   sam validate -t template.yaml
-   ```
-3. Build các tài nguyên CloudFormation:
-   ```bash
-   sam build -t template.yaml
-   ```
-4. Triển khai hạ tầng lên AWS (sử dụng chế độ tương tác ban đầu):
+```bash
+npm run build:lambdas
+terraform -chdir=infrastructure/terraform init
+terraform -chdir=infrastructure/terraform validate
+terraform -chdir=infrastructure/terraform plan
+```
 
-   ```bash
-   sam deploy --guided
-   ```
-
-   - **Stack Name**: `stockflow-serverless-pipeline`
-   - **AWS Region**: Nhập region mong muốn (ví dụ: `ap-southeast-1`).
-   - **Parameter DATABASE_URL**: Nhập connection string PostgreSQL của Neon.
-     > [!WARNING]
-     > **Lưu ý Pool Size**: Để tránh làm quá tải Neon Database khi các Lambda scale tự động, đường dẫn kết nối của bạn phải đi qua pgbouncer transaction pooler và giới hạn kết nối bằng cách thêm: `&pgbouncer=true&connection_limit=1` vào chuỗi connection string.
-   - Đồng ý tạo các IAM Role và lưu file cấu hình `samconfig.toml`.
+Không dùng SAM để deploy song song; các bước smoke test và rollback nằm trong [E3 recovery runbook](docs/runbooks/e3-recovery.md).
 
 ---
 

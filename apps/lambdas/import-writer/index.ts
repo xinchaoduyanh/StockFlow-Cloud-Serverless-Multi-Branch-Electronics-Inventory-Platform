@@ -11,7 +11,7 @@ const handler = async (event: any) => {
 
   if (!importJobId) {
     console.error("Missing importJobId in request payload.");
-    return { status: "FAILED", error: "Missing importJobId" };
+    throw new Error("Missing importJobId");
   }
 
   try {
@@ -21,7 +21,7 @@ const handler = async (event: any) => {
 
     if (!job) {
       console.error(`Import job ${importJobId} not found.`);
-      return { status: "FAILED", error: "Import job not found" };
+      throw new Error("Import job not found");
     }
 
     // 1. Check for CANCEL action
@@ -51,7 +51,12 @@ const handler = async (event: any) => {
 
     console.log(`Retrieved ${stagedRows.length} valid rows to commit.`);
 
-    let committedRows = 0;
+    let committedRows = await prisma.importJobRow.count({
+      where: {
+        importJobId,
+        validationStatus: ImportRowStatus.COMMITTED,
+      },
+    });
     const CHUNK_SIZE = 500;
 
     const toSpecs = (row: any) => {
@@ -191,6 +196,12 @@ const handler = async (event: any) => {
       }
 
       // Update progressive counters on the parent job record
+      committedRows = await prisma.importJobRow.count({
+        where: {
+          importJobId,
+          validationStatus: ImportRowStatus.COMMITTED,
+        },
+      });
       await prisma.importJob.update({
         where: { id: importJobId },
         data: { committedRows },
@@ -223,6 +234,12 @@ const handler = async (event: any) => {
     });
 
     console.log(`Job finishing with status: ${finalStatus}. Total committed: ${committedTotal}`);
+
+    if (failedTotal > 0) {
+      throw new Error(
+        `Inventory commit finished with ${failedTotal} failed row(s) and requires recovery`,
+      );
+    }
 
     // Trigger Success/Partial Success email and In-app alert notification
     try {
@@ -269,11 +286,7 @@ const handler = async (event: any) => {
         errorMessage: `Critical commit error: ${err.message}`,
       },
     });
-    return {
-      status: "FAILED",
-      importJobId,
-      error: err.message,
-    };
+    throw err;
   } finally {
     await prisma.$disconnect();
   }
@@ -298,7 +311,10 @@ async function publishNotification(payload: any) {
     } catch (err: any) {
       console.error("Failed to publish SNS completion message:", err.message);
     }
-  } else {
+  } else if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.SNS_CALLBACK_ALLOW_LOCAL === "true"
+  ) {
     // Local dev: Fallback to direct NestJS Webhook post to enable easy offline mock testing
     const localWebhookUrl =
       process.env.LOCAL_API_WEBHOOK_URL || "http://localhost:8000/api/notifications/sns-callback";
@@ -324,6 +340,8 @@ async function publishNotification(payload: any) {
     } catch (err: any) {
       console.error("Failed to fetch local webhook direct post:", err.message);
     }
+  } else {
+    console.warn("Notification topic is not configured; success notification was isolated.");
   }
 }
 

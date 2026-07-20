@@ -21,6 +21,7 @@ import { NotificationBell } from "@/features/notifications/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UsersAdmin } from "@/features/users/UsersAdmin";
 import { BranchesAdmin } from "@/features/branches/BranchesAdmin";
+import { RecoveryTab } from "@/features/recovery/RecoveryTab";
 
 type Branch = {
   id: string;
@@ -104,8 +105,6 @@ type ExportJob = {
   completedAt: string | null;
 };
 
-type DlqJob = ImportJob;
-
 const categories = COMPONENT_CATEGORIES;
 
 const tabs = [
@@ -114,7 +113,7 @@ const tabs = [
   { id: "imports", label: "Nhập kho" },
   { id: "low-stock", label: "Cảnh báo tồn thấp" },
   { id: "reports", label: "Báo cáo & Thống kê" },
-  { id: "dlq", label: "Quản trị lỗi (DLQ)", adminOnly: true },
+  { id: "dlq", label: "Khôi phục sự cố", adminOnly: true },
   { id: "reconciliation", label: "Đối soát tồn kho", adminOnly: true },
   { id: "users", label: "Quản lý nhân viên", adminOnly: true },
   { id: "branches", label: "Quản lý chi nhánh", adminOnly: true },
@@ -271,7 +270,6 @@ export default function DashboardPage() {
   const [importsPage, setImportsPage] = useState(1);
   const [previewPage, setPreviewPage] = useState(1);
   const [reportsPage, setReportsPage] = useState(1);
-  const [dlqPage, setDlqPage] = useState(1);
   const [reconPage, setReconPage] = useState(1);
   const [reconStatusFilter, setReconStatusFilter] = useState<ReconciliationStatus | "">("");
 
@@ -488,28 +486,6 @@ export default function DashboardPage() {
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["exports"] });
-    },
-  });
-
-  // --- DLQ Admin ---
-  const dlqQuery = useQuery({
-    queryKey: ["dlq-imports"],
-    queryFn: () => apiRequest<DlqJob[]>("/admin/dlq/imports"),
-    enabled: Boolean(user) && user?.role === UserRole.ADMIN,
-  });
-
-  const replayDlq = useMutation({
-    mutationFn: (id: string) => apiRequest(`/admin/dlq/imports/${id}/replay`, { method: "POST" }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["dlq-imports"] });
-      void queryClient.invalidateQueries({ queryKey: ["imports"] });
-    },
-  });
-
-  const discardDlq = useMutation({
-    mutationFn: (id: string) => apiRequest(`/admin/dlq/imports/${id}/discard`, { method: "POST" }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["dlq-imports"] });
     },
   });
 
@@ -1509,17 +1485,7 @@ export default function DashboardPage() {
             />
           ) : null}
 
-          {activeTab === "dlq" && user?.role === UserRole.ADMIN ? (
-            <DlqTab
-              items={dlqQuery.data ?? []}
-              isLoading={dlqQuery.isLoading}
-              onReplay={(id) => replayDlq.mutate(id)}
-              onDiscard={(id) => discardDlq.mutate(id)}
-              isReplaying={replayDlq.isPending}
-              currentPage={dlqPage}
-              onPageChange={setDlqPage}
-            />
-          ) : null}
+          {activeTab === "dlq" && user?.role === UserRole.ADMIN ? <RecoveryTab /> : null}
 
           {activeTab === "reconciliation" && user?.role === UserRole.ADMIN ? (
             <ReconciliationTab
@@ -2653,132 +2619,6 @@ function ReportsTab({
           totalPages={totalPages}
           onPageChange={onPageChange}
           totalItems={exportJobs.length}
-          pageSize={pageSize}
-        />
-      </div>
-    </section>
-  );
-}
-
-function DlqTab({
-  items,
-  isLoading,
-  onReplay,
-  onDiscard,
-  isReplaying,
-  currentPage,
-  onPageChange,
-}: {
-  items: DlqJob[];
-  isLoading: boolean;
-  onReplay: (id: string) => void;
-  onDiscard: (id: string) => void;
-  isReplaying: boolean;
-  currentPage: number;
-  onPageChange: (page: number) => void;
-}) {
-  const pageSize = 8;
-  const totalPages = Math.ceil(items.length / pageSize);
-  const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  return (
-    <section className="grid gap-4 animate-rise-in-delay-1">
-      <div className="surface p-5">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="m-0 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
-              Hàng đợi lỗi (DLQ)
-            </h2>
-            <p className="m-0 mt-1.5 text-sm font-normal text-slate-500 dark:text-slate-400">
-              Các yêu cầu nhập kho bị lỗi có thể được thử lại hoặc hủy bỏ. Hiện có {items.length}{" "}
-              yêu cầu lỗi.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="rounded-md border border-rose-200/70 dark:border-rose-950/30 bg-rose-50 dark:bg-rose-950/20 px-3 py-1 text-xs font-medium text-rose-800 dark:text-rose-400">
-              {items.length} lỗi
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="surface overflow-hidden">
-        <TableHeader title="Yêu cầu nhập kho lỗi" count={items.length} />
-        <div className="overflow-x-auto">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Tệp tin</th>
-                <th>Chi nhánh</th>
-                <th>Trạng thái</th>
-                <th>Số dòng</th>
-                <th>Thời gian tạo</th>
-                <th>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <TableState colSpan={6} text="Đang tải danh sách yêu cầu lỗi..." />
-              ) : null}
-              {!isLoading && items.length === 0 ? (
-                <TableState colSpan={6} text="Không có yêu cầu nhập kho lỗi nào. Hệ thống sạch." />
-              ) : null}
-              {!isLoading &&
-                paginatedItems.map((item) => (
-                  <tr key={item.id}>
-                    <td>
-                      <div className="font-medium text-slate-800 dark:text-slate-200">
-                        {item.fileName ?? "Không tên"}
-                      </div>
-                      <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                        Bảng tính Excel
-                      </div>
-                    </td>
-                    <td>
-                      <span className="inline-flex rounded-md border border-slate-200/70 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-355">
-                        {item.branch.code}
-                      </span>
-                    </td>
-                    <td>
-                      <StatusPill status={item.status} />
-                    </td>
-                    <td>
-                      {item.validRows} hợp lệ / {item.invalidRows} lỗi
-                    </td>
-                    <td className="text-xs font-normal text-slate-500">
-                      {new Date(item.createdAt).toLocaleString("vi-VN", { hour12: false })}
-                    </td>
-                    <td>
-                      <div className="flex gap-2">
-                        <button
-                          className="button-small-primary"
-                          onClick={() => onReplay(item.id)}
-                          disabled={isReplaying}
-                          type="button"
-                          title="Đặt lại và chạy lại quy trình nhập kho"
-                        >
-                          Thử lại
-                        </button>
-                        <button
-                          className="button-small-secondary"
-                          onClick={() => onDiscard(item.id)}
-                          type="button"
-                          title="Đánh dấu là đã hủy"
-                        >
-                          Hủy bỏ
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={onPageChange}
-          totalItems={items.length}
           pageSize={pageSize}
         />
       </div>

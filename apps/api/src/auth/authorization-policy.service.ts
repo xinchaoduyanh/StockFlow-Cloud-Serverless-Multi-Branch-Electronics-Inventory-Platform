@@ -97,14 +97,28 @@ export class AuthorizationPolicyService {
     this.assertCanReadBranch(user, branchId);
   }
 
+  assertCanCreateReport(user: PolicyActor, branchId?: string | null): void {
+    if (user.role === UserRole.ADMIN) return;
+    if (!branchId) {
+      throw new ForbiddenException("A branch scope is required to create this report");
+    }
+    this.assertCanReadBranch(user, branchId);
+  }
+
   assertCanReadReport(
     user: PolicyActor,
     branchId?: string | null,
     createdBy?: string | null,
   ): void {
     if (user.role === UserRole.ADMIN) return;
+    if (!branchId) {
+      throw new ForbiddenException("A branch scope is required for this report");
+    }
+
+    // Branch scope is always checked before ownership. Otherwise a user could
+    // read a cross-branch report merely because they happened to create it.
+    this.assertCanReadBranch(user, branchId);
+
     if (createdBy && createdBy === (user.id ?? user.sub)) return;
-    if (branchId) this.assertCanReadBranch(user, branchId);
-    else throw new ForbiddenException("A branch scope is required for this report");
   }
 }

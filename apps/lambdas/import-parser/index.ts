@@ -9,18 +9,18 @@ const prisma = new PrismaClient();
 const handler = async (event: any) => {
   console.log("Parser event received:", JSON.stringify(event));
 
-  const { importJobId, bucket, key } = event;
+  const { importJobId, bucket, key, executionArn } = event;
 
   if (!importJobId || !bucket || !key) {
     console.error("Missing required S3 or job identification parameters.");
-    return { status: "FAILED", error: "Missing required parameters" };
+    throw new Error("Missing required parameters");
   }
 
   try {
     // 1. Update status to PARSING
     await prisma.importJob.update({
       where: { id: importJobId },
-      data: { status: ImportStatus.PARSING },
+      data: { status: ImportStatus.PARSING, executionArn },
     });
 
     // 2. Fetch S3 spreadsheet stream
@@ -227,11 +227,7 @@ const handler = async (event: any) => {
         errorMessage: `Parsing failed: ${err.message}`,
       },
     });
-    return {
-      importJobId,
-      status: "FAILED",
-      error: err.message,
-    };
+    throw err;
   } finally {
     await prisma.$disconnect();
   }

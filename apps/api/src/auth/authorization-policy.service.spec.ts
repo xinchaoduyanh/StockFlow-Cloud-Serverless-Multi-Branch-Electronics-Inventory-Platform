@@ -44,4 +44,29 @@ describe("AuthorizationPolicyService", () => {
 
     expect(() => policy.assertAdmin(warehouse)).toThrow("Administrator role is required");
   });
+
+  it("checks branch scope before report ownership on create", () => {
+    const manager = { sub: "manager", role: UserRole.STORE_MANAGER, branchId: branchA };
+
+    expect(() => policy.assertCanCreateReport(manager, branchB)).toThrow(
+      "not authorized to access this branch",
+    );
+  });
+
+  it("checks branch scope before report ownership on read", () => {
+    const manager = { sub: "manager", role: UserRole.STORE_MANAGER, branchId: branchA };
+
+    expect(() => policy.assertCanReadReport(manager, branchB, "manager")).toThrow(
+      "not authorized to access this branch",
+    );
+  });
+
+  it("rejects branch users without a branch scope for reports", () => {
+    const manager = { sub: "manager", role: UserRole.STORE_MANAGER, branchId: null };
+
+    expect(() => policy.assertCanCreateReport(manager, null)).toThrow("branch scope is required");
+    expect(() => policy.assertCanReadReport(manager, null, "manager")).toThrow(
+      "branch scope is required",
+    );
+  });
 });

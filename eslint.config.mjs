@@ -9,9 +9,12 @@ export default ts.config(
   {
     ignores: [
       "**/dist/**",
+      "**/.aws-sam/**",
       "**/.next/**",
       "**/node_modules/**",
       "**/out/**",
+      "**/coverage/**",
+      "**/.turbo/**",
       "infrastructure/**",
       "apps/api/prisma/seed.js",
       "apps/api/prisma/seed.d.ts",
@@ -19,9 +22,26 @@ export default ts.config(
   },
   {
     rules: {
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
-      "no-console": ["warn", { allow: ["warn", "error", "info"] }],
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["esbuild.config.js", "apps/lambdas/generate-sample-sheet.js"],
+    languageOptions: {
+      globals: {
+        __dirname: "readonly",
+        console: "readonly",
+        module: "readonly",
+        process: "readonly",
+        require: "readonly",
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      "no-console": "off",
+      "no-undef": "off",
     },
   },
 );

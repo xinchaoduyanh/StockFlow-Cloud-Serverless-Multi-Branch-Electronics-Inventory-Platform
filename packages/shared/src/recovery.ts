@@ -31,8 +31,10 @@ export type RecoveryItemStatus = (typeof RecoveryItemStatus)[keyof typeof Recove
 
 export const AuditAction = {
   REPORT_REPLAY_REQUESTED: "REPORT_REPLAY_REQUESTED",
+  REPORT_REPLAY_DISPATCH_FAILED: "REPORT_REPLAY_DISPATCH_FAILED",
   REPORT_DISCARDED: "REPORT_DISCARDED",
   REPORT_DLQ_REDRIVE_STARTED: "REPORT_DLQ_REDRIVE_STARTED",
+  IMPORT_RECOVERY_REPLAY_DISPATCH_FAILED: "IMPORT_RECOVERY_REPLAY_DISPATCH_FAILED",
   IMPORT_REPLAY_REQUESTED: "IMPORT_REPLAY_REQUESTED",
   IMPORT_DISCARDED: "IMPORT_DISCARDED",
 } as const;
@@ -57,6 +59,52 @@ export interface QueueMetrics {
   inFlightMessages: number;
   oldestMessageAgeSeconds: number | null;
 }
+
+export interface ReportRecoveryDTO {
+  id: string;
+  reportType: string;
+  status: string;
+  attemptCount: number;
+  lastErrorCode: string | null;
+  errorMessage: string | null;
+  discardReason: string | null;
+  createdBy: string | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
+export const reportRecoveryListQuerySchema = paginationQuerySchema.extend({
+  status: z.enum(["FAILED", "DISCARDED"]).optional(),
+});
+
+export type ReportRecoveryListQuery = z.infer<typeof reportRecoveryListQuerySchema>;
+
+export const reportDlqRedriveBodySchema = z.object({
+  reason: z.string().trim().min(1, "A recovery reason is required").max(1000),
+  maxMessagesPerSecond: z.coerce.number().int().min(1).max(10).default(10),
+});
+
+export type ReportDlqRedriveBody = z.infer<typeof reportDlqRedriveBodySchema>;
+
+export const importTerminalEventSchema = z
+  .object({
+    id: z.string().optional(),
+    "detail-type": z.string().optional(),
+    source: z.string().optional(),
+    detail: z
+      .object({
+        executionArn: z.string().min(1),
+        status: z.enum(["SUCCEEDED", "FAILED", "TIMED_OUT", "ABORTED"]),
+        error: z.string().optional(),
+        cause: z.string().optional(),
+        importJobId: z.string().uuid().optional(),
+        input: z.unknown().optional(),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+
+export type ImportTerminalEvent = z.infer<typeof importTerminalEventSchema>;
 
 export interface ImportRecoveryItemDTO {
   id: string;

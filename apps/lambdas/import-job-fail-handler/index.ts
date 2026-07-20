@@ -27,7 +27,7 @@ const handler = async (event: any) => {
 
   if (!importJobId) {
     console.error("No importJobId found in the failure event payload.");
-    return { success: false, error: "No importJobId found" };
+    throw new Error("No importJobId found");
   }
 
   try {
@@ -72,10 +72,7 @@ const handler = async (event: any) => {
     };
   } catch (err: any) {
     console.error("Failed to mark job as failed:", err);
-    return {
-      success: false,
-      error: err.message,
-    };
+    throw err;
   } finally {
     await prisma.$disconnect();
   }
@@ -100,7 +97,10 @@ async function publishNotification(payload: any) {
     } catch (err: any) {
       console.error("Failed to publish SNS failure message:", err.message);
     }
-  } else {
+  } else if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.SNS_CALLBACK_ALLOW_LOCAL === "true"
+  ) {
     // Local dev: Fallback to direct NestJS Webhook post to enable easy offline mock testing
     const localWebhookUrl =
       process.env.LOCAL_API_WEBHOOK_URL || "http://localhost:8000/api/notifications/sns-callback";
@@ -129,6 +129,8 @@ async function publishNotification(payload: any) {
         err.message,
       );
     }
+  } else {
+    console.warn("Notification topic is not configured; failure notification was isolated.");
   }
 }
 

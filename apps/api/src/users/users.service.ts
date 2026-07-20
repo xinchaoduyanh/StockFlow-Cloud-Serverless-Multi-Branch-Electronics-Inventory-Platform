@@ -285,7 +285,6 @@ export class UsersService {
     }
 
     // 1. Delete in AWS Cognito first
-    let cognitoDeleted = false;
     try {
       if (this.userPoolId) {
         await this.cognitoClient.send(
@@ -295,7 +294,6 @@ export class UsersService {
           }),
         );
         this.logger.log(`Deleted user in Cognito: ${user.email}`);
-        cognitoDeleted = true;
       }
     } catch (error) {
       this.logger.error(`Failed to delete user in AWS Cognito: ${(error as any).message}`);

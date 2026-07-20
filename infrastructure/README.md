@@ -2,8 +2,13 @@
 
 Infrastructure as Code workspace for AWS resources.
 
-Planned options:
+Terraform in `infrastructure/terraform` is the only production infrastructure owner for this
+repository. Validate and inspect a saved plan before deployment:
 
-- Terraform
-- AWS CDK
-- AWS SAM
+```bash
+terraform -chdir=infrastructure/terraform fmt -check
+terraform -chdir=infrastructure/terraform validate
+terraform -chdir=infrastructure/terraform plan -out=stockflow.tfplan
+```
+
+Do not deploy these resources through a second SAM, CDK, or CloudFormation stack.

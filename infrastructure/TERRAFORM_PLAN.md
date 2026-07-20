@@ -24,7 +24,8 @@ Upload Excel ──► S3 imports bucket ──► EventBridge ──► Step Fu
                                           ├─ Writer Lambda ──► SNS │
                                           └─ FailHandler ──► SNS   ┘
 Cron 02:00 UTC ──► Reconciliation Lambda
-API invoke trực tiếp ──► ReportExporter / DlqReplay Lambda
+API ──► report-jobs SQS ──► ReportExporter Lambda ──► report-jobs-dlq
+Step Functions terminal events ──► import-recovery SQS ──► import-recovery-worker
 ```
 
 **Nằm ngoài Terraform (truyền vào bằng variable / data source):** Cognito User Pool/Client (đã tạo sẵn), Pusher, ACM certs (đã validate sẵn — đọc bằng `data`), DNS (trỏ tay trên dashboard domain).
@@ -135,6 +136,7 @@ File thực tế: `version.tf` (aws ~> 6.0 + alias us_east_1, time, default_tags
 
 - [ ] `random_password` sinh master password (không bao giờ gõ tay)
 - [ ] `aws_rds_cluster`: engine `aurora-postgresql` (chọn version PG mới, >= 15.7 để hỗ trợ scale-to-zero), `engine_mode = "provisioned"` +
+
   ```hcl
   serverlessv2_scaling_configuration {
     min_capacity             = 0     # 0 ACU = tự PAUSE khi không có kết nối
@@ -144,6 +146,7 @@ File thực tế: `version.tf` (aws ~> 6.0 + alias us_east_1, time, default_tags
   ```
 
   - 1 `aws_rds_cluster_instance` class `db.serverless`, đặt ở private subnets (`aws_db_subnet_group`), gắn `db_sg`, `skip_final_snapshot = true` (đồ án — cho destroy nhanh)
+
 - [ ] **Secrets Manager** (chuẩn production):
   - `aws_secretsmanager_secret` `stockflow/database-url` → value = `postgresql://user:pass@<cluster-endpoint>:5432/stockflow?connection_limit=1` (Terraform tự ghép từ output cluster)
   - `recovery_window_in_days = 0` để destroy là xóa ngay (mặc định giữ 7–30 ngày sẽ kẹt tên secret khi tạo lại)
@@ -173,7 +176,7 @@ File thực tế: `version.tf` (aws ~> 6.0 + alias us_east_1, time, default_tags
       | import-writer | sns:Publish, timeout 180s | `NOTIFICATION_SNS_TOPIC_ARN` |
       | import-job-fail-handler | sns:Publish | `NOTIFICATION_SNS_TOPIC_ARN` |
       | report-exporter | s3 PutObject `reports/*`, timeout 120s, mem 512 | — |
-      | dlq-replay | states:StartExecution, timeout 120s | `STATE_MACHINE_ARN` |
+      | import-recovery-worker | SQS partial-batch persistence + stale scan | — |
       | reconciliation | timeout 300s, mem 512 | — |
   - Mỗi Lambda 1 IAM role riêng; role nào cũng cần thêm `AWSLambdaVPCAccessExecutionRole` (tạo ENI trong VPC)
   - Env chung: `DATABASE_URL`, `S3_BUCKET`; runtime `nodejs20.x`, arch `arm64`, handler `index.handler`
@@ -228,21 +231,21 @@ File thực tế: `version.tf` (aws ~> 6.0 + alias us_east_1, time, default_tags
   - **Execution role**: `AmazonECSTaskExecutionRolePolicy` + `secretsmanager:GetSecretValue` trên secret DATABASE_URL
   - **Task role** (quyền runtime — nhờ vậy **bỏ hẳn `AWS_ACCESS_KEY_ID`/`SECRET` khỏi env**, SDK tự nhận credential):
     - `s3:PutObject/GetObject` trên imports bucket (presigned URL)
-    - `lambda:InvokeFunction` trên 3 ARN: report-exporter, dlq-replay, reconciliation
+    - `sqs:SendMessage` report queue, `states:StartExecution` ingestion state machine, and reconciliation invoke
     - `states:SendTaskSuccess/SendTaskFailure` (confirm/cancel import)
     - `ses:SendEmail`
     - Cognito (lấy từ inline policy cũ của user stockflowcloud — đúng 6 action API cần, scope vào pool `ap-southeast-1_ITWsr9wwd`): `cognito-idp:AdminCreateUser`, `AdminDeleteUser`, `AdminGetUser`, `AdminUpdateUserAttributes`, `AdminDisableUser`, `AdminEnableUser`
   - `secrets`: `DATABASE_URL` ← valueFrom secret ARN (Phase 3)
   - `environment` (map từ `apps/api/src/config/env.schema.ts`):
-    | Biến | Giá trị |
-    |---|---|
-    | `NODE_ENV` / `PORT` | `production` / `3000` |
-    | `CORS_ORIGIN` / `FRONTEND_URL` | `https://vuduyanh.id.vn` |
-    | `AWS_REGION` / `AWS_S3_BUCKET` | từ Phase 4 |
-    | `REPORT_EXPORTER_LAMBDA_ARN` / `DLQ_REPLAY_LAMBDA_ARN` / `RECONCILIATION_LAMBDA_ARN` | từ Phase 4 |
-    | `COGNITO_REGION` / `COGNITO_USER_POOL_ID` / `COGNITO_CLIENT_ID` | variable |
-    | `PUSHER_APP_ID` / `PUSHER_KEY` / `PUSHER_CLUSTER` / `PUSHER_SECRET` | variable (secret nhỏ, có thể thêm vào Secrets Manager sau) |
-    | `SWAGGER_ENABLED` | `false` |
+    | Biến                                                                            | Giá trị                                                    |
+    | ------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+    | `NODE_ENV` / `PORT`                                                             | `production` / `3000`                                      |
+    | `CORS_ORIGIN` / `FRONTEND_URL`                                                  | `https://vuduyanh.id.vn`                                   |
+    | `AWS_REGION` / `AWS_S3_BUCKET`                                                  | từ Phase 4                                                 |
+    | `REPORT_QUEUE_URL` / `IMPORT_RECOVERY_QUEUE_URL` / `NOTIFICATION_SNS_TOPIC_ARN` | Terraform outputs                                          |
+    | `COGNITO_REGION` / `COGNITO_USER_POOL_ID` / `COGNITO_CLIENT_ID`                 | variable                                                   |
+    | `PUSHER_APP_ID` / `PUSHER_KEY` / `PUSHER_CLUSTER` / `PUSHER_SECRET`             | variable (secret nhỏ, có thể thêm vào Secrets Manager sau) |
+    | `SWAGGER_ENABLED`                                                               | `false`                                                    |
 - [ ] CloudWatch log group `/ecs/stockflow-api` (retention 14 ngày)
 - [ ] ECS Service: private subnets, `api_sg`, gắn target group, **`desired_count = var.system_on ? 1 : 0`** ← công tắc tắt API
 - [ ] Chạy migration lần đầu bằng one-off task (xem Phase 3)

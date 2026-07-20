@@ -2,8 +2,11 @@ import { ImportRowStatus, ImportStatus } from "@prisma/client";
 import { ImportsService } from "./imports.service";
 import { PrismaService } from "../database/prisma.service";
 import { S3Service } from "./s3.service";
+import { AuthorizationPolicyService } from "../auth/authorization-policy.service";
 
 describe("ImportsService lifecycle", () => {
+  const authorization = new AuthorizationPolicyService();
+
   afterEach(() => {
     jest.restoreAllMocks();
   });
@@ -14,7 +17,7 @@ describe("ImportsService lifecycle", () => {
     const prisma = {} as unknown as PrismaService;
     const s3 = {} as unknown as S3Service;
 
-    const service = new ImportsService(prisma, s3);
+    const service = new ImportsService(prisma, s3, authorization);
 
     expect((service as unknown as { onModuleInit?: unknown }).onModuleInit).toBeUndefined();
     expect((service as unknown as { runPollingLoop?: unknown }).runPollingLoop).toBeUndefined();
@@ -34,7 +37,7 @@ describe("ImportsService lifecycle", () => {
     const prisma = {
       importJob: { findUnique },
     } as unknown as PrismaService;
-    const service = new ImportsService(prisma, {} as unknown as S3Service);
+    const service = new ImportsService(prisma, {} as unknown as S3Service, authorization);
 
     await expect(service.confirm("job-1")).rejects.toMatchObject({
       message: expect.stringContaining("not ready to confirm"),
@@ -65,7 +68,7 @@ describe("ImportsService lifecycle", () => {
       $transaction: jest.fn((callback: (client: typeof tx) => unknown) => callback(tx)),
     } as unknown as PrismaService;
 
-    await new ImportsService(prisma, {} as unknown as S3Service).confirm("job-2");
+    await new ImportsService(prisma, {} as unknown as S3Service, authorization).confirm("job-2");
 
     expect(updateMany).toHaveBeenCalledWith({
       where: {

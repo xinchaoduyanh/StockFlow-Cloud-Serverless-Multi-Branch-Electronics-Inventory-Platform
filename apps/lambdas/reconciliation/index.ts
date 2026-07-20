@@ -1,4 +1,4 @@
-import { PrismaClient, ReconciliationStatus, StockMovementType } from "@prisma/client";
+import { PrismaClient, ReconciliationStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 

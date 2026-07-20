@@ -1,0 +1,62 @@
+name: Quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm --workspace apps/api run prisma:generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit and API tests
+        run: npm test -- --runInBand
+
+      - name: PostgreSQL integration tests
+        run: npm --workspace apps/api run test:postgres
+
+      - name: Build application
+        run: npm run build
+
+      - name: Build Lambda artifacts
+        run: npm run build:lambdas
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.5"
+
+      - name: Terraform format
+        run: terraform fmt -check -recursive
+
+      - name: Terraform initialize and validate
+        working-directory: infrastructure/terraform
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: Dependency audit
+        run: npm audit --audit-level=high

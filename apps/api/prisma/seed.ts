@@ -46,7 +46,7 @@ async function main() {
     },
   });
 
-  const branchDN = await prisma.branch.upsert({
+  await prisma.branch.upsert({
     where: { code: "BR003" },
     update: {},
     create: {
@@ -401,7 +401,7 @@ async function main() {
   console.log("✈️ Seeding transfer requests...");
 
   // Transfer 1: Pending (BR001 -> BR002) - CPU Intel i5
-  const transfer1 = await prisma.transfer.create({
+  await prisma.transfer.create({
     data: {
       fromBranchId: branchHN.id,
       toBranchId: branchHCM.id,

@@ -16,7 +16,7 @@ import { AuthorizationPolicyService, PolicyActor } from "../auth/authorization-p
 export class InventoryService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly authorization?: AuthorizationPolicyService,
+    private readonly authorization: AuthorizationPolicyService,
   ) {}
 
   async list(query: InventoryQuery, actor?: PolicyActor): Promise<InventoryItem[]> {
@@ -122,7 +122,7 @@ export class InventoryService {
     query: Omit<InventoryQuery, "branchId">,
     actor?: PolicyActor,
   ): Promise<InventoryItem[]> {
-    if (actor) this.authorization?.assertCanReadBranch(actor, branchId);
+    if (actor) this.authorization.assertCanReadBranch(actor, branchId);
     return this.list({ ...query, branchId }, actor);
   }
 
@@ -135,7 +135,7 @@ export class InventoryService {
   }
 
   async adjust(input: AdjustInventoryBody, actor?: PolicyActor): Promise<InventoryItem> {
-    if (actor) this.authorization?.assertCanAdjustInventory(actor, input.branchId);
+    if (actor) this.authorization.assertCanAdjustInventory(actor, input.branchId);
     const actorId = actor?.sub ?? actor?.id;
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.inventory.findUnique({
@@ -204,11 +204,11 @@ export class InventoryService {
     if (!actor || actor.role === "ADMIN") return query;
     const branchId = actor.branchId;
     if (!branchId) {
-      this.authorization?.assertCanReadBranch(actor, "__forbidden__");
+      this.authorization.assertCanReadBranch(actor, "__forbidden__");
       return query;
     }
     if (query.branchId && query.branchId !== branchId) {
-      this.authorization?.assertCanReadBranch(actor, query.branchId);
+      this.authorization.assertCanReadBranch(actor, query.branchId);
     }
     return { ...query, branchId };
   }

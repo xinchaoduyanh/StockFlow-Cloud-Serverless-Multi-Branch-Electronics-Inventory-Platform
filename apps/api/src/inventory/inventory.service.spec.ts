@@ -1,7 +1,10 @@
 import { InventoryService } from "./inventory.service";
 import { PrismaService } from "../database/prisma.service";
+import { AuthorizationPolicyService } from "../auth/authorization-policy.service";
 
 describe("InventoryService invariants", () => {
+  const authorization = new AuthorizationPolicyService();
+
   it("filters low-stock rows in PostgreSQL before pagination", async () => {
     const $queryRaw = jest.fn().mockResolvedValue([
       {
@@ -20,7 +23,7 @@ describe("InventoryService invariants", () => {
       inventory: { findMany },
     } as unknown as PrismaService;
 
-    await new InventoryService(prisma).list({ page: 1, limit: 2, lowStock: true });
+    await new InventoryService(prisma, authorization).list({ page: 1, limit: 2, lowStock: true });
 
     expect($queryRaw).toHaveBeenCalledTimes(1);
     expect(findMany).toHaveBeenCalledWith(
@@ -50,7 +53,7 @@ describe("InventoryService invariants", () => {
     } as unknown as PrismaService;
 
     await expect(
-      new InventoryService(prisma).adjust({
+      new InventoryService(prisma, authorization).adjust({
         branchId: "11111111-1111-4111-8111-111111111111",
         componentId: "22222222-2222-4222-8222-222222222222",
         quantityChange: -3,
