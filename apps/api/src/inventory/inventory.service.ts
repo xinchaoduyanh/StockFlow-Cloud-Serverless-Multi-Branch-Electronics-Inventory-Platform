@@ -10,18 +10,23 @@ import { Prisma, StockMovementType } from "@prisma/client";
 import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
 import { PrismaService } from "../database/prisma.service";
+import { AuthorizationPolicyService, PolicyActor } from "../auth/authorization-policy.service";
 
 @Injectable()
 export class InventoryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authorization?: AuthorizationPolicyService,
+  ) {}
 
-  async list(query: InventoryQuery): Promise<InventoryItem[]> {
-    const { skip, take } = toPagination(query);
+  async list(query: InventoryQuery, actor?: PolicyActor): Promise<InventoryItem[]> {
+    const scopedQuery = this.scopeQuery(query, actor);
+    const { skip, take } = toPagination(scopedQuery);
     const where: Prisma.InventoryWhereInput = {
-      ...(query.branchId ? { branchId: query.branchId } : {}),
+      ...(scopedQuery.branchId ? { branchId: scopedQuery.branchId } : {}),
       component: {
-        ...(query.category ? { category: query.category as any } : {}),
-        ...(query.search
+        ...(scopedQuery.category ? { category: scopedQuery.category as any } : {}),
+        ...(scopedQuery.search
           ? {
               OR: [
                 { sku: { contains: query.search, mode: "insensitive" } },
@@ -32,15 +37,17 @@ export class InventoryService {
       },
     };
 
-    if (query.lowStock) {
+    if (scopedQuery.lowStock) {
       const filters = [
         Prisma.sql`i.quantity - i.reserved_quantity <= i.min_stock_threshold`,
-        query.branchId ? Prisma.sql`i.branch_id = ${query.branchId}::uuid` : Prisma.sql`TRUE`,
-        query.category
-          ? Prisma.sql`c.category = ${query.category}::"ComponentCategory"`
+        scopedQuery.branchId
+          ? Prisma.sql`i.branch_id = ${scopedQuery.branchId}::uuid`
           : Prisma.sql`TRUE`,
-        query.search
-          ? Prisma.sql`(c.sku ILIKE ${`%${query.search}%`} OR c.name ILIKE ${`%${query.search}%`})`
+        scopedQuery.category
+          ? Prisma.sql`c.category = ${scopedQuery.category}::"ComponentCategory"`
+          : Prisma.sql`TRUE`,
+        scopedQuery.search
+          ? Prisma.sql`(c.sku ILIKE ${`%${scopedQuery.search}%`} OR c.name ILIKE ${`%${scopedQuery.search}%`})`
           : Prisma.sql`TRUE`,
       ];
       const lowStockKeys = await this.prisma.$queryRaw<
@@ -94,9 +101,10 @@ export class InventoryService {
     }) as any;
   }
 
-  getBySku(sku: string): Promise<InventoryItem[]> {
+  getBySku(sku: string, actor?: PolicyActor): Promise<InventoryItem[]> {
     return this.prisma.inventory.findMany({
       where: {
+        ...(actor && actor.role !== "ADMIN" ? { branchId: actor.branchId ?? "__forbidden__" } : {}),
         component: {
           sku,
         },
@@ -112,17 +120,23 @@ export class InventoryService {
   listByBranch(
     branchId: string,
     query: Omit<InventoryQuery, "branchId">,
+    actor?: PolicyActor,
   ): Promise<InventoryItem[]> {
-    return this.list({ ...query, branchId });
+    if (actor) this.authorization?.assertCanReadBranch(actor, branchId);
+    return this.list({ ...query, branchId }, actor);
   }
 
-  listBranches(): Promise<Branch[]> {
+  listBranches(actor?: PolicyActor): Promise<Branch[]> {
     return this.prisma.branch.findMany({
+      where:
+        actor && actor.role !== "ADMIN" ? { id: actor.branchId ?? "__forbidden__" } : undefined,
       orderBy: { code: "asc" },
     }) as any;
   }
 
-  async adjust(input: AdjustInventoryBody, actorId?: string): Promise<InventoryItem> {
+  async adjust(input: AdjustInventoryBody, actor?: PolicyActor): Promise<InventoryItem> {
+    if (actor) this.authorization?.assertCanAdjustInventory(actor, input.branchId);
+    const actorId = actor?.sub ?? actor?.id;
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.inventory.findUnique({
         where: {
@@ -184,5 +198,18 @@ export class InventoryService {
 
       return inventory;
     }) as any;
+  }
+
+  private scopeQuery(query: InventoryQuery, actor?: PolicyActor): InventoryQuery {
+    if (!actor || actor.role === "ADMIN") return query;
+    const branchId = actor.branchId;
+    if (!branchId) {
+      this.authorization?.assertCanReadBranch(actor, "__forbidden__");
+      return query;
+    }
+    if (query.branchId && query.branchId !== branchId) {
+      this.authorization?.assertCanReadBranch(actor, query.branchId);
+    }
+    return { ...query, branchId };
   }
 }

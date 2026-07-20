@@ -17,6 +17,7 @@ import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
 import { PrismaService } from "../database/prisma.service";
 import { S3Service } from "./s3.service";
+import { AuthorizationPolicyService, PolicyActor } from "../auth/authorization-policy.service";
 
 type PreparedImportRow = {
   rowNumber: number;
@@ -32,9 +33,11 @@ export class ImportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly s3Service: S3Service,
+    private readonly authorization?: AuthorizationPolicyService,
   ) {}
 
-  async getPresignedPost(input: PresignedPostRequest, actorId?: string) {
+  async getPresignedPost(input: PresignedPostRequest, actorId?: string, actor?: PolicyActor) {
+    if (actor) this.authorization?.assertCanWriteImport(actor, input.branchId);
     const job = await this.prisma.importJob.create({
       data: {
         branchId: input.branchId,
@@ -71,7 +74,8 @@ export class ImportsService {
     };
   }
 
-  async init(input: InitImportBody, actorId?: string) {
+  async init(input: InitImportBody, actorId?: string, actor?: PolicyActor) {
+    if (actor) this.authorization?.assertCanWriteImport(actor, input.branchId);
     const preparedRows = this.prepareRows(input.rows ?? []);
     const job = await this.prisma.importJob.create({
       data: {
@@ -93,10 +97,16 @@ export class ImportsService {
       await this.saveRows(job.id, preparedRows);
     }
 
-    return this.get(job.id);
+    return this.get(job.id, actor);
   }
 
-  async upload(branchId: string, file: Express.Multer.File | undefined, actorId?: string) {
+  async upload(
+    branchId: string,
+    file: Express.Multer.File | undefined,
+    actorId?: string,
+    actor?: PolicyActor,
+  ) {
+    if (actor) this.authorization?.assertCanWriteImport(actor, branchId);
     if (!file) {
       throw ApiErrors.badRequest("Excel file is required");
     }
@@ -129,22 +139,23 @@ export class ImportsService {
       await this.saveRows(job.id, preparedRows);
     }
 
-    return this.get(job.id);
+    return this.get(job.id, actor);
   }
 
-  list(query: ImportListQuery) {
+  list(query: ImportListQuery, actor?: PolicyActor) {
     const { skip, take } = toPagination(query);
+    const branchId = this.scopeBranchId(query.branchId, actor);
 
     return this.prisma.importJob.findMany({
       skip,
       take,
-      where: query.branchId ? { branchId: query.branchId } : {},
+      where: branchId ? { branchId } : {},
       include: { branch: true },
       orderBy: { createdAt: "desc" },
     });
   }
 
-  async get(id: string) {
+  async get(id: string, actor?: PolicyActor) {
     const job = await this.prisma.importJob.findUnique({
       where: { id },
       include: { branch: true, rows: { orderBy: { rowNumber: "asc" } } },
@@ -153,12 +164,14 @@ export class ImportsService {
     if (!job) {
       throw ApiErrors.notFound("Import job not found");
     }
+    if (actor) this.authorization?.assertCanReadImport(actor, job.branchId);
 
     return job;
   }
 
-  async start(id: string, input: StartImportBody) {
-    await this.assertJob(id);
+  async start(id: string, input: StartImportBody, actor?: PolicyActor) {
+    const job = await this.assertJob(id, actor);
+    if (actor) this.authorization?.assertCanWriteImport(actor, job.branchId);
     const preparedRows = this.prepareRows(input.rows);
     const validRows = preparedRows.filter(
       (row) => row.validationStatus === ImportRowStatus.VALID,
@@ -179,11 +192,11 @@ export class ImportsService {
     });
 
     await this.saveRows(id, preparedRows);
-    return this.get(id);
+    return this.get(id, actor);
   }
 
-  async progress(id: string) {
-    const job = await this.assertJob(id);
+  async progress(id: string, actor?: PolicyActor) {
+    const job = await this.assertJob(id, actor);
     return {
       id: job.id,
       status: job.status,
@@ -195,7 +208,8 @@ export class ImportsService {
     };
   }
 
-  errors(id: string) {
+  async errors(id: string, actor?: PolicyActor) {
+    await this.assertJob(id, actor);
     return this.prisma.importJobRow.findMany({
       where: {
         importJobId: id,
@@ -205,15 +219,17 @@ export class ImportsService {
     });
   }
 
-  preview(id: string) {
+  async preview(id: string, actor?: PolicyActor) {
+    await this.assertJob(id, actor);
     return this.prisma.importJobRow.findMany({
       where: { importJobId: id },
       orderBy: { rowNumber: "asc" },
     });
   }
 
-  async confirm(id: string, actorId?: string) {
-    const job = await this.assertJob(id);
+  async confirm(id: string, actorId?: string, actor?: PolicyActor) {
+    const job = await this.assertJob(id, actor);
+    if (actor) this.authorization?.assertCanWriteImport(actor, job.branchId);
 
     if (job.status !== ImportStatus.PREVIEW_READY) {
       throw ApiErrors.badRequest("Import job is not ready to confirm");
@@ -351,8 +367,9 @@ export class ImportsService {
     return result;
   }
 
-  async cancel(id: string) {
-    const job = await this.assertJob(id);
+  async cancel(id: string, actor?: PolicyActor) {
+    const job = await this.assertJob(id, actor);
+    if (actor) this.authorization?.assertCanWriteImport(actor, job.branchId);
 
     if (job.awsTaskToken) {
       const sfnClient = new SFNClient({});
@@ -566,14 +583,24 @@ export class ImportsService {
     return value ?? "";
   }
 
-  private async assertJob(id: string) {
+  private async assertJob(id: string, actor?: PolicyActor) {
     const job = await this.prisma.importJob.findUnique({ where: { id } });
 
     if (!job) {
       throw ApiErrors.notFound("Import job not found");
     }
+    if (actor) this.authorization?.assertCanReadImport(actor, job.branchId);
 
     return this.recoverStaleJob(job);
+  }
+
+  private scopeBranchId(branchId: string | undefined, actor?: PolicyActor) {
+    if (!actor || actor.role === "ADMIN") return branchId;
+    if (branchId) this.authorization?.assertCanReadImport(actor, branchId);
+    if (!actor.branchId) {
+      this.authorization?.assertCanReadImport(actor, "__forbidden__");
+    }
+    return actor.branchId ?? "__forbidden__";
   }
 
   private async recoverStaleJob<T extends { id: string; status: ImportStatus; updatedAt: Date }>(

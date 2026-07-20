@@ -6,6 +6,7 @@ import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
 import { EnvService } from "../config/env.service";
 import { PrismaService } from "../database/prisma.service";
+import { AuthorizationPolicyService, PolicyActor } from "../auth/authorization-policy.service";
 
 @Injectable()
 export class DlqService {
@@ -14,9 +15,11 @@ export class DlqService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly envService: EnvService,
+    private readonly authorization?: AuthorizationPolicyService,
   ) {}
 
-  async listFailedJobs(query: DlqListQuery): Promise<ImportJobDTO[]> {
+  async listFailedJobs(query: DlqListQuery, actor?: PolicyActor): Promise<ImportJobDTO[]> {
+    if (actor) this.authorization?.assertAdmin(actor);
     const { skip, take } = toPagination(query);
 
     return this.prisma.importJob.findMany({
@@ -31,7 +34,8 @@ export class DlqService {
     }) as any;
   }
 
-  async replay(id: string) {
+  async replay(id: string, actor?: PolicyActor) {
+    if (actor) this.authorization?.assertAdmin(actor);
     const job = await this.prisma.importJob.findUnique({ where: { id } });
 
     if (!job) {
@@ -69,7 +73,8 @@ export class DlqService {
     });
   }
 
-  async discard(id: string) {
+  async discard(id: string, actor?: PolicyActor) {
+    if (actor) this.authorization?.assertAdmin(actor);
     const job = await this.prisma.importJob.findUnique({ where: { id } });
 
     if (!job) {

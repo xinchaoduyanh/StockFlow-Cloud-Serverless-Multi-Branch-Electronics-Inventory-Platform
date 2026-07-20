@@ -24,22 +24,24 @@ export class InventoryController {
   @ApiOkResponse({ description: "List inventory across branches." })
   list(
     @Query(new ZodValidationPipe(inventoryQuerySchema)) query: InventoryQuery,
+    @Req() request: AuthenticatedRequest,
   ): Promise<InventoryItem[]> {
-    return this.inventoryService.list(query);
+    return this.inventoryService.list(query, request.user);
   }
 
   @Get("inventory/:sku")
   @ApiOkResponse({ description: "List inventory records for a SKU." })
   getBySku(
     @Param(new ZodValidationPipe(skuParamSchema)) params: { sku: string },
+    @Req() request: AuthenticatedRequest,
   ): Promise<InventoryItem[]> {
-    return this.inventoryService.getBySku(params.sku);
+    return this.inventoryService.getBySku(params.sku, request.user);
   }
 
   @Get("branches")
   @ApiOkResponse({ description: "List branches for inventory workflows." })
-  listBranches(): Promise<Branch[]> {
-    return this.inventoryService.listBranches();
+  listBranches(@Req() request: AuthenticatedRequest): Promise<Branch[]> {
+    return this.inventoryService.listBranches(request.user);
   }
 
   @Get("branches/:branchId/inventory")
@@ -48,8 +50,9 @@ export class InventoryController {
     @Param(new ZodValidationPipe(branchIdParamSchema)) params: { branchId: string },
     @Query(new ZodValidationPipe(inventoryQuerySchema.omit({ branchId: true })))
     query: Omit<InventoryQuery, "branchId">,
+    @Req() request: AuthenticatedRequest,
   ): Promise<InventoryItem[]> {
-    return this.inventoryService.listByBranch(params.branchId, query);
+    return this.inventoryService.listByBranch(params.branchId, query, request.user);
   }
 
   @Patch("inventory/adjust")
@@ -71,6 +74,6 @@ export class InventoryController {
     body: AdjustInventoryBody,
     @Req() request: AuthenticatedRequest,
   ): Promise<InventoryItem> {
-    return this.inventoryService.adjust(body, request.user.sub);
+    return this.inventoryService.adjust(body, request.user);
   }
 }

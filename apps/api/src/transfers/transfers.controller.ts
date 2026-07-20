@@ -28,21 +28,25 @@ export class TransfersController {
     @Body(new ZodValidationPipe(createTransferBodySchema)) body: CreateTransferBody,
     @Req() request: AuthenticatedRequest,
   ): Promise<TransferDTO> {
-    return this.transfersService.create(body, request.user.sub);
+    return this.transfersService.create(body, request.user);
   }
 
   @Get()
   @ApiOkResponse({ description: "List transfer requests." })
   list(
     @Query(new ZodValidationPipe(transferListQuerySchema)) query: TransferListQuery,
+    @Req() request: AuthenticatedRequest,
   ): Promise<TransferDTO[]> {
-    return this.transfersService.list(query);
+    return this.transfersService.list(query, request.user);
   }
 
   @Get(":id")
   @ApiOkResponse({ description: "Get one transfer request." })
-  get(@Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string }): Promise<TransferDTO> {
-    return this.transfersService.get(params.id);
+  get(
+    @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
+    @Req() request: AuthenticatedRequest,
+  ): Promise<TransferDTO> {
+    return this.transfersService.get(params.id, request.user);
   }
 
   @Post(":id/approve")
@@ -51,7 +55,7 @@ export class TransfersController {
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
     @Req() request: AuthenticatedRequest,
   ): Promise<TransferDTO> {
-    return this.transfersService.approve(params.id, request.user.sub);
+    return this.transfersService.approve(params.id, request.user);
   }
 
   @Post(":id/reject")
@@ -68,7 +72,7 @@ export class TransfersController {
     @Body(new ZodValidationPipe(rejectTransferBodySchema)) body: RejectTransferBody,
     @Req() request: AuthenticatedRequest,
   ): Promise<TransferDTO> {
-    return this.transfersService.reject(params.id, body, request.user.sub);
+    return this.transfersService.reject(params.id, body, request.user);
   }
 
   @Post(":id/cancel")
@@ -77,6 +81,6 @@ export class TransfersController {
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
     @Req() request: AuthenticatedRequest,
   ): Promise<TransferDTO> {
-    return this.transfersService.cancel(params.id, request.user.sub);
+    return this.transfersService.cancel(params.id, request.user);
   }
 }

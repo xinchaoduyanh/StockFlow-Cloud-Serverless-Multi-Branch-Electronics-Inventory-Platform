@@ -6,6 +6,7 @@ import { AppModule } from "../src/app.module";
 import { setupApp } from "../src/app.setup";
 import { PrismaService } from "../src/database/prisma.service";
 import { JwtAuthGuard } from "../src/auth/jwt-auth.guard";
+import { RolesGuard } from "../src/auth/roles.guard";
 
 describe("Reconciliation (e2e)", () => {
   let app: INestApplication;
@@ -86,6 +87,8 @@ describe("Reconciliation (e2e)", () => {
       imports: [AppModule],
     })
       .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(RolesGuard)
       .useValue({ canActivate: () => true })
       .overrideProvider(PrismaService)
       .useValue(mockPrismaService)

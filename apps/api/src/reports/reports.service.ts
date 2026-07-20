@@ -9,6 +9,7 @@ import { toPagination } from "../common/schemas/pagination.schema";
 import { EnvService } from "../config/env.service";
 import { PrismaService } from "../database/prisma.service";
 import { S3Service } from "../imports/s3.service";
+import { AuthorizationPolicyService, PolicyActor } from "../auth/authorization-policy.service";
 
 const prismaReportTypeByExternal: Record<ReportType, PrismaReportType> = {
   [ReportType.INVENTORY]: PrismaReportType.INVENTORY,
@@ -34,14 +35,19 @@ export class ReportsService {
     private readonly prisma: PrismaService,
     private readonly envService: EnvService,
     private readonly s3Service: S3Service,
+    private readonly authorization?: AuthorizationPolicyService,
   ) {}
 
-  async createExport(input: CreateExportBody, actorId?: string): Promise<ExportJobDTO> {
+  async createExport(input: CreateExportBody, actor?: PolicyActor): Promise<ExportJobDTO> {
+    const actorId = actor?.sub ?? actor?.id;
+    const branchId = input.filters?.branchId ?? actor?.branchId;
+    if (actor) this.authorization?.assertCanReadReport(actor, branchId, actorId);
+    const filters = { ...(input.filters ?? {}), ...(actor?.role !== "ADMIN" ? { branchId } : {}) };
     const job = await this.prisma.exportJob.create({
       data: {
         reportType: prismaReportTypeByExternal[input.reportType],
         status: ExportJobStatus.PENDING,
-        filters: input.filters ?? undefined,
+        filters: filters ?? undefined,
         createdBy: actorId,
       },
     });
@@ -58,27 +64,32 @@ export class ReportsService {
       await this.runExportSync(job.id);
     }
 
-    return this.getExport(job.id);
+    return this.getExport(job.id, actor);
   }
 
-  async listExports(query: ExportListQuery): Promise<ExportJobDTO[]> {
+  async listExports(query: ExportListQuery, actor?: PolicyActor): Promise<ExportJobDTO[]> {
     const { skip, take } = toPagination(query);
     const jobs = await this.prisma.exportJob.findMany({
       skip,
       take,
+      where: actor && actor.role !== "ADMIN" ? { createdBy: actor.sub ?? actor.id } : undefined,
       orderBy: { createdAt: "desc" },
     });
     return jobs.map((job) => this.serializeExportJob(job)) as any;
   }
 
-  async getExport(id: string): Promise<ExportJobDTO> {
+  async getExport(id: string, actor?: PolicyActor): Promise<ExportJobDTO> {
     const job = await this.prisma.exportJob.findUnique({ where: { id } });
     if (!job) throw ApiErrors.notFound("Export job not found");
+    if (actor) {
+      const filters = (job.filters as { branchId?: string } | null) ?? null;
+      this.authorization?.assertCanReadReport(actor, filters?.branchId, job.createdBy);
+    }
     return this.serializeExportJob(job) as any;
   }
 
-  async getDownloadUrl(id: string) {
-    const job = await this.getExport(id);
+  async getDownloadUrl(id: string, actor?: PolicyActor) {
+    const job = await this.getExport(id, actor);
 
     if (job.status !== ExportJobStatus.COMPLETED || !job.s3Key) {
       throw ApiErrors.badRequest("Export is not ready for download");

@@ -10,20 +10,25 @@ import { StockMovementType, TransferStatus } from "@prisma/client";
 import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
 import { PrismaService } from "../database/prisma.service";
+import { AuthorizationPolicyService, PolicyActor } from "../auth/authorization-policy.service";
 
 @Injectable()
 export class TransfersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authorization?: AuthorizationPolicyService,
+  ) {}
 
-  async list(query: TransferListQuery): Promise<TransferDTO[]> {
+  async list(query: TransferListQuery, actor?: PolicyActor): Promise<TransferDTO[]> {
     const { skip, take } = toPagination(query);
+    const branchId = this.scopeBranchId(query.branchId, actor);
 
     const transfers = await this.prisma.transfer.findMany({
       skip,
       take,
-      where: query.branchId
+      where: branchId
         ? {
-            OR: [{ fromBranchId: query.branchId }, { toBranchId: query.branchId }],
+            OR: [{ fromBranchId: branchId }, { toBranchId: branchId }],
           }
         : {},
       include: {
@@ -62,7 +67,7 @@ export class TransfersService {
     })) as any;
   }
 
-  async get(id: string): Promise<TransferDTO> {
+  async get(id: string, actor?: PolicyActor): Promise<TransferDTO> {
     const transfer = await this.prisma.transfer.findUnique({
       where: { id },
       include: {
@@ -75,6 +80,8 @@ export class TransfersService {
     if (!transfer) {
       throw ApiErrors.notFound("Transfer not found");
     }
+    if (actor)
+      this.authorization?.assertCanReadTransfer(actor, transfer.fromBranchId, transfer.toBranchId);
 
     const userIds = [transfer.requestedBy, transfer.approvedBy, transfer.rejectedBy].filter(
       Boolean,
@@ -100,7 +107,10 @@ export class TransfersService {
     } as any;
   }
 
-  async create(input: CreateTransferBody, actorId?: string): Promise<TransferDTO> {
+  async create(input: CreateTransferBody, actor?: PolicyActor): Promise<TransferDTO> {
+    if (actor)
+      this.authorization?.assertCanCreateTransfer(actor, input.fromBranchId, input.toBranchId);
+    const actorId = actor?.sub ?? actor?.id;
     return this.prisma.$transaction(async (tx) => {
       const itemsByLockOrder = [...input.items].sort((left, right) =>
         left.componentId.localeCompare(right.componentId),
@@ -176,7 +186,8 @@ export class TransfersService {
     }) as any;
   }
 
-  async approve(id: string, actorId?: string): Promise<TransferDTO> {
+  async approve(id: string, actor?: PolicyActor): Promise<TransferDTO> {
+    const actorId = actor?.sub ?? actor?.id;
     return this.prisma.$transaction(async (tx) => {
       const transfer = await tx.transfer.findUnique({
         where: { id },
@@ -186,6 +197,7 @@ export class TransfersService {
       if (!transfer) {
         throw ApiErrors.notFound("Transfer not found");
       }
+      if (actor) this.authorization?.assertCanApproveTransfer(actor, transfer);
 
       if (transfer.status !== TransferStatus.PENDING) {
         throw ApiErrors.conflict("Only pending transfers can be approved");
@@ -280,20 +292,21 @@ export class TransfersService {
     });
   }
 
-  async reject(id: string, input: RejectTransferBody, actorId?: string): Promise<TransferDTO> {
-    return this.releaseReservation(id, TransferStatus.REJECTED, actorId, input.reason);
+  async reject(id: string, input: RejectTransferBody, actor?: PolicyActor): Promise<TransferDTO> {
+    return this.releaseReservation(id, TransferStatus.REJECTED, actor, input.reason);
   }
 
-  async cancel(id: string, actorId?: string): Promise<TransferDTO> {
-    return this.releaseReservation(id, TransferStatus.CANCELLED, actorId);
+  async cancel(id: string, actor?: PolicyActor): Promise<TransferDTO> {
+    return this.releaseReservation(id, TransferStatus.CANCELLED, actor);
   }
 
   private async releaseReservation(
     id: string,
     nextStatus: typeof TransferStatus.REJECTED | typeof TransferStatus.CANCELLED,
-    actorId?: string,
+    actor?: PolicyActor,
     rejectReason?: string,
   ): Promise<TransferDTO> {
+    const actorId = actor?.sub ?? actor?.id;
     return this.prisma.$transaction(async (tx) => {
       const transfer = await tx.transfer.findUnique({
         where: { id },
@@ -302,6 +315,13 @@ export class TransfersService {
 
       if (!transfer) {
         throw ApiErrors.notFound("Transfer not found");
+      }
+      if (actor) {
+        if (nextStatus === TransferStatus.CANCELLED) {
+          this.authorization?.assertCanCancelTransfer(actor, transfer);
+        } else {
+          this.authorization?.assertCanApproveTransfer(actor, transfer);
+        }
       }
 
       if (transfer.status !== TransferStatus.PENDING) {
@@ -350,5 +370,16 @@ export class TransfersService {
         },
       }) as any;
     });
+  }
+
+  private scopeBranchId(branchId: string | undefined, actor?: PolicyActor) {
+    if (!actor || actor.role === "ADMIN") return branchId;
+    if (!actor.branchId) {
+      this.authorization?.assertCanReadTransfer(actor, "__forbidden__", "__forbidden__");
+    }
+    if (branchId && branchId !== actor.branchId) {
+      this.authorization?.assertCanReadTransfer(actor, branchId, "__other__");
+    }
+    return actor.branchId ?? "__forbidden__";
   }
 }

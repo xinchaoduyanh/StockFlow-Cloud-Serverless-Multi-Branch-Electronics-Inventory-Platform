@@ -25,30 +25,33 @@ export class ReportsController {
     @Body(new ZodValidationPipe(createExportBodySchema)) body: CreateExportBody,
     @Req() request: AuthenticatedRequest,
   ): Promise<ExportJobDTO> {
-    return this.reportsService.createExport(body, request.user.sub);
+    return this.reportsService.createExport(body, request.user);
   }
 
   @Get("exports")
   @ApiOkResponse({ description: "List export jobs." })
   listExports(
     @Query(new ZodValidationPipe(exportListQuerySchema)) query: ExportListQuery,
+    @Req() request: AuthenticatedRequest,
   ): Promise<ExportJobDTO[]> {
-    return this.reportsService.listExports(query);
+    return this.reportsService.listExports(query, request.user);
   }
 
   @Get("export/:id")
   @ApiOkResponse({ description: "Get export job status." })
   getExport(
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
+    @Req() request: AuthenticatedRequest,
   ): Promise<ExportJobDTO> {
-    return this.reportsService.getExport(params.id);
+    return this.reportsService.getExport(params.id, request.user);
   }
 
   @Get("export/:id/download")
   @ApiOkResponse({ description: "Get presigned download URL for completed export." })
   getDownloadUrl(
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
+    @Req() request: AuthenticatedRequest,
   ): Promise<any> {
-    return this.reportsService.getDownloadUrl(params.id);
+    return this.reportsService.getDownloadUrl(params.id, request.user);
   }
 }

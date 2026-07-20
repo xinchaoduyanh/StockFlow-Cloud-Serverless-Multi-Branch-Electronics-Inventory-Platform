@@ -46,7 +46,7 @@ export class ImportsController {
     @Body(new ZodValidationPipe(presignedPostRequestSchema)) body: PresignedPostRequest,
     @Req() request: AuthenticatedRequest,
   ): Promise<PresignedPostResponse> {
-    return this.importsService.getPresignedPost(body, request.user.sub);
+    return this.importsService.getPresignedPost(body, request.user.sub, request.user);
   }
 
   @Post("init")
@@ -56,7 +56,7 @@ export class ImportsController {
     @Body(new ZodValidationPipe(initImportBodySchema)) body: InitImportBody,
     @Req() request: AuthenticatedRequest,
   ): Promise<ImportJobDTO> {
-    return this.importsService.init(body, request.user.sub);
+    return this.importsService.init(body, request.user.sub, request.user);
   }
 
   @Post("upload")
@@ -78,7 +78,7 @@ export class ImportsController {
     @UploadedFile() file: Express.Multer.File,
     @Req() request: AuthenticatedRequest,
   ): Promise<ImportJobDTO> {
-    return this.importsService.upload(body.branchId, file, request.user.sub);
+    return this.importsService.upload(body.branchId, file, request.user.sub, request.user);
   }
 
   @Post(":id/start")
@@ -87,46 +87,54 @@ export class ImportsController {
   start(
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
     @Body(new ZodValidationPipe(startImportBodySchema)) body: StartImportBody,
+    @Req() request: AuthenticatedRequest,
   ): Promise<ImportJobDTO> {
-    return this.importsService.start(params.id, body);
+    return this.importsService.start(params.id, body, request.user);
   }
 
   @Get()
   @ApiOkResponse({ description: "List import jobs." })
   list(
     @Query(new ZodValidationPipe(importListQuerySchema)) query: ImportListQuery,
+    @Req() request: AuthenticatedRequest,
   ): Promise<ImportJobDTO[]> {
-    return this.importsService.list(query);
+    return this.importsService.list(query, request.user);
   }
 
   @Get(":id")
   @ApiOkResponse({ description: "Get one import job." })
   get(
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
+    @Req() request: AuthenticatedRequest,
   ): Promise<ImportJobDTO> {
-    return this.importsService.get(params.id);
+    return this.importsService.get(params.id, request.user);
   }
 
   @Get(":id/progress")
   @ApiOkResponse({ description: "Get import progress counters." })
-  progress(@Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string }): Promise<any> {
-    return this.importsService.progress(params.id);
+  progress(
+    @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
+    @Req() request: AuthenticatedRequest,
+  ): Promise<any> {
+    return this.importsService.progress(params.id, request.user);
   }
 
   @Get(":id/errors")
   @ApiOkResponse({ description: "Get invalid import rows." })
   errors(
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
+    @Req() request: AuthenticatedRequest,
   ): Promise<ImportPreviewRowDTO[]> {
-    return this.importsService.errors(params.id);
+    return this.importsService.errors(params.id, request.user);
   }
 
   @Get(":id/preview")
   @ApiOkResponse({ description: "Get import preview rows." })
   preview(
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
+    @Req() request: AuthenticatedRequest,
   ): Promise<ImportPreviewRowDTO[]> {
-    return this.importsService.preview(params.id);
+    return this.importsService.preview(params.id, request.user);
   }
 
   @Post(":id/confirm")
@@ -135,22 +143,24 @@ export class ImportsController {
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
     @Req() request: AuthenticatedRequest,
   ): Promise<ImportJobDTO> {
-    return this.importsService.confirm(params.id, request.user.sub);
+    return this.importsService.confirm(params.id, request.user.sub, request.user);
   }
 
   @Post(":id/cancel")
   @ApiOkResponse({ description: "Cancel import job." })
   cancel(
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
+    @Req() request: AuthenticatedRequest,
   ): Promise<ImportJobDTO> {
-    return this.importsService.cancel(params.id);
+    return this.importsService.cancel(params.id, request.user);
   }
 
   @Post(":id/retry-failed-rows")
   @ApiOkResponse({ description: "Placeholder for future DLQ/SQS retry integration." })
   retryFailedRows(
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
+    @Req() request: AuthenticatedRequest,
   ): Promise<any> {
-    return this.importsService.progress(params.id);
+    return this.importsService.progress(params.id, request.user);
   }
 }
