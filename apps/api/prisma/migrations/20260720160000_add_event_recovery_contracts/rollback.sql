@@ -1,0 +1,11 @@
+-- Non-destructive rollback strategy:
+--
+-- 1. Disable the E3 queue/event-source mappings or roll back application code.
+-- 2. Retain export attempts, import recovery items, audit logs, and SNS message
+--    IDs so operators do not lose recovery history or deduplication evidence.
+-- 3. Do not run destructive DROP statements automatically. Archive data and
+--    prepare a separately reviewed retention migration before removing E3
+--    tables or enum values.
+--
+-- PostgreSQL enum values cannot be removed safely on a live database. Keeping
+-- the additive schema is therefore the safe, reversible application rollback.

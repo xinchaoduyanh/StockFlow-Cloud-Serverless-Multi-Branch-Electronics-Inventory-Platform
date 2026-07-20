@@ -56,6 +56,7 @@ export const ExportJobStatus = {
   PROCESSING: "PROCESSING",
   COMPLETED: "COMPLETED",
   FAILED: "FAILED",
+  DISCARDED: "DISCARDED",
 } as const;
 export type ExportJobStatus = (typeof ExportJobStatus)[keyof typeof ExportJobStatus];
 
@@ -126,6 +127,7 @@ export * from "./transfers";
 export * from "./imports";
 export * from "./dlq";
 export * from "./reports";
+export * from "./recovery";
 export * from "./auth";
 export * from "./notifications";
 export * from "./templates";

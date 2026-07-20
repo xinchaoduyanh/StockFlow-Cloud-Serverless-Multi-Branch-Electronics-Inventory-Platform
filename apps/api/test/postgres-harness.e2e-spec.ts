@@ -1,4 +1,11 @@
-import { PrismaClient } from "@prisma/client";
+import {
+  ImportRecoveryTerminalStatus,
+  ImportStatus,
+  PrismaClient,
+  ReportType,
+  RecoveryItemStatus,
+  UserRole,
+} from "@prisma/client";
 
 const describePostgres = process.env.RUN_POSTGRES_TESTS === "1" ? describe : describe.skip;
 
@@ -7,6 +14,7 @@ describePostgres("PostgreSQL integration harness", () => {
   let branchId: string;
   let componentId: string;
   let secondComponentId: string;
+  let userId: string;
 
   beforeAll(async () => {
     await prisma.$connect();
@@ -14,7 +22,7 @@ describePostgres("PostgreSQL integration harness", () => {
 
   beforeEach(async () => {
     await prisma.$executeRawUnsafe(
-      `TRUNCATE TABLE "notifications", "reconciliation_issues", "stock_movements", "transfer_items", "transfers", "import_job_rows", "import_jobs", "inventory", "components", "users", "branches" CASCADE`,
+      `TRUNCATE TABLE "audit_logs", "import_recovery_items", "notifications", "export_jobs", "reconciliation_issues", "stock_movements", "transfer_items", "transfers", "import_job_rows", "import_jobs", "inventory", "components", "users", "branches" CASCADE`,
     );
 
     const branch = await prisma.branch.create({
@@ -28,6 +36,14 @@ describePostgres("PostgreSQL integration harness", () => {
     });
 
     branchId = branch.id;
+    const user = await prisma.user.create({
+      data: {
+        email: "harness@example.com",
+        role: UserRole.ADMIN,
+        branchId,
+      },
+    });
+    userId = user.id;
     componentId = component.id;
     secondComponentId = secondComponent.id;
     await prisma.inventory.create({
@@ -118,5 +134,60 @@ describePostgres("PostgreSQL integration harness", () => {
         data: { reservedQuantity: 11 },
       }),
     ).rejects.toThrow();
+  });
+
+  it("enforces unique import execution correlation for recovery events", async () => {
+    const firstJob = await prisma.importJob.create({
+      data: {
+        branchId,
+        status: ImportStatus.FAILED,
+        executionArn:
+          "arn:aws:states:ap-southeast-1:123456789012:execution:stockflow-ingestion:run-1",
+      },
+    });
+    const secondJob = await prisma.importJob.create({
+      data: { branchId, status: ImportStatus.FAILED },
+    });
+
+    await prisma.importRecoveryItem.create({
+      data: {
+        importJobId: firstJob.id,
+        executionArn: firstJob.executionArn,
+        terminalStatus: ImportRecoveryTerminalStatus.FAILED,
+        status: RecoveryItemStatus.OPEN,
+      },
+    });
+
+    await expect(
+      prisma.importRecoveryItem.create({
+        data: {
+          importJobId: secondJob.id,
+          executionArn: firstJob.executionArn,
+          terminalStatus: ImportRecoveryTerminalStatus.FAILED,
+        },
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("deduplicates notifications by SNS source message ID", async () => {
+    const notification = {
+      userId,
+      sourceMessageId: "sns-message-1",
+      title: "Import failed",
+      message: "A test import failed.",
+      type: "IMPORT_FAILED",
+    };
+
+    await prisma.notification.create({ data: notification });
+    await expect(prisma.notification.create({ data: notification })).rejects.toThrow();
+  });
+
+  it("persists report queue state with an updated timestamp", async () => {
+    const exportJob = await prisma.exportJob.create({
+      data: { reportType: ReportType.INVENTORY },
+    });
+
+    expect(exportJob.updatedAt).toBeInstanceOf(Date);
+    expect(exportJob.attemptCount).toBe(0);
   });
 });

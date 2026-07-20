@@ -113,12 +113,12 @@ model Branch {
   createdAt DateTime     @default(now()) @map("created_at")
   updatedAt DateTime     @updatedAt @map("updated_at")
 
-  users      User[]
-  inventory  Inventory[]
-  importJobs ImportJob[]
-  transfersFrom Transfer[] @relation("TransferFromBranch")
-  transfersTo   Transfer[] @relation("TransferToBranch")
-  stockMovements StockMovement[]
+  users                User[]
+  inventory            Inventory[]
+  importJobs           ImportJob[]
+  transfersFrom        Transfer[]            @relation("TransferFromBranch")
+  transfersTo          Transfer[]            @relation("TransferToBranch")
+  stockMovements       StockMovement[]
   reconciliationIssues ReconciliationIssue[]
 
   @@map("branches")
@@ -137,9 +137,9 @@ model Component {
   createdAt      DateTime          @default(now()) @map("created_at")
   updatedAt      DateTime          @updatedAt @map("updated_at")
 
-  inventory Inventory[]
-  transferItems TransferItem[]
-  stockMovements StockMovement[]
+  inventory            Inventory[]
+  transferItems        TransferItem[]
+  stockMovements       StockMovement[]
   reconciliationIssues ReconciliationIssue[]
 
   @@map("components")
@@ -178,10 +178,13 @@ model ImportJob {
   completedAt   DateTime?    @map("completed_at")
   awsTaskToken  String?      @map("aws_task_token")
   errorMessage  String?      @map("error_message")
+  executionArn  String?      @unique @map("execution_arn")
+  replayCount   Int          @default(0) @map("replay_count")
 
-  branch Branch         @relation(fields: [branchId], references: [id])
-  user   User?          @relation(fields: [createdBy], references: [id])
-  rows   ImportJobRow[]
+  branch        Branch               @relation(fields: [branchId], references: [id])
+  user          User?                @relation(fields: [createdBy], references: [id])
+  rows          ImportJobRow[]
+  recoveryItems ImportRecoveryItem[]
 
   @@map("import_jobs")
 }
@@ -201,8 +204,8 @@ model ImportJobRow {
 
   importJob ImportJob @relation(fields: [importJobId], references: [id])
 
-  @@index([importJobId])
   @@unique([importJobId, rowNumber])
+  @@index([importJobId])
   @@map("import_job_rows")
 }
 
@@ -244,15 +247,15 @@ model TransferItem {
 }
 
 model StockMovement {
-  id            String            @id @default(uuid()) @db.Uuid
-  branchId      String            @map("branch_id") @db.Uuid
-  componentId   String            @map("component_id") @db.Uuid
-  movementType  StockMovementType @map("movement_type")
-  quantityChange Int              @map("quantity_change")
-  referenceType StockMovementReferenceType? @map("reference_type")
-  referenceId   String?           @map("reference_id") @db.Uuid
-  createdBy     String?           @map("created_by") @db.Uuid
-  createdAt     DateTime          @default(now()) @map("created_at")
+  id             String                      @id @default(uuid()) @db.Uuid
+  branchId       String                      @map("branch_id") @db.Uuid
+  componentId    String                      @map("component_id") @db.Uuid
+  movementType   StockMovementType           @map("movement_type")
+  quantityChange Int                         @map("quantity_change")
+  referenceType  StockMovementReferenceType? @map("reference_type")
+  referenceId    String?                     @map("reference_id") @db.Uuid
+  createdBy      String?                     @map("created_by") @db.Uuid
+  createdAt      DateTime                    @default(now()) @map("created_at")
 
   branch    Branch    @relation(fields: [branchId], references: [id])
   component Component @relation(fields: [componentId], references: [id])
@@ -293,42 +296,106 @@ enum ExportJobStatus {
   PROCESSING
   COMPLETED
   FAILED
+  DISCARDED
+}
+
+enum RecoveryItemStatus {
+  OPEN
+  REPLAYING
+  RESOLVED
+  DISCARDED
+}
+
+enum ImportRecoveryTerminalStatus {
+  FAILED
+  TIMED_OUT
+  ABORTED
+  STALE
 }
 
 enum ReportType {
-  INVENTORY @map("inventory")
-  LOW_STOCK @map("low-stock")
-  TRANSFERS @map("transfers")
-  IMPORT_HISTORY @map("import-history")
+  INVENTORY       @map("inventory")
+  LOW_STOCK       @map("low-stock")
+  TRANSFERS       @map("transfers")
+  IMPORT_HISTORY  @map("import-history")
   STOCK_MOVEMENTS @map("stock-movements")
 }
 
 model ExportJob {
-  id          String          @id @default(uuid()) @db.Uuid
-  reportType  ReportType      @map("report_type")
-  status      ExportJobStatus @default(PENDING)
-  filters     Json?
-  s3Key       String?         @map("s3_key")
-  fileName    String?         @map("file_name") @db.VarChar(255)
-  totalRecords Int?           @map("total_records")
-  errorMessage String?        @map("error_message")
-  createdBy   String?         @map("created_by") @db.Uuid
-  createdAt   DateTime        @default(now()) @map("created_at")
-  completedAt DateTime?       @map("completed_at")
+  id                  String          @id @default(uuid()) @db.Uuid
+  reportType          ReportType      @map("report_type")
+  status              ExportJobStatus @default(PENDING)
+  filters             Json?
+  s3Key               String?         @map("s3_key")
+  fileName            String?         @map("file_name") @db.VarChar(255)
+  totalRecords        Int?            @map("total_records")
+  errorMessage        String?         @map("error_message")
+  lastErrorCode       String?         @map("last_error_code") @db.VarChar(100)
+  discardReason       String?         @map("discard_reason") @db.Text
+  attemptCount        Int             @default(0) @map("attempt_count")
+  processingStartedAt DateTime?       @map("processing_started_at")
+  createdBy           String?         @map("created_by") @db.Uuid
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @default(now()) @updatedAt @map("updated_at")
+  completedAt         DateTime?       @map("completed_at")
 
-  @@index([status])
+  @@index([status, createdAt])
   @@map("export_jobs")
 }
 
+model ImportRecoveryItem {
+  id               String                       @id @default(uuid()) @db.Uuid
+  importJobId      String                       @map("import_job_id") @db.Uuid
+  executionArn     String?                      @unique @map("execution_arn")
+  eventId          String?                      @unique @map("event_id") @db.VarChar(255)
+  terminalStatus   ImportRecoveryTerminalStatus @map("terminal_status")
+  status           RecoveryItemStatus           @default(OPEN)
+  errorCode        String?                      @map("error_code") @db.VarChar(100)
+  errorMessage     String?                      @map("error_message") @db.Text
+  receiveCount     Int?                         @map("receive_count")
+  replayCount      Int                          @default(0) @map("replay_count")
+  lastActionBy     String?                      @map("last_action_by") @db.Uuid
+  lastActionReason String?                      @map("last_action_reason") @db.Text
+  lastReplayedAt   DateTime?                    @map("last_replayed_at")
+  resolvedAt       DateTime?                    @map("resolved_at")
+  discardedAt      DateTime?                    @map("discarded_at")
+  createdAt        DateTime                     @default(now()) @map("created_at")
+  updatedAt        DateTime                     @default(now()) @updatedAt @map("updated_at")
+
+  importJob ImportJob @relation(fields: [importJobId], references: [id], onDelete: Restrict)
+
+  @@index([importJobId])
+  @@index([status, createdAt])
+  @@map("import_recovery_items")
+}
+
+model AuditLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  actorId       String?  @map("actor_id") @db.Uuid
+  action        String   @db.VarChar(100)
+  resourceType  String   @map("resource_type") @db.VarChar(100)
+  resourceId    String   @map("resource_id") @db.VarChar(255)
+  reason        String?  @db.Text
+  beforeSummary Json?    @map("before_summary")
+  afterSummary  Json?    @map("after_summary")
+  metadata      Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([resourceType, resourceId, createdAt])
+  @@index([actorId, createdAt])
+  @@map("audit_logs")
+}
+
 model Notification {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  title     String   @db.VarChar(255)
-  message   String   @db.Text
-  type      String   @db.VarChar(50) // e.g. IMPORT_SUCCESS, IMPORT_FAILED
-  read      Boolean  @default(false)
-  metadata  Json?
-  createdAt DateTime @default(now()) @map("created_at")
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  sourceMessageId String?  @unique @map("source_message_id") @db.VarChar(255)
+  title           String   @db.VarChar(255)
+  message         String   @db.Text
+  type            String   @db.VarChar(50) // e.g. IMPORT_SUCCESS, IMPORT_FAILED
+  read            Boolean  @default(false)
+  metadata        Json?
+  createdAt       DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -336,4 +403,3 @@ model Notification {
   @@index([read])
   @@map("notifications")
 }
-
