@@ -24,6 +24,7 @@
 | OD-14 | Không có budget/cost alarm; công tắc `system_on` không về 0đ    | P1  | 0.5           |
 | OD-15 | Runbook mới phủ E3; chưa có runbook dựng lại toàn stack         | P1  | 1             |
 | OD-16 | Không có môi trường demo chạy thường trực                       | P2  | 1–2           |
+| OD-18 | 5 advisory `high` còn lại, chỉ vá được bằng semver-major        | P1  | 0.5–1         |
 
 ## Đã đóng trong đợt rà soát này
 
@@ -297,6 +298,35 @@ Nhưng vẫn chưa có tài liệu mô tả **trình tự dựng lại toàn b�
 3. Bật full stack theo lịch phỏng vấn, dựa trên runbook ở OD-15.
 
 Không nên bật full stack 24/7 — chi phí không tương xứng lợi ích.
+
+---
+
+## OD-18 — 5 advisory `high` còn lại sau `npm audit fix`
+
+**Bằng chứng** — CI run `33621355633` (2026-09-02) fail ở bước `Dependency audit`:
+
+```
+38 vulnerabilities (24 moderate, 14 high)
+```
+
+Sau khi chạy `npm audit fix` (chỉ nâng trong phạm vi semver, không breaking):
+
+```
+29 vulnerabilities (24 moderate, 5 high, 0 critical)
+```
+
+9 advisory `high` đã được vá, trong đó có chuỗi `next` → `sharp` → libvips (4 CVE) và `postcss`, `nanoid`, `js-yaml`, `browserslist`, `brace-expansion`, `fast-uri`. Chỉ `package-lock.json` thay đổi, không đụng version trong `package.json` nào, và `npm run verify` vẫn pass toàn bộ.
+
+**5 advisory còn lại:**
+
+| Gói                                                           | npm đề xuất        | Đánh giá                                                                                    |
+| ------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------- |
+| `@opentelemetry/sdk-node`, `@opentelemetry/propagator-jaeger` | nâng lên `0.222.0` | Khả thi, nhưng OTel đang là code chết (OD-05) nên nên gộp vào đợt sửa OD-05 để test một lần |
+| `prisma`, `@prisma/config`, `deepmerge-ts`                    | `prisma@6.12.0`    | **Không nhận** — hiện đang dùng 6.19.3, đây là downgrade. Cần chời bản vá xuôi chiều        |
+
+**Hiện đang xử lý thế nào:** CI tách làm hai bước — `--audit-level=critical` chặn cứng (hiện 0 critical), và `--audit-level=high` chạy với `continue-on-error: true` để lại annotation vàng.
+
+**Việc này có chấp nhận được không:** chấp nhận được có thời hạn. Nguy cơ thực sự của cách này là annotation vàng dần trở thành thứ không ai nhìn nửa. Đặt hạn rà soát lại khi sửa OD-05, và nếu số high tăng quá 5 thì phải xử lý ngay chứ không nâng trần.
 
 ---
 
