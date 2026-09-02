@@ -38,4 +38,3 @@
 - [ ] Warm/cold and failure/retry behavior is reported.
 - [ ] Throughput, duration, error rate, and cost assumptions are documented.
 - [ ] No CV/README claim exceeds the measured evidence.
-

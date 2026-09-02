@@ -4,15 +4,15 @@
 
 ## Evidence snapshot
 
-| Check | Result | Interpretation |
-| --- | --- | --- |
-| `npm test -- --runInBand` | 31 passed, 7 skipped | Unit/e2e baseline is green; PostgreSQL suite is skipped unless `RUN_POSTGRES_TESTS=1`. |
-| `npm run build` | Pass | Shared, API, and web production builds compile. |
-| `npm run build:lambdas` | Pass | Current legacy Lambda topology bundles successfully. This is not proof of E3 queue behavior. |
-| `npm run lint` | Fail: 15,195 errors, 1,171 warnings | Root lint scans generated `.aws-sam/build` and other artifacts; source warnings/errors also remain. |
-| `git diff --cached --check` | Pass | No staged whitespace errors detected. |
-| Terraform CLI | Missing (`command not found`) | Terraform format/validate/plan/apply cannot be verified in this environment. |
-| Terraform state | No workspace state found; lockfile exists | Cloud ownership and deployed topology are unverified locally. |
+| Check                       | Result                                    | Interpretation                                                                                      |
+| --------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `npm test -- --runInBand`   | 31 passed, 7 skipped                      | Unit/e2e baseline is green; PostgreSQL suite is skipped unless `RUN_POSTGRES_TESTS=1`.              |
+| `npm run build`             | Pass                                      | Shared, API, and web production builds compile.                                                     |
+| `npm run build:lambdas`     | Pass                                      | Current legacy Lambda topology bundles successfully. This is not proof of E3 queue behavior.        |
+| `npm run lint`              | Fail: 15,195 errors, 1,171 warnings       | Root lint scans generated `.aws-sam/build` and other artifacts; source warnings/errors also remain. |
+| `git diff --cached --check` | Pass                                      | No staged whitespace errors detected.                                                               |
+| Terraform CLI               | Missing (`command not found`)             | Terraform format/validate/plan/apply cannot be verified in this environment.                        |
+| Terraform state             | No workspace state found; lockfile exists | Cloud ownership and deployed topology are unverified locally.                                       |
 
 ## E3 implementation status
 
@@ -48,4 +48,3 @@ The planned runtime work is not present yet:
 - Observability work must be designed around the final E3 message contracts, otherwise correlation fields will be reworked when queue/recovery workers land.
 - Demo seed work must be parameterized and isolated before deploying to a shared AWS account.
 - Benchmark claims must distinguish local tests, warm cloud runs, cold-start runs, and failed/invalid-row rates.
-

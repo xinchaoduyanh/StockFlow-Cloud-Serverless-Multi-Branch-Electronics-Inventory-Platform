@@ -67,4 +67,3 @@
 - `eslint.config.mjs` — ignore generated build artifacts during lint.
 - `docs/plans/260720-1604-e4-demo-evidence/SUMMARY.md` — mark plan blocked at Phase 1.
 - `docs/plans/260720-1604-e4-demo-evidence/EXECUTION-REPORT.md` — this execution report.
-

@@ -5,7 +5,7 @@ import {
   RecoveryItemStatus,
   ImportStatus,
 } from "@prisma/client";
-import type { SQSHandler } from "aws-lambda";
+import type { SQSBatchResponse, SQSEvent } from "aws-lambda";
 
 const prisma = new PrismaClient();
 
@@ -152,7 +152,16 @@ async function scanStaleJobs(): Promise<void> {
   }
 }
 
-export const handler: SQSHandler = async (event: any) => {
+// Worker này phục vụ hai nguồn sự kiện nên không dùng được kiểu `SQSHandler`:
+//  1. SQS queue import-recovery, event source mapping khai báo
+//     function_response_types = ["ReportBatchItemFailures"] nên bắt buộc
+//     trả về { batchItemFailures }.
+//  2. EventBridge rule rate(15 minutes) với input {"type":"stale-scan"} —
+//     không có Records, và giá trị trả về bị bỏ qua.
+type ImportRecoveryEvent = SQSEvent | { type?: string; Records?: undefined };
+type ImportRecoveryResult = SQSBatchResponse | { status: "SCANNED" };
+
+export const handler = async (event: ImportRecoveryEvent): Promise<ImportRecoveryResult> => {
   if (!event.Records) {
     await scanStaleJobs();
     return { status: "SCANNED" };

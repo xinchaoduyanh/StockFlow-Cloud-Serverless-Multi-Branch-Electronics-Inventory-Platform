@@ -1,12 +1,7 @@
 import { HttpException, HttpStatus } from "@nestjs/common";
 
 export type ApiErrorCode =
-  | "BAD_REQUEST"
-  | "UNAUTHORIZED"
-  | "FORBIDDEN"
-  | "NOT_FOUND"
-  | "CONFLICT"
-  | "INTERNAL_SERVER_ERROR";
+  "BAD_REQUEST" | "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "INTERNAL_SERVER_ERROR";
 
 export type ApiErrorBody = {
   code: ApiErrorCode;

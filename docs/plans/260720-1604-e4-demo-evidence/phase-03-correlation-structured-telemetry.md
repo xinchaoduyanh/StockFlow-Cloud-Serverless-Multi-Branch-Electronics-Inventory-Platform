@@ -38,4 +38,3 @@
 - [ ] Logs are valid structured JSON and contain the agreed safe fields.
 - [ ] Redaction and propagation tests pass.
 - [ ] Telemetry documentation is synchronized with the deployed topology.
-

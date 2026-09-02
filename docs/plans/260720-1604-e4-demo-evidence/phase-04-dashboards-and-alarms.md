@@ -36,4 +36,3 @@
 - [ ] Each alarm has threshold, action, runbook, and evidence.
 - [ ] At least one controlled failure is detected and cleared.
 - [ ] Alarm resources and notification costs are included in the cost story.
-

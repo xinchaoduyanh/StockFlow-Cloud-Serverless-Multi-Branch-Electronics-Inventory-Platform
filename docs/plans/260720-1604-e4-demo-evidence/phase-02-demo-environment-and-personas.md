@@ -38,4 +38,3 @@
 - [ ] Three personas and branch-isolation evidence are captured.
 - [ ] Seed/reset is deterministic, parameterized, and safe.
 - [ ] `system_on=false` procedure is tested and its remaining costs are recorded.
-

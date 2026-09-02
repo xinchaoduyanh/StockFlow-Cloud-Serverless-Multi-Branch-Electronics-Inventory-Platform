@@ -18,11 +18,20 @@
     "build:web": "npm --workspace apps/web run build",
     "build:api": "npm --workspace apps/api run build",
     "build:lambdas": "node esbuild.config.js",
+    "prisma:generate": "npm --workspace apps/api run prisma:generate",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
+    "typecheck": "turbo typecheck && npm run typecheck:lambdas",
+    "typecheck:lambdas": "tsc --noEmit -p apps/lambdas/tsconfig.json",
     "test": "npm run test --workspaces --if-present",
+    "test:postgres": "npm --workspace apps/api run test:postgres",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run build && npm test && npm run build:lambdas",
     "prepare": "husky"
+  },
+  "engines": {
+    "node": ">=20.11.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,6 +1,35 @@
+# Dependencies và build output
 node_modules
 dist
+build
 .next
 out
+.turbo
+.aws-sam
+coverage
+
+# Lockfile và log
 package-lock.json
 *.log
+
+# Sinh tự động — không format, sẽ bị ghi đè ở lần generate sau
+apps/web/next-env.d.ts
+apps/api/prisma/seed.js
+apps/api/prisma/seed.d.ts
+**/*.map
+
+# SQL migration do Prisma sinh
+apps/api/prisma/migrations
+
+# Terraform: dùng `terraform fmt`, không dùng Prettier
+infrastructure/**/*.tf
+infrastructure/**/*.tfvars
+infrastructure/**/*.tfstate
+infrastructure/**/*.tfstate.backup
+infrastructure/**/*.hcl
+infrastructure/terraform/builds
+
+# Tài sản nhị phân và dữ liệu mẫu
+*.svg
+*.xlsx
+test-data

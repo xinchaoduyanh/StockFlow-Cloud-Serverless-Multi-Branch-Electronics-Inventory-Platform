@@ -44,4 +44,3 @@
 - [ ] Video and screenshots contain no secrets/private data.
 - [ ] Final quality and IaC gates pass.
 - [ ] E4 backlog items are marked complete only with linked evidence.
-

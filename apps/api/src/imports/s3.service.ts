@@ -15,10 +15,7 @@ export class S3Service {
 
     this.s3Client = new S3Client({
       region,
-      credentials:
-        accessKeyId && secretAccessKey
-          ? { accessKeyId, secretAccessKey }
-          : undefined,
+      credentials: accessKeyId && secretAccessKey ? { accessKeyId, secretAccessKey } : undefined,
       endpoint: endpoint || undefined,
       forcePathStyle: endpoint ? true : undefined,
     });
@@ -26,12 +23,16 @@ export class S3Service {
 
   async generatePresignedPost(key: string, contentType: string) {
     const bucket = this.envService.get("AWS_S3_BUCKET");
-    
+
     return createPresignedPost(this.s3Client, {
       Bucket: bucket,
       Key: key,
       Conditions: [
-        ["starts-with", "$Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+        [
+          "starts-with",
+          "$Content-Type",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ],
         ["content-length-range", 1024, 10485760], // Limit file size between 1KB and 10MB
       ],
       Fields: {

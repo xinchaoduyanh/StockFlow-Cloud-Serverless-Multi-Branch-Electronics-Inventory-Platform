@@ -45,4 +45,3 @@
 - [ ] All local quality gates pass.
 - [ ] Saved plan has no unexplained destroy/replace.
 - [ ] E3 cloud smoke evidence is linked from the plan.
-

@@ -1,15 +1,30 @@
 name: Quality
 
 on:
+  # Chạy trên MỌI nhánh. Check run gắn theo commit SHA nên khi mở PR,
+  # kết quả của lần push đó hiện luôn trong PR — không cần thêm trigger
+  # `pull_request`, và nhờ vậy một commit không chạy CI hai lần.
   push:
-    branches: [main]
-  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+# Push liên tiếp vào cùng một nhánh thì huỷ run cũ, đỡ tốn phút chạy.
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
+env:
+  # Khớp với Node đang dùng ở máy dev để CI kiểm chứng đúng thứ bạn chạy.
+  # Lưu ý: AWS SDK v3 sẽ yêu cầu node >= 22 từ tháng 1/2027 — cần nâng
+  # đồng thời cả máy dev, CI và runtime Lambda trước mốc đó.
+  NODE_VERSION: "20"
+
 jobs:
   quality:
+    name: Code quality
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -20,43 +35,67 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
+      # @prisma/client là type sinh ra lúc generate. Thiếu bước này thì
+      # typecheck của apps/api và apps/lambdas fail vì không tìm thấy type.
       - name: Generate Prisma client
-        run: npm --workspace apps/api run prisma:generate
+        run: npm run prisma:generate
+
+      # Ba bước rẻ nhất chạy trước để lỗi vặt lộ ra trong vòng một phút.
+      - name: Format check
+        run: npm run format:check
 
       - name: Lint
         run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # BẮT BUỘC đứng trước test: packages/shared/dist bị gitignore nên trên
+      # runner sạch nó không tồn tại. Nếu test chạy trước, 5 suite import
+      # @stockflow/shared sẽ fail với "has no exported member".
+      - name: Build application
+        run: npm run build
 
       - name: Unit and API tests
         run: npm test -- --runInBand
 
       - name: PostgreSQL integration tests
-        run: npm --workspace apps/api run test:postgres
-
-      - name: Build application
-        run: npm run build
+        run: npm run test:postgres
 
       - name: Build Lambda artifacts
         run: npm run build:lambdas
+
+      - name: Dependency audit
+        run: npm audit --audit-level=high
+
+  terraform:
+    name: Terraform static checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.15.5"
+          terraform_wrapper: false
 
       - name: Terraform format
         run: terraform fmt -check -recursive
 
+      # -backend=false: khởi tạo provider để validate mà không cần
+      # remote state hay AWS credential.
       - name: Terraform initialize and validate
         working-directory: infrastructure/terraform
         run: |
           terraform init -backend=false -input=false
           terraform validate
-
-      - name: Dependency audit
-        run: npm audit --audit-level=high

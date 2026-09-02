@@ -15,37 +15,37 @@ async function generateSample() {
     { header: "unitPrice", key: "unitPrice", width: 12 },
     { header: "supplier", key: "supplier", width: 25 },
     { header: "warrantyMonths", key: "warrantyMonths", width: 15 },
-    
+
     // RAM Specs
     { header: "ddrGeneration", key: "ddrGeneration", width: 15 },
     { header: "speedMhz", key: "speedMhz", width: 12 },
     { header: "capacityGb", key: "capacityGb", width: 12 },
-    
+
     // CPU Specs
     { header: "socket", key: "socket", width: 12 },
     { header: "cores", key: "cores", width: 10 },
     { header: "threads", key: "threads", width: 10 },
-    
+
     // Storage (SSD) Specs
     { header: "interface", key: "interface", width: 12 },
     { header: "formFactor", key: "formFactor", width: 12 },
-    
+
     // GPU Specs
     { header: "vramGb", key: "vramGb", width: 10 },
     { header: "chipset", key: "chipset", width: 15 },
-    
+
     // PSU Specs
     { header: "wattage", key: "wattage", width: 10 },
     { header: "efficiencyRating", key: "efficiencyRating", width: 15 },
     { header: "modular", key: "modular", width: 10 },
-    
+
     // Case Specs
     { header: "caseSize", key: "caseSize", width: 12 },
     { header: "supportedMainboard", key: "supportedMainboard", width: 20 },
-    
+
     // Cooler Specs
     { header: "coolerType", key: "coolerType", width: 15 },
-    { header: "supportedSocket", key: "supportedSocket", width: 20 }
+    { header: "supportedSocket", key: "supportedSocket", width: 20 },
   ];
 
   // Add realistic, detailed sample data
@@ -62,7 +62,7 @@ async function generateSample() {
       warrantyMonths: 36,
       ddrGeneration: "DDR5",
       speedMhz: 6000,
-      capacityGb: 32
+      capacityGb: 32,
     },
     // 2. Valid CPU Component
     {
@@ -76,7 +76,7 @@ async function generateSample() {
       warrantyMonths: 36,
       socket: "LGA1700",
       cores: 20,
-      threads: 28
+      threads: 28,
     },
     // 3. Valid GPU Component
     {
@@ -89,7 +89,7 @@ async function generateSample() {
       supplier: "Mộc Thủy Distribution",
       warrantyMonths: 36,
       vramGb: 16,
-      chipset: "RTX 4080 Super"
+      chipset: "RTX 4080 Super",
     },
     // 4. Valid PSU Component (Testing upgraded PSU specs)
     {
@@ -103,7 +103,7 @@ async function generateSample() {
       warrantyMonths: 120,
       wattage: 850,
       efficiencyRating: "80 Plus Gold",
-      modular: "Full"
+      modular: "Full",
     },
     // 5. Valid PC Case Component (Testing upgraded Case specs)
     {
@@ -116,7 +116,7 @@ async function generateSample() {
       supplier: "Viễn Sơn Technology",
       warrantyMonths: 24,
       caseSize: "Mid-Tower",
-      supportedMainboard: "ATX, Micro-ATX, Mini-ITX"
+      supportedMainboard: "ATX, Micro-ATX, Mini-ITX",
     },
     // 6. Intentionally INVALID Row (To verify validation alerts - missing speedMhz and capacityGb for RAM)
     {
@@ -128,7 +128,7 @@ async function generateSample() {
       unitPrice: 49.99,
       supplier: "Khải Thiên Distribution",
       warrantyMonths: 36,
-      ddrGeneration: "DDR4" // ERROR: speedMhz and capacityGb are missing for RAM!
+      ddrGeneration: "DDR4", // ERROR: speedMhz and capacityGb are missing for RAM!
     },
     // 7. Intentionally INVALID Row (To verify negative quantity blocker)
     {
@@ -142,8 +142,8 @@ async function generateSample() {
       warrantyMonths: 36,
       socket: "AM4",
       cores: 6,
-      threads: 12
-    }
+      threads: 12,
+    },
   ]);
 
   // Style headers
@@ -151,7 +151,7 @@ async function generateSample() {
   worksheet.getRow(1).fill = {
     type: "pattern",
     pattern: "solid",
-    fgColor: { argb: "FF4F81BD" }
+    fgColor: { argb: "FF4F81BD" },
   };
 
   const outputPath = path.join(__dirname, "../../sample_import.xlsx");

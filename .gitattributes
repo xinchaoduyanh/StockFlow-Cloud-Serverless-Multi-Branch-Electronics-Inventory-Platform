@@ -1,0 +1,26 @@
+# Chuẩn hoá line ending: LF ở mọi nơi, kể cả trên Windows.
+# Không có file này, core.autocrlf=true sẽ checkout ra CRLF trong khi Git lưu LF,
+# khiến `prettier --check` pass trên CI (Ubuntu) nhưng fail trên máy dev (Windows).
+* text=auto eol=lf
+
+# Script shell phải là LF, nếu không sẽ không chạy được trong container Linux.
+*.sh   text eol=lf
+
+# Script PowerShell giữ CRLF theo quy ước Windows.
+*.ps1  text eol=crlf
+
+# File nhị phân: Git không được đụng vào.
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.pdf    binary
+*.xlsx   binary
+*.xls    binary
+*.zip    binary
+*.node   binary
+*.so     binary
+
+# Lockfile: đánh dấu generated để GitHub thu gọn trong diff của PR.
+package-lock.json  linguist-generated=true  -diff

@@ -7,7 +7,7 @@
     "start": "node dist/main.js",
     "dev": "npm run start:dev",
     "start:dev": "nest start --watch",
-    "lint": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "jest --config jest-e2e.json",
     "test:postgres": "node test/run-postgres-tests.mjs",
     "prisma:generate": "prisma generate",
