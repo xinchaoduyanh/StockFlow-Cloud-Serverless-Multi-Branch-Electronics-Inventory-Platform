@@ -10,6 +10,7 @@ Project documentation workspace.
 - [plans/](./plans/) — kế hoạch thực thi theo đợt kèm execution report
 - [runbooks/](./runbooks/) — quy trình vận hành
 - [phase_2_serverless_design.md](./phase_2_serverless_design.md) — thiết kế pipeline serverless
+- [BO_SUNG_CHUC_NANG_VA_SCOUT_CHUC_NANG.md](./BO_SUNG_CHUC_NANG_VA_SCOUT_CHUC_NANG.md) — bản scout chức năng gốc của vòng review Codex + Claude; kế hoạch đã chuyển thành `plans/feature-rebuild/`, giữ file này làm bối cảnh lịch sử
 
 ## Còn thiếu
 

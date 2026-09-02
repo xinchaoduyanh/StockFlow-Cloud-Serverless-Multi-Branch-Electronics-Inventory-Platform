@@ -154,7 +154,7 @@ async function generateSample() {
     fgColor: { argb: "FF4F81BD" },
   };
 
-  const outputPath = path.join(__dirname, "../../sample_import.xlsx");
+  const outputPath = path.join(__dirname, "../../test-data/sample_import.xlsx");
   await workbook.xlsx.writeFile(outputPath);
   console.log(`✅ Sample spreadsheet generated successfully at: ${outputPath}`);
 }

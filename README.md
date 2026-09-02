@@ -4,7 +4,7 @@
 [![NestJS](https://img.shields.io/badge/Backend-NestJS%2010-red?style=flat-square&logo=nestjs)](https://nestjs.com/)
 [![AWS Lambda](https://img.shields.io/badge/AWS-Lambda-orange?style=flat-square&logo=amazon-aws)](https://aws.amazon.com/lambda/)
 [![AWS Step Functions](https://img.shields.io/badge/AWS-Step%20Functions-pink?style=flat-square&logo=amazon-aws)](https://aws.amazon.com/step-functions/)
-[![PostgreSQL](https://img.shields.io/badge/Database-Neon%20Postgres-blue?style=flat-square&logo=postgresql)](https://neon.tech/)
+[![PostgreSQL](https://img.shields.io/badge/Database-Aurora%20Serverless%20v2-blue?style=flat-square&logo=postgresql)](https://aws.amazon.com/rds/aurora/)
 [![Pusher](https://img.shields.io/badge/Realtime-Pusher%20Channels-purple?style=flat-square&logo=pusher)](https://pusher.com/)
 [![AWS Cognito](https://img.shields.io/badge/Auth-AWS%20Cognito-red?style=flat-square&logo=amazon-aws)](https://aws.amazon.com/cognito/)
 
@@ -210,5 +210,8 @@ PostgreSQL khóa row trong lúc update; request thứ hai nhận `affected rows 
 
 Mô hình Lambda tự động scale-out theo lượng requests đồng thời rất dễ làm cạn kiệt connection pool của cơ sở dữ liệu truyền thống. Hệ thống đã tối ưu bằng cách:
 
-- Sử dụng Neon Serverless Postgres tích hợp sẵn **PgBouncer** ở chế độ Transaction Mode.
-- Cấu hình Prisma Client trong mỗi function Lambda khởi tạo kết nối với tùy chọn `connection_limit=1`. Điều này đảm bảo mỗi container Lambda chỉ giữ tối đa 1 kết nối duy nhất đến database trong suốt vòng đời của nó.
+- **Database hiện tại là Amazon Aurora Serverless v2** (`aurora-postgresql`, scaling 0–2 ACU), được định nghĩa trong `infrastructure/terraform/database.tf`. `min_capacity = 0` cho phép cluster tự pause khi không có kết nối, đổi lại bằng độ trễ đánh thức ở request đầu tiên.
+- Cấu hình Prisma Client trong mỗi function Lambda khởi tạo kết nối với tùy chọn `connection_limit=1`, đảm bảo mỗi container Lambda chỉ giữ tối đa một kết nối đến database trong suốt vòng đời.
+
+> [!NOTE]
+> Phiên bản đầu của dự án dùng Neon Serverless Postgres (có PgBouncer sẵn ở Transaction Mode). Hiện tại Terraform provision Aurora Serverless v2, nên **không còn PgBouncer** — giới hạn connection phụ thuộc hoàn toàn vào `connection_limit=1` của Prisma. Việc quay lại Neon để bỏ NAT Gateway đang là một đề xuất chưa thực thi trong `docs/plans/260720-1804-neon-natless-terraform/`.
