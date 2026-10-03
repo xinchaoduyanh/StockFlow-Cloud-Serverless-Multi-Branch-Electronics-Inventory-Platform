@@ -54,14 +54,14 @@ Bắt đầu dạng file phẳng cho dễ hiểu; khi chạy ổn rồi mới re
 
 ## Phase 0 — Chuẩn bị (kết quả audit 2026-06-10)
 
-Đã kiểm tra máy local + tài khoản AWS (account `186818869522`, IAM user `stockflowcloud`, region `ap-southeast-1`):
+Đã kiểm tra máy local + tài khoản AWS (account `<account_id>`, IAM user `<iam_user>`, region `ap-southeast-1`):
 
 ✅ **Sẵn sàng:** AWS CLI 2.35 + credentials hoạt động, Docker 29.2, Node v20, SAM CLI 1.161 (để xóa stack cũ).
 
 ❌ **Việc phải làm trước Phase 1:**
 
 - [x] **Cài Terraform**: v1.15.5, cài thủ công tại `C:\terraform` (đã có trong PATH)
-- [x] **Nâng quyền IAM** (làm xong 2026-06-10): user `stockflowcloud` giờ chỉ gắn duy nhất `AdministratorAccess` (đã gỡ 9 policy cũ). Access key giữ nguyên, không cần tạo mới.
+- [x] **Nâng quyền IAM** (làm xong 2026-06-10): user `<iam_user>` giờ chỉ gắn duy nhất `AdministratorAccess` (đã gỡ 9 policy cũ). Access key giữ nguyên, không cần tạo mới.
 - [x] **ACM certs — ĐỦ CẢ 2 REGION, đều ISSUED**: `api.vuduyanh.id.vn` + `vuduyanh.id.vn` ở ap-southeast-1 (ALB), `vuduyanh.id.vn` ở us-east-1 (CloudFront). Chỉ cần `data` lookup.
 - [x] **Cognito** (điền vào tfvars): User Pool `ap-southeast-1_ITWsr9wwd`, App Client `4sqtgvsdfb2n3ko6j70a59u6ec` (stockflow-web)
 - [x] Thêm `*.tfvars` + `*.tfstate` + `.terraform/` vào `.gitignore`
@@ -70,7 +70,7 @@ Bắt đầu dạng file phẳng cho dễ hiểu; khi chạy ổn rồi mới re
 
 | Thứ đang tồn tại                                                                                                                                      | Dọn khi nào                                                                                                                                              |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Stack SAM **`stockflow-pipeline`** (tên thật, không phải `stockflow-serverless-pipeline` như README) — 8 Lambda, Step Functions, bucket imports       | **Phase 4**, TRƯỚC khi apply — vì bucket `stockflow-imports-186818869522-ap-southeast-1` trùng tên với bucket Terraform sẽ tạo                           |
+| Stack SAM **`stockflow-pipeline`** (tên thật, không phải `stockflow-serverless-pipeline` như README) — 8 Lambda, Step Functions, bucket imports       | **Phase 4**, TRƯỚC khi apply — vì bucket `stockflow-imports-<account_id>-ap-southeast-1` trùng tên với bucket Terraform sẽ tạo                           |
 | ECS cluster `stockflow-ecs` + service tạo bằng console (2 stack `Infra-ECS-Cluster-...` + `ECS-Console-V2-...`, 0 task)                               | Phase 6, trước khi apply                                                                                                                                 |
 | **CloudFront distribution cũ `E2L4RUB4YKMQ6A`** đang giữ aliases `vuduyanh.id.vn` + `www.vuduyanh.id.vn` (origin bucket FE đã bị xóa → distro mồ côi) | **Phase 7, TRƯỚC khi apply** — CloudFront không cho 2 distribution trùng alias (`CNAMEAlreadyExists`); phải disable → delete distro cũ (mất ~15-20 phút) |
 | ~~Bucket `stockflow-frontend-production`~~, ~~`stockflow-configs`~~                                                                                   | Đã biến mất khi recheck 2026-06-10 (có vẻ đã được xóa tay)                                                                                               |
@@ -234,7 +234,7 @@ File thực tế: `version.tf` (aws ~> 6.0 + alias us_east_1, time, default_tags
     - `sqs:SendMessage` report queue, `states:StartExecution` ingestion state machine, and reconciliation invoke
     - `states:SendTaskSuccess/SendTaskFailure` (confirm/cancel import)
     - `ses:SendEmail`
-    - Cognito (lấy từ inline policy cũ của user stockflowcloud — đúng 6 action API cần, scope vào pool `ap-southeast-1_ITWsr9wwd`): `cognito-idp:AdminCreateUser`, `AdminDeleteUser`, `AdminGetUser`, `AdminUpdateUserAttributes`, `AdminDisableUser`, `AdminEnableUser`
+    - Cognito (lấy từ inline policy cũ của user `<iam_user>` — đúng 6 action API cần, scope vào pool `ap-southeast-1_ITWsr9wwd`): `cognito-idp:AdminCreateUser`, `AdminDeleteUser`, `AdminGetUser`, `AdminUpdateUserAttributes`, `AdminDisableUser`, `AdminEnableUser`
   - `secrets`: `DATABASE_URL` ← valueFrom secret ARN (Phase 3)
   - `environment` (map từ `apps/api/src/config/env.schema.ts`):
     | Biến                                                                            | Giá trị                                                    |

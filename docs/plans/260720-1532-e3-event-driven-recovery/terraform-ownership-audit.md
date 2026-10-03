@@ -12,7 +12,7 @@ Captured 2026-07-20 after the E3 read-only cloud scout.
 
 ## Evidence commands
 
-- `aws sts get-caller-identity` → account `186818869522`, IAM user `stockflowcloud`.
+- `aws sts get-caller-identity` → account `<account_id>`, IAM user `<iam_user>`.
 - `aws cloudformation describe-stacks --stack-name stockflow-pipeline` → stack does not exist.
 - AWS tagged-resource scan found no stockflow Lambda/SFN/SQS/SNS/EventBridge resources.
 - `/tmp/stockflow-e3.tfplan` → 128 creates, 0 changes, 0 destroys with `-refresh=false`.

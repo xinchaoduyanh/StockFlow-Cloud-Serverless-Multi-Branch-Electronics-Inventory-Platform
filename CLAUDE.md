@@ -109,9 +109,7 @@ Không tạo app hay package mới khi chưa có trong plan.
 
 - **Claude không tự chạy** `terraform apply`, `terraform destroy`, `terraform state rm/mv`, `terraform import`, hay bất kỳ lệnh AWS CLI nào có ghi/xoá (`create-*`, `put-*`, `update-*`, `delete-*`, `s3 rm`, `s3 sync --delete`…). Claude viết code + chạy `validate`/`plan`, giải thích plan, **chủ dự án tự apply**.
 - **Mọi lệnh dùng AWS credential phải hỏi chủ dự án trước**, kể cả lệnh chỉ đọc (`describe-*`, `list-*`, `get-*`) và `terraform plan`/`init`/`output`. Nói rõ chạy lệnh gì và để làm gì.
-- Không đụng vào resource không thuộc StockFlow trong cùng tài khoản, đặc biệt:
-  - CloudFront `E2L4RUB4YKMQ6A` và bucket `vuduyanh-id-vn-site` — site CV cá nhân.
-  - Lambda `csv-batch-processor`, `etag-filter`; bucket `do-an-tot-nghiep-ptit`.
+- Tài khoản AWS còn chứa resource của dự án khác (trong đó có site CV cá nhân ở domain gốc). **Chỉ đụng vào resource có tag `Project = stockflow`** — Terraform tự gắn qua `default_tags`. Resource không có tag này thì coi như không phải của dự án, kể cả khi trông như rác bị bỏ quên.
 - Mọi resource AWS phải nằm trong Terraform. Không tạo tay trên console rồi để đó.
 - Mọi resource mới phải có dòng chi phí ước tính trong plan hoặc PR.
 
@@ -128,6 +126,20 @@ Không tạo app hay package mới khi chưa có trong plan.
 - Mỗi commit một việc. Không gộp refactor với feature.
 - **Hỏi chủ dự án trước mỗi lần push**, kể cả khi đã commit xong. Push lên `main` sẽ kích hoạt CI (và deploy sau P3).
 - Chỉ push khi `npm run verify` pass. Không `push --force` lên `main`.
+
+### Rà soát trước khi push — bắt buộc
+
+Repo là **public**: mọi thứ đã push coi như công khai vĩnh viễn, xoá commit sau cũng không thu hồi được. Trước mỗi lần push, rà `git diff origin/main..HEAD` (không chỉ commit cuối) và báo kết quả cho chủ dự án cùng lúc với câu hỏi xin push:
+
+1. **Secret:** access key (`AKIA…`), secret key, token, mật khẩu, private key, chuỗi kết nối DB có mật khẩu (`postgres://user:pass@`), URL Neon, Pusher secret.
+2. **Định danh tài khoản:** AWS account ID (12 chữ số), ARN chứa account ID, tên IAM user, ID resource thật (CloudFront, bucket, function) — dùng placeholder như `<account_id>`.
+3. **Thông tin cá nhân:** email, số điện thoại, tên thật ngoài phần tác giả đã công khai.
+4. **Hạ tầng ngoài dự án:** tên hoặc ID resource không thuộc StockFlow trong cùng tài khoản.
+5. **File không được commit:** `.env*` (trừ `.env.example`), `*.tfvars`, `*.tfstate*`, `.claude/settings.local.json`, file dump/log, `test-data` chứa dữ liệu thật.
+6. **Output lệnh dán vào docs:** đã che account ID, ARN, IP, email chưa.
+
+Có thể bắt đầu bằng: `git diff origin/main..HEAD -U0 | grep '^+' | grep -nE "AKIA|[0-9]{12}|arn:aws|postgres(ql)?://[^ ]*:[^ ]*@|neon\.tech|@[a-z0-9-]+\.(com|vn|net)"`, nhưng grep không thay được việc đọc diff. Phát hiện gì thì sửa **trước** khi push; lỡ push rồi thì báo ngay, và nếu là credential thì phải thu hồi (rotate) chứ không chỉ xoá commit.
+
 - Tài liệu viết tiếng Việt; tên file, resource, biến, code viết tiếng Anh.
 - Làm xong một phase: tick checkbox trong plan, cập nhật `docs/debt/` nếu đóng được nợ, viết `EXECUTION-REPORT.md` trong thư mục plan nếu phase đó có thay đổi hạ tầng.
 - Không ghi số hiệu năng hay chi phí lên README/CV khi chưa đo thật. Số đo phải kèm cách tái lập.

@@ -142,6 +142,5 @@ Hai chặn an toàn chống "denial of wallet": **API Gateway throttling** và *
 
 - Không có NAT, EIP, ALB, RDS, ECS, EC2, ECR, Secrets Manager nào → không có gì đang tính tiền theo giờ.
 - Đã có budget `My Monthly Cost Budget` $1, chi tiêu tháng này $0.
-- CloudFront `E2L4RUB4YKMQ6A` là site CV ở `vuduyanh.id.vn` (origin `vuduyanh-id-vn-site`), **không thuộc StockFlow — không đụng vào**.
-- 2 Lambda cũ không thuộc dự án (`csv-batch-processor`, `etag-filter`), không tốn tiền khi không gọi.
-- IAM user dùng cho CLI ở máy dev có `AdministratorAccess` và access key dài hạn → P0 thêm OIDC cho CI; máy dev nên giới hạn lại (xem P0).
+- Tài khoản có resource của dự án khác, trong đó có site CV cá nhân ở domain gốc — **không thuộc StockFlow, không đụng vào**. Chỉ làm việc với resource có tag `Project = stockflow`.
+- CLI trên máy dev đang dùng access key dài hạn → P0 thêm OIDC cho CI để pipeline không cần key; key trên máy nên được giới hạn quyền và rotate định kỳ.
