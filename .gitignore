@@ -15,7 +15,9 @@ apps/api/temp-emails/
 .aws-sam/
 samconfig.toml
 out/
-.claude/
+# Claude Code: chỉ bỏ qua cấu hình cá nhân, skill của dự án thì commit
+.claude/settings.local.json
+.claude/worktrees/
 
 # Terraform
 # (git KHÔNG hỗ trợ comment cùng dòng với pattern → mọi comment phải nằm trên dòng riêng)
