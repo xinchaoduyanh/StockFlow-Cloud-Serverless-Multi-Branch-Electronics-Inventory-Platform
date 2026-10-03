@@ -33,3 +33,6 @@ infrastructure/terraform/builds
 *.svg
 *.xlsx
 test-data
+
+# Skill vendored từ nguồn ngoài, giữ nguyên bản gốc
+.claude/skills/

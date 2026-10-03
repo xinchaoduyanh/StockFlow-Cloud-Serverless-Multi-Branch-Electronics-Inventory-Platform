@@ -108,7 +108,7 @@ Không tạo app hay package mới khi chưa có trong plan.
 ## 7. AWS và Terraform
 
 - **Claude không tự chạy** `terraform apply`, `terraform destroy`, `terraform state rm/mv`, `terraform import`, hay bất kỳ lệnh AWS CLI nào có ghi/xoá (`create-*`, `put-*`, `update-*`, `delete-*`, `s3 rm`, `s3 sync --delete`…). Claude viết code + chạy `validate`/`plan`, giải thích plan, **chủ dự án tự apply**.
-- Lệnh AWS chỉ đọc (`describe-*`, `list-*`, `get-*`) được phép để kiểm tra hiện trạng.
+- **Mọi lệnh dùng AWS credential phải hỏi chủ dự án trước**, kể cả lệnh chỉ đọc (`describe-*`, `list-*`, `get-*`) và `terraform plan`/`init`/`output`. Nói rõ chạy lệnh gì và để làm gì.
 - Không đụng vào resource không thuộc StockFlow trong cùng tài khoản, đặc biệt:
   - CloudFront `E2L4RUB4YKMQ6A` và bucket `vuduyanh-id-vn-site` — site CV cá nhân.
   - Lambda `csv-batch-processor`, `etag-filter`; bucket `do-an-tot-nghiep-ptit`.
@@ -126,7 +126,8 @@ Không tạo app hay package mới khi chưa có trong plan.
 
 - Conventional Commits: `feat(scope):`, `fix(scope):`, `docs(scope):`, `chore(scope):`, `refactor(scope):`, `test(scope):`. Tiêu đề tiếng Anh, thân commit tiếng Việt, giải thích **vì sao** chứ không liệt kê file.
 - Mỗi commit một việc. Không gộp refactor với feature.
-- Push thẳng `main` được phép (repo một người), nhưng chỉ khi `npm run verify` pass. Không `push --force` lên `main`.
+- **Hỏi chủ dự án trước mỗi lần push**, kể cả khi đã commit xong. Push lên `main` sẽ kích hoạt CI (và deploy sau P3).
+- Chỉ push khi `npm run verify` pass. Không `push --force` lên `main`.
 - Tài liệu viết tiếng Việt; tên file, resource, biến, code viết tiếng Anh.
 - Làm xong một phase: tick checkbox trong plan, cập nhật `docs/debt/` nếu đóng được nợ, viết `EXECUTION-REPORT.md` trong thư mục plan nếu phase đó có thay đổi hạ tầng.
 - Không ghi số hiệu năng hay chi phí lên README/CV khi chưa đo thật. Số đo phải kèm cách tái lập.
@@ -140,7 +141,13 @@ Không tạo app hay package mới khi chưa có trong plan.
 
 ## 11. Thiết kế UI
 
-- Skill thiết kế nằm ở `.claude/skills/`:
-  - `redesign-existing-projects` — audit và nâng cấp giao diện đang có mà không viết lại từ đầu. Dùng skill này khi cải thiện các màn hình hiện tại.
-- Nguồn: bộ skill [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill), license MIT.
-- Giữ nguyên stack hiện tại của `apps/web`; skill là hướng dẫn thẩm mỹ, không phải lý do để đổi thư viện UI.
+Skill thiết kế nằm ở `.claude/skills/`, lấy từ bộ [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) (MIT):
+
+| Skill                                   | Dùng cho                                                                                |
+| --------------------------------------- | --------------------------------------------------------------------------------------- |
+| `redesign-existing-projects`            | **Mặc định cho `apps/web`.** Audit và nâng cấp giao diện đang có, không viết lại từ đầu |
+| `taste-skill` (`design-taste-frontend`) | Trang có tính "trình diễn": `/login`, trang giới thiệu dự án, landing page cho CV       |
+
+- Phần lớn `apps/web` là dashboard quản lý kho — chính `taste-skill` tự ghi dashboard, bảng dữ liệu và form nhiều bước nằm **ngoài phạm vi** của nó. Với các màn hình này chỉ lấy phần dùng chung: trạng thái loading/rỗng/lỗi, độ tương phản, dark mode, khoảng cách, typography, không dùng em-dash trong UI.
+- Stack giữ nguyên: Next.js + Tailwind v4. **Không cài thêm thư viện UI, icon, animation** (Motion, GSAP, shadcn…) khi chưa hỏi chủ dự án, dù skill có gợi ý.
+- Ảnh từ dịch vụ ngoài (picsum, Simple Icons CDN) không dùng trong app thật; chỉ dùng tạm khi làm mockup.
