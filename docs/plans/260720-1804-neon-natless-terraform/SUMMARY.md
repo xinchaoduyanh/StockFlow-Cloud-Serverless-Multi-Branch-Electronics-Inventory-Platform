@@ -1,7 +1,7 @@
 # Implementation Plan: Neon PostgreSQL and NAT-less Terraform
 
 > Created: 2026-07-20 18:04:48 +0700
-> Status: Draft
+> Status: Superseded (2026-10-02) by `docs/plans/261002-full-serverless-zero-idle/` — Phase 1–2 được gộp vào P1 của plan mới; Phase 3 (công tắc `system_on`) bị bỏ vì ECS/ALB bị xoá hẳn. Xem ADR-001.
 
 ## Objective
 
