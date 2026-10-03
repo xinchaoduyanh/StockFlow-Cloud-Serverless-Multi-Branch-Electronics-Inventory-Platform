@@ -1,5 +1,15 @@
 terraform {
-  required_version = ">= 1.7"
+  required_version = ">= 1.10"
+
+  # Tên bucket chứa account ID nên không commit: truyền qua `-backend-config=backend.hcl`
+  # (xem backend.hcl.example). use_lockfile = khoá bằng S3, không cần DynamoDB.
+  backend "s3" {
+    key          = "main/terraform.tfstate"
+    region       = "ap-southeast-1"
+    encrypt      = true
+    use_lockfile = true
+  }
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"

@@ -1,0 +1,2 @@
+# Copy thành backend.hcl (đã gitignore) rồi thay bằng output `tfstate_bucket` của stack bootstrap.
+bucket = "stockflow-tfstate-<account_id>"

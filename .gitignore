@@ -34,5 +34,6 @@ crash.log
 infrastructure/terraform/*.tfstate
 infrastructure/terraform/*.tfstate.backup
 infrastructure/terraform/*.tfvars
+infrastructure/terraform/backend.hcl
 # zip code lambda Terraform sinh ra (~600MB), tạo lại bằng apply
 infrastructure/terraform/builds/
