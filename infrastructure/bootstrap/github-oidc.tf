@@ -81,7 +81,7 @@ data "aws_iam_policy_document" "github_deploy" {
   statement {
     sid       = "Logs"
     actions   = ["logs:*"]
-    resources = ["arn:aws:logs:${var.aws_region}:${local.account_id}:log-group:/aws/*/${local.prefix}*"]
+    resources = ["arn:aws:logs:${var.aws_region}:${local.account_id}:log-group:/aws/*/${local.prefix}"]
   }
 
   statement {

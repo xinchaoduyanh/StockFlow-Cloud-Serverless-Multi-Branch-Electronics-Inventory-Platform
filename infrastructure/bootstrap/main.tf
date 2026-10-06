@@ -126,16 +126,12 @@ resource "aws_budgets_budget" "alarm" {
   }
 }
 
-resource "aws_ce_anomaly_monitor" "services" {
-  name              = "${var.project}-service-anomalies"
-  monitor_type      = "DIMENSIONAL"
-  monitor_dimension = "SERVICE"
-}
-
+# AWS chỉ cho mỗi tài khoản một monitor theo dịch vụ và tài khoản đã có sẵn
+# `Default-Services-Monitor`, nên chỉ đăng ký nhận email trên monitor đó.
 resource "aws_ce_anomaly_subscription" "email" {
   name             = "${var.project}-anomaly-email"
   frequency        = "DAILY"
-  monitor_arn_list = [aws_ce_anomaly_monitor.services.arn]
+  monitor_arn_list = [var.anomaly_monitor_arn]
 
   subscriber {
     type    = "EMAIL"

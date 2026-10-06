@@ -14,6 +14,11 @@ variable "alert_email" {
   description = "Email nhận cảnh báo budget và chi phí bất thường. Đặt trong terraform.tfvars (đã gitignore)"
 }
 
+variable "anomaly_monitor_arn" {
+  type        = string
+  description = "ARN của Default-Services-Monitor có sẵn (chứa account ID nên đặt trong terraform.tfvars, đã gitignore)"
+}
+
 variable "github_repository" {
   type        = string
   description = "owner/repo được phép assume role deploy"
