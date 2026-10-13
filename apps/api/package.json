@@ -24,6 +24,7 @@
     "@aws-sdk/client-sqs": "^3.1090.0",
     "@aws-sdk/s3-presigned-post": "^3.1051.0",
     "@aws-sdk/s3-request-presigner": "^3.1053.0",
+    "@codegenie/serverless-express": "^4.17.1",
     "@nestjs/common": "latest",
     "@nestjs/core": "latest",
     "@nestjs/jwt": "^11.0.2",

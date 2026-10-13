@@ -10,6 +10,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
+    "@aws-sdk/client-ssm": "^3.1150.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
