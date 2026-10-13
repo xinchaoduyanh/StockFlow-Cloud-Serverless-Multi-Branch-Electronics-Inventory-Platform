@@ -1,9 +1,13 @@
 import { Injectable } from "@nestjs/common";
+import { EnvService } from "./config/env.service";
 import { PrismaService } from "./database/prisma.service";
 
 @Injectable()
 export class AppService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly env: EnvService,
+  ) {}
 
   async getHealth() {
     let dbStatus: string;
@@ -19,6 +23,7 @@ export class AppService {
       service: "stockflow-api",
       status: "ok",
       database: dbStatus,
+      commitSha: this.env.get("GIT_SHA"),
     };
   }
 }

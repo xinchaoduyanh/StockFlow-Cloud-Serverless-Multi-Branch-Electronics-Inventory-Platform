@@ -28,7 +28,11 @@ export default ts.config(
     },
   },
   {
-    files: ["esbuild.config.js", "apps/lambdas/generate-sample-sheet.js"],
+    files: [
+      "esbuild.config.js",
+      "esbuild.api-lambda.config.js",
+      "apps/lambdas/generate-sample-sheet.js",
+    ],
     languageOptions: {
       globals: {
         __dirname: "readonly",

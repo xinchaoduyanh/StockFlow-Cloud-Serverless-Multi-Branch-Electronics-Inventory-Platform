@@ -34,6 +34,7 @@ describe("AppController (e2e)", () => {
       service: "stockflow-api",
       status: "ok",
       database: "connected",
+      commitSha: "local",
     });
   });
 

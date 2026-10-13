@@ -18,6 +18,7 @@
     "build:web": "npm --workspace apps/web run build",
     "build:api": "npm --workspace apps/api run build",
     "build:lambdas": "node esbuild.config.js",
+    "build:api-lambda": "node esbuild.api-lambda.config.js",
     "prisma:generate": "npm --workspace apps/api run prisma:generate",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -27,11 +28,11 @@
     "typecheck:lambdas": "tsc --noEmit -p apps/lambdas/tsconfig.json",
     "test": "npm run test --workspaces --if-present",
     "test:postgres": "npm --workspace apps/api run test:postgres",
-    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run build && npm test && npm run build:lambdas",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run build && npm test && npm run build:lambdas && npm run build:api-lambda",
     "prepare": "husky"
   },
   "engines": {
-    "node": ">=20.11.0"
+    "node": ">=22"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

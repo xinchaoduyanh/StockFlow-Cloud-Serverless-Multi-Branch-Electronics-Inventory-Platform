@@ -17,10 +17,8 @@ permissions:
   contents: read
 
 env:
-  # Khớp với Node đang dùng ở máy dev để CI kiểm chứng đúng thứ bạn chạy.
-  # Lưu ý: AWS SDK v3 sẽ yêu cầu node >= 22 từ tháng 1/2027 — cần nâng
-  # đồng thời cả máy dev, CI và runtime Lambda trước mốc đó.
-  NODE_VERSION: "20"
+  # Khớp với Node đang dùng ở máy dev và runtime Lambda (nodejs22.x).
+  NODE_VERSION: "22"
 
 jobs:
   quality:
@@ -70,6 +68,9 @@ jobs:
 
       - name: Build Lambda artifacts
         run: npm run build:lambdas
+
+      - name: Build API Lambda artifact
+        run: npm run build:api-lambda
 
       # Chặn cứng ở mức critical.
       - name: Dependency audit (critical)

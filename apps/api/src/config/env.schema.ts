@@ -44,6 +44,7 @@ export const envSchema = z
     COGNITO_REGION: z.string().default("ap-southeast-1"),
     COGNITO_USER_POOL_ID: z.string().optional(),
     COGNITO_CLIENT_ID: z.string().optional(),
+    GIT_SHA: z.string().default("local"),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === "production" && env.REPORT_DISPATCH_MODE !== "sqs") {
