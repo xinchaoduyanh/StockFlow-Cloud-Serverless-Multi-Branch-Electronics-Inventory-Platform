@@ -27,8 +27,9 @@
     "typecheck": "turbo typecheck && npm run typecheck:lambdas",
     "typecheck:lambdas": "tsc --noEmit -p apps/lambdas/tsconfig.json",
     "test": "npm run test --workspaces --if-present",
+    "test:scripts": "node --test scripts/*.test.js",
     "test:postgres": "npm --workspace apps/api run test:postgres",
-    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run build && npm test && npm run build:lambdas && npm run build:api-lambda",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run build && npm test && npm run test:scripts && npm run build:lambdas && npm run build:api-lambda",
     "prepare": "husky"
   },
   "engines": {

@@ -31,6 +31,7 @@ export default ts.config(
     files: [
       "esbuild.config.js",
       "esbuild.api-lambda.config.js",
+      "scripts/*.js",
       "apps/lambdas/generate-sample-sheet.js",
     ],
     languageOptions: {
