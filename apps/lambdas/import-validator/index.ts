@@ -1,3 +1,4 @@
+import { withDatabaseUrl } from "@stockflow/shared/dist/database-url";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { PrismaClient, ImportStatus } from "@prisma/client";
 import * as ExcelJS from "exceljs";
@@ -137,4 +138,4 @@ const handler = async (event: any) => {
   }
 };
 
-module.exports = { handler };
+module.exports = { handler: withDatabaseUrl(handler) };

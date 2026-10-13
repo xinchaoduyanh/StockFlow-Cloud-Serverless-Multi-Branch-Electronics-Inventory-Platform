@@ -13,22 +13,32 @@ const entryPoints = [
   "apps/lambdas/reconciliation/index.ts",
 ];
 
+// npm workspaces hoist Prisma client lên root; fallback cho layout không hoist.
+const prismaDir = [
+  path.join(__dirname, "node_modules/.prisma/client"),
+  path.join(__dirname, "apps/api/node_modules/.prisma/client"),
+].find((candidate) => fs.existsSync(candidate));
+
+// Xoá artifact cũ để không đóng gói nhầm engine/bundle của lần build trước.
+fs.rmSync(path.join(__dirname, "dist/lambdas"), { recursive: true, force: true });
+
 build({
   entryPoints,
   bundle: true,
   minify: true,
   sourcemap: true,
   platform: "node",
-  target: "node20",
+  target: "node22",
   outdir: "dist/lambdas",
   banner: {
     js: `(() => {
   if (process.env.PRISMA_QUERY_ENGINE_LIBRARY) return;
   const fs = require("node:fs");
   const path = require("node:path");
+  // Lambda chạy arm64 (Amazon Linux 2023, OpenSSL 3); máy dev x64 dùng engine "native".
   const candidates = process.arch === "arm64"
-    ? ["libquery_engine-linux-arm64-openssl-3.0.x.so.node", "libquery_engine-linux-arm64-openssl-1.0.x.so.node"]
-    : ["libquery_engine-debian-openssl-3.0.x.so.node", "libquery_engine-rhel-openssl-3.0.x.so.node", "libquery_engine-rhel-openssl-1.0.x.so.node"];
+    ? ["libquery_engine-linux-arm64-openssl-3.0.x.so.node"]
+    : ["libquery_engine-debian-openssl-3.0.x.so.node"];
   const engine = candidates.map((name) => path.join(__dirname, name)).find((candidate) => fs.existsSync(candidate));
   if (engine) process.env.PRISMA_QUERY_ENGINE_LIBRARY = engine;
 })();`,
@@ -40,14 +50,10 @@ build({
       "🚀 Serverless Lambda functions compiled and bundled successfully to dist/lambdas/!",
     );
 
-    // Copy every supported Prisma engine next to each bundle; the banner selects
-    // the matching local/AWS architecture before PrismaClient is constructed.
-    const prismaDir = path.join(__dirname, "apps/api/node_modules/.prisma/client");
+    // Copy the Prisma engines next to each bundle; the banner selects the matching
+    // local/AWS architecture before PrismaClient is constructed.
     const engines = [
       "libquery_engine-debian-openssl-3.0.x.so.node",
-      "libquery_engine-rhel-openssl-1.0.x.so.node",
-      "libquery_engine-rhel-openssl-3.0.x.so.node",
-      "libquery_engine-linux-arm64-openssl-1.0.x.so.node",
       "libquery_engine-linux-arm64-openssl-3.0.x.so.node",
     ];
 

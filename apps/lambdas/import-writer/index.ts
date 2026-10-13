@@ -1,3 +1,4 @@
+import { withDatabaseUrl } from "@stockflow/shared/dist/database-url";
 import { ImportPipelineAction, StockMovementReferenceType } from "@stockflow/shared";
 import { PrismaClient, ImportStatus, ImportRowStatus, StockMovementType } from "@prisma/client";
 import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
@@ -345,4 +346,4 @@ async function publishNotification(payload: any) {
   }
 }
 
-module.exports = { handler };
+module.exports = { handler: withDatabaseUrl(handler) };

@@ -1,3 +1,4 @@
+import { withDatabaseUrl } from "@stockflow/shared/dist/database-url";
 import { importTerminalEventSchema } from "@stockflow/shared";
 import {
   PrismaClient,
@@ -161,7 +162,7 @@ async function scanStaleJobs(): Promise<void> {
 type ImportRecoveryEvent = SQSEvent | { type?: string; Records?: undefined };
 type ImportRecoveryResult = SQSBatchResponse | { status: "SCANNED" };
 
-export const handler = async (event: ImportRecoveryEvent): Promise<ImportRecoveryResult> => {
+const processRecoveryEvent = async (event: ImportRecoveryEvent): Promise<ImportRecoveryResult> => {
   if (!event.Records) {
     await scanStaleJobs();
     return { status: "SCANNED" };
@@ -186,3 +187,5 @@ export const handler = async (event: ImportRecoveryEvent): Promise<ImportRecover
   }
   return { batchItemFailures };
 };
+
+export const handler = withDatabaseUrl(processRecoveryEvent);

@@ -1,7 +1,8 @@
 import { reportJobMessageSchema, ReportType as ExternalReportType } from "@stockflow/shared";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { PrismaClient, ExportJobStatus, ReportType as PrismaReportType } from "@prisma/client";
-import type { SQSHandler } from "aws-lambda";
+import type { SQSBatchResponse, SQSEvent } from "aws-lambda";
+import { withDatabaseUrl } from "@stockflow/shared/dist/database-url";
 
 const s3Client = new S3Client({});
 const prisma = new PrismaClient();
@@ -143,7 +144,7 @@ async function processReport(exportJobId: string, receiveCount: number): Promise
   }
 }
 
-export const handler: SQSHandler = async (event) => {
+const processReportJobs = async (event: SQSEvent): Promise<SQSBatchResponse> => {
   const batchItemFailures: Array<{ itemIdentifier: string }> = [];
 
   for (const record of event.Records) {
@@ -412,3 +413,5 @@ async function generateStockMovementReport(filters: Record<string, any>) {
 
   return { csv: toCsv(headers, rows), total: rows.length };
 }
+
+export const handler = withDatabaseUrl(processReportJobs);

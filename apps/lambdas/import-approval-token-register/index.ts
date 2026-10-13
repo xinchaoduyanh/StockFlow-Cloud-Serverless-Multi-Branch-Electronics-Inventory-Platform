@@ -1,3 +1,4 @@
+import { withDatabaseUrl } from "@stockflow/shared/dist/database-url";
 import { PrismaClient, ImportStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -36,4 +37,4 @@ const handler = async (event: any) => {
   }
 };
 
-module.exports = { handler };
+module.exports = { handler: withDatabaseUrl(handler) };

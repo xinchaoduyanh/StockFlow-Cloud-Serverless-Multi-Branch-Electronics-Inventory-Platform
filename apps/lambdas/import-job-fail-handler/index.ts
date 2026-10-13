@@ -1,3 +1,4 @@
+import { withDatabaseUrl } from "@stockflow/shared/dist/database-url";
 import { PrismaClient, ImportStatus } from "@prisma/client";
 import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
 
@@ -134,4 +135,4 @@ async function publishNotification(payload: any) {
   }
 }
 
-module.exports = { handler };
+module.exports = { handler: withDatabaseUrl(handler) };

@@ -37,6 +37,7 @@ try {
   if (exitCode === 0) {
     exitCode = run(npx, ["prisma", "migrate", "deploy", "--schema", "prisma/schema.prisma"], {
       DATABASE_URL: databaseUrl,
+      DIRECT_URL: databaseUrl,
     });
   }
   if (exitCode === 0) {
