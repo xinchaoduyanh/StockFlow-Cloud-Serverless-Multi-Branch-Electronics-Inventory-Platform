@@ -2,6 +2,7 @@ import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { AuthModule } from "./auth/auth.module";
+import { CorrelationIdMiddleware } from "./common/middleware/correlation-id.middleware";
 import { HttpLoggerMiddleware } from "./common/middleware/http-logger.middleware";
 import { EnvModule } from "./config/env.module";
 import { PrismaModule } from "./database/prisma.module";
@@ -37,6 +38,6 @@ import { RecoveryModule } from "./recovery/recovery.module";
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(HttpLoggerMiddleware).forRoutes("*");
+    consumer.apply(CorrelationIdMiddleware, HttpLoggerMiddleware).forRoutes("*");
   }
 }

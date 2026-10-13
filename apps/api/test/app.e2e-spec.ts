@@ -55,4 +55,22 @@ describe("AppController (e2e)", () => {
         expect(response.body.timestamp).toEqual(expect.any(String));
       });
   });
+
+  it("echoes a valid x-correlation-id header back to the client", () => {
+    return request(app.getHttpServer())
+      .get("/api/health")
+      .set("x-correlation-id", "import-42.abc")
+      .expect(200)
+      .expect("x-correlation-id", "import-42.abc");
+  });
+
+  it("replaces an unsafe x-correlation-id with a generated one", () => {
+    return request(app.getHttpServer())
+      .get("/api/health")
+      .set("x-correlation-id", "bad id with spaces")
+      .expect(200)
+      .expect((response) => {
+        expect(response.headers["x-correlation-id"]).toMatch(/^[0-9a-f-]{36}$/);
+      });
+  });
 });

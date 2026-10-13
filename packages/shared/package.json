@@ -10,6 +10,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.36.0",
     "@aws-sdk/client-ssm": "^3.1150.0",
     "zod": "^4.4.3"
   },

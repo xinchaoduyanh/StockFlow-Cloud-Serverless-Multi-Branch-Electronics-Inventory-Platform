@@ -1,4 +1,5 @@
 import { Injectable, Logger, NestMiddleware } from "@nestjs/common";
+import { getCorrelationId, runWithCorrelationId } from "@stockflow/shared";
 import { Request, Response, NextFunction } from "express";
 
 @Injectable()
@@ -9,6 +10,8 @@ export class HttpLoggerMiddleware implements NestMiddleware {
     const { method, originalUrl, ip } = req;
     const userAgent = req.get("user-agent") || "-";
     const startTime = Date.now();
+    // Sự kiện "finish" phát ra ngoài async context của request nên phải giữ ID lại.
+    const correlationId = getCorrelationId();
 
     // Log when the response finishes
     res.on("finish", () => {
@@ -18,13 +21,17 @@ export class HttpLoggerMiddleware implements NestMiddleware {
 
       const logLine = `${method} ${originalUrl} ${statusCode} ${duration}ms ${contentLength}b — ${ip} "${userAgent}"`;
 
-      if (statusCode >= 500) {
-        this.logger.error(logLine);
-      } else if (statusCode >= 400) {
-        this.logger.warn(logLine);
-      } else {
-        this.logger.log(logLine);
-      }
+      const writeLog = () => {
+        if (statusCode >= 500) {
+          this.logger.error(logLine);
+        } else if (statusCode >= 400) {
+          this.logger.warn(logLine);
+        } else {
+          this.logger.log(logLine);
+        }
+      };
+      if (correlationId) runWithCorrelationId(correlationId, writeLog);
+      else writeLog();
     });
 
     next();
