@@ -193,6 +193,11 @@ jobs:
           npm run build:lambdas
           npm run build:api-lambda
 
+      # Zip nhúng thời điểm sửa file nên cùng một code build ở hai lần khác nhau cho md5 khác nhau,
+      # khiến mọi Lambda bị cập nhật ở mỗi lần deploy. Đưa mtime về một mốc cố định.
+      - name: Normalize artifact timestamps
+        run: find dist -exec touch -d '2000-01-01 00:00:00' {} +
+
       # Migration phải tương thích ngược (expand rồi contract): bản code cũ còn chạy vài giây
       # trước khi Lambda nhận bản mới.
       - name: Migrate database

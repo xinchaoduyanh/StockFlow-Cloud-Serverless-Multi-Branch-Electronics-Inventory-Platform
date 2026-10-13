@@ -61,9 +61,13 @@ data "aws_iam_policy_document" "github_deploy" {
   }
 
   statement {
-    sid       = "Lambda"
-    actions   = ["lambda:*"]
-    resources = ["arn:aws:lambda:${var.aws_region}:${local.account_id}:function:${local.prefix}"]
+    sid     = "Lambda"
+    actions = ["lambda:*"]
+    resources = [
+      "arn:aws:lambda:${var.aws_region}:${local.account_id}:function:${local.prefix}",
+      # Event source mapping có ARN riêng, không mang tên function nên không giới hạn theo prefix được.
+      "arn:aws:lambda:${var.aws_region}:${local.account_id}:event-source-mapping:*",
+    ]
   }
 
   statement {
@@ -84,6 +88,14 @@ data "aws_iam_policy_document" "github_deploy" {
     resources = ["arn:aws:logs:${var.aws_region}:${local.account_id}:log-group:/aws/*/${local.prefix}"]
   }
 
+  # Terraform đọc log group bằng DescribeLogGroups, hành động này chỉ chấp nhận resource "*"
+  # (hoặc ARN log-group::log-stream rỗng), không giới hạn theo tên được.
+  statement {
+    sid       = "ListLogGroups"
+    actions   = ["logs:DescribeLogGroups"]
+    resources = ["*"]
+  }
+
   statement {
     sid       = "Alarms"
     actions   = ["cloudwatch:*"]
@@ -94,6 +106,13 @@ data "aws_iam_policy_document" "github_deploy" {
     sid       = "Parameters"
     actions   = ["ssm:*"]
     resources = ["arn:aws:ssm:${var.aws_region}:${local.account_id}:parameter/${var.project}/*"]
+  }
+
+  # Terraform đọc metadata parameter bằng DescribeParameters, chỉ chấp nhận resource "*".
+  statement {
+    sid       = "ListParameters"
+    actions   = ["ssm:DescribeParameters"]
+    resources = ["*"]
   }
 
   statement {
