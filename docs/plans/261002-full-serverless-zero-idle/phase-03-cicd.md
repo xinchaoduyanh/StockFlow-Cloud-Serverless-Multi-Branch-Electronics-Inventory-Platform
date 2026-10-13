@@ -54,7 +54,7 @@ Revert commit trên `main` → pipeline deploy lại bản trước. Ghi rõ tro
 
 ## Kiểm chứng
 
-- [ ] Một commit chỉ sửa text trong `/api/health` được deploy tự động, smoke test thấy SHA mới.
+- [x] Deploy tự động chạy xanh (run #12, 2026-10-13); `/api/health` trả `commitSha` đúng SHA commit vừa push. Chưa thử bằng commit sửa riêng text của `/api/health`.
 - [ ] Một commit cố tình đổi tên bucket bị pipeline chặn ở bước 5.
-- [ ] Workflow không chứa `AWS_ACCESS_KEY_ID` ở bất cứ đâu.
+- [x] Workflow không chứa `AWS_ACCESS_KEY_ID` ở bất cứ đâu.
 - [ ] Thời gian từ push tới deploy xong được ghi lại vào README.
