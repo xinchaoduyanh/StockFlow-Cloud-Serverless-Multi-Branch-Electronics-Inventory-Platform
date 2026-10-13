@@ -2,33 +2,6 @@
 # Outputs — giá trị in ra sau apply, để các phase sau / bạn dùng
 # ============================================================
 
-# --- Network (Phase 2) ---
-output "vpc_id" {
-  value = aws_vpc.main.id
-}
-
-output "private_subnet_ids" {
-  value = [aws_subnet.private_a.id, aws_subnet.private_b.id]
-}
-
-# --- Database (Phase 3) ---
-output "aurora_endpoint" {
-  description = "Endpoint ghi (writer) của Aurora"
-  value       = aws_rds_cluster.main.endpoint
-}
-
-output "database_secret_arn" {
-  description = "ARN secret DATABASE_URL — Phase 4/6 inject vào Lambda/ECS"
-  value       = aws_secretsmanager_secret.database_url.arn
-}
-
-# Giá trị DATABASE_URL có mật khẩu => đánh dấu sensitive, không in ra màn hình.
-# Cần xem thì: terraform output -raw database_url
-output "database_url" {
-  value     = aws_secretsmanager_secret_version.database_url.secret_string
-  sensitive = true
-}
-
 # --- Serverless (Phase 4) ---
 output "imports_bucket" {
   description = "Bucket nhận file Excel upload"
@@ -67,27 +40,6 @@ output "reconciliation_lambda_arn" {
   value = aws_lambda_function.fn["reconciliation"].arn
 }
 
-# --- ECR (Phase 5) ---
-output "ecr_repository_url" {
-  description = "URL repo ECR — Phase 6 task definition trỏ <url>:latest"
-  value       = aws_ecr_repository.api.repository_url
-}
-
-# --- ECS + ALB (Phase 6) ---
-output "alb_dns_name" {
-  description = "DNS ALB — Phase 8 trỏ CNAME api.vuduyanh.id.vn về đây"
-  value       = aws_lb.main.dns_name
-}
-
-output "ecs_cluster_name" {
-  value = aws_ecs_cluster.main.name
-}
-
-# SG của API task — seed-db.ps1 dùng để chạy one-off ECS task (migrate/seed)
-output "api_security_group_id" {
-  value = aws_security_group.api.id
-}
-
 # --- Frontend (Phase 7) ---
 output "web_bucket" {
   description = "Bucket FE — script deploy sync apps/web/out vào đây"
@@ -102,4 +54,19 @@ output "cloudfront_domain" {
 output "cloudfront_distribution_id" {
   description = "ID distribution — script deploy dùng để create-invalidation"
   value       = aws_cloudfront_distribution.web.id
+}
+
+# --- API (P2) ---
+output "api_invoke_url" {
+  description = "URL mặc định của API Gateway, dùng để thử trước khi trỏ DNS"
+  value       = aws_apigatewayv2_api.api.api_endpoint
+}
+
+output "api_domain_target" {
+  description = "Trỏ CNAME api.vuduyanh.id.vn về đây (DNS ở iNET, làm tay)"
+  value       = aws_apigatewayv2_domain_name.api.domain_name_configuration[0].target_domain_name
+}
+
+output "api_lambda_name" {
+  value = aws_lambda_function.api.function_name
 }

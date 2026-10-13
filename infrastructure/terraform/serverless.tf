@@ -22,7 +22,7 @@ locals {
     "reconciliation"                 = { timeout = 300, memory = 512 }
   }
 
-  # Env RIÊNG cho từng lambda (env chung DATABASE_URL/S3_BUCKET set ở dưới).
+  # Env RIÊNG cho từng lambda (env chung DATABASE_URL_SSM_PARAMETER/S3_BUCKET set ở dưới).
   lambda_env = {
     "import-writer"           = { NOTIFICATION_SNS_TOPIC_ARN = aws_sns_topic.notifications.arn }
     "import-job-fail-handler" = { NOTIFICATION_SNS_TOPIC_ARN = aws_sns_topic.notifications.arn }
@@ -150,7 +150,7 @@ resource "aws_sqs_queue_redrive_allow_policy" "import_recovery_dlq" {
 }
 
 # ============================================================
-# 3. IAM — mỗi Lambda 1 role riêng + quyền vào VPC + quyền riêng
+# 3. IAM — mỗi Lambda 1 role riêng + quyền ghi log + quyền riêng
 # ============================================================
 data "aws_iam_policy_document" "lambda_assume" {
   statement {
@@ -168,17 +168,31 @@ resource "aws_iam_role" "lambda" {
   assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
 }
 
-# Quyền tạo ENI trong VPC — BẮT BUỘC với mọi lambda chạy trong VPC
-resource "aws_iam_role_policy_attachment" "lambda_vpc" {
+# Quyền ghi log CloudWatch. Lambda nằm ngoài VPC nên không cần quyền tạo ENI.
+resource "aws_iam_role_policy_attachment" "lambda_basic" {
   for_each   = local.lambdas
   role       = aws_iam_role.lambda[each.key].name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+# Mọi Lambda đều dùng Prisma nên đều đọc DATABASE_URL từ SSM lúc cold start.
+resource "aws_iam_role_policy" "lambda_database_url" {
+  for_each = local.lambdas
+  role     = aws_iam_role.lambda[each.key].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["ssm:GetParameter"]
+      Resource = aws_ssm_parameter.database_url.arn
+    }]
+  })
 }
 
 # Chờ IAM lan truyền trước khi tạo lambda — tránh lỗi InsufficientRolePermissions
 # (role vừa tạo + gắn policy cần ~vài giây mới có hiệu lực toàn cầu)
 resource "time_sleep" "wait_iam_propagation" {
-  depends_on      = [aws_iam_role_policy_attachment.lambda_vpc]
+  depends_on      = [aws_iam_role_policy_attachment.lambda_basic, aws_iam_role_policy.lambda_database_url]
   create_duration = "20s"
 }
 
@@ -280,13 +294,13 @@ resource "aws_iam_role_policy" "import_recovery_worker_sfn" {
 }
 
 # ============================================================
-# 4. 8 Lambda functions (nodejs20.x, arm64, trong VPC)
+# 4. 8 Lambda functions (nodejs22.x, arm64, ngoài VPC)
 # ============================================================
 resource "aws_lambda_function" "fn" {
   for_each      = local.lambdas
   function_name = "${var.project}-${each.key}"
   role          = aws_iam_role.lambda[each.key].arn
-  runtime       = "nodejs20.x"
+  runtime       = "nodejs22.x"
   architectures = ["arm64"]
   handler       = "index.handler"
   timeout       = each.value.timeout
@@ -296,23 +310,18 @@ resource "aws_lambda_function" "fn" {
   s3_key           = aws_s3_object.lambda[each.key].key
   source_code_hash = data.archive_file.lambda[each.key].output_base64sha256
 
-  vpc_config {
-    subnet_ids         = [aws_subnet.private_a.id, aws_subnet.private_b.id]
-    security_group_ids = [aws_security_group.lambda.id]
-  }
-
   environment {
     variables = merge(
       {
-        # DATABASE_URL lấy thẳng từ secret Phase 3 (chấp nhận hiện trong console Lambda)
-        DATABASE_URL = aws_secretsmanager_secret_version.database_url.secret_string
-        S3_BUCKET    = aws_s3_bucket.imports.bucket
+        # Chỉ truyền TÊN parameter; Lambda tự đọc giá trị từ SSM lúc cold start.
+        DATABASE_URL_SSM_PARAMETER = local.database_url_parameter
+        S3_BUCKET                  = aws_s3_bucket.imports.bucket
       },
       lookup(local.lambda_env, each.key, {})
     )
   }
 
-  depends_on = [time_sleep.wait_iam_propagation]
+  depends_on = [time_sleep.wait_iam_propagation, aws_cloudwatch_log_group.worker]
 }
 
 resource "aws_lambda_event_source_mapping" "report_jobs" {

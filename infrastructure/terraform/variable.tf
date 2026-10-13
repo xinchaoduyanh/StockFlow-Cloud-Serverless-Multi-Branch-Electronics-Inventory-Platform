@@ -9,10 +9,23 @@ variable "project" {
   default = "stockflow"
 }
 
-variable "system_on" {
-  type        = bool
-  description = "Công tắc hệ thống: false = tắt các thứ tốn tiền theo giờ (NAT Gateway, sau này thêm ECS) để không tốn phí khi không demo"
-  default     = true
+# Chuỗi kết nối Neon là secret: chỉ đặt trong terraform.tfvars (gitignore) hoặc GitHub secret.
+variable "neon_database_url" {
+  type        = string
+  description = "Neon pooled URL (có sslmode=require&pgbouncer=true&connection_limit=1) cho runtime"
+  sensitive   = true
+}
+
+variable "neon_direct_url" {
+  type        = string
+  description = "Neon direct URL (không qua pooler) cho prisma migrate"
+  sensitive   = true
+}
+
+variable "git_sha" {
+  type        = string
+  description = "Commit SHA của bản deploy; API trả về ở /api/health để smoke test kiểm tra đúng bản"
+  default     = "unknown"
 }
 
 # --- Phase 6: API runtime config ---
