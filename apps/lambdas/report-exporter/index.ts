@@ -3,8 +3,15 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { PrismaClient, ExportJobStatus, ReportType as PrismaReportType } from "@prisma/client";
 import type { SQSBatchResponse, SQSEvent } from "aws-lambda";
 import { withDatabaseUrl } from "@stockflow/shared/dist/database-url";
+import { createLogger, withObservability } from "@stockflow/shared/dist/logger";
+import { createTracer } from "@stockflow/shared/dist/tracer";
+import { createMetricEmitter, MetricUnit } from "@stockflow/shared/dist/metrics";
 
-const s3Client = new S3Client({});
+const logger = createLogger("report-exporter");
+const tracer = createTracer("report-exporter");
+const emitMetric = createMetricEmitter("report-exporter");
+
+const s3Client = tracer.captureAWSv3Client(new S3Client({}));
 const prisma = new PrismaClient();
 
 const externalReportTypeByPrisma: Record<PrismaReportType, ExternalReportType> = {
@@ -102,7 +109,8 @@ async function processReport(exportJobId: string, receiveCount: number): Promise
       }),
     );
 
-    console.log(`Report uploaded to s3://${bucket}/${s3Key}. Total records: ${totalRecords}`);
+    emitMetric("ReportGenerated", MetricUnit.Count, 1);
+    logger.info(`Report uploaded to s3://${bucket}/${s3Key}. Total records: ${totalRecords}`);
 
     // 4. Finalize only the current processing claim.
     const finalized = await prisma.exportJob.updateMany({
@@ -168,7 +176,7 @@ const processReportJobs = async (event: SQSEvent): Promise<SQSBatchResponse> => 
         Number(record.attributes.ApproximateReceiveCount || "1"),
       );
     } catch (error) {
-      console.error("Report export failed", {
+      logger.error("Report export failed", {
         messageId: record.messageId,
         exportJobId: message.data.exportJobId,
         errorCode: error instanceof Error ? error.name : "UNKNOWN_ERROR",
@@ -414,4 +422,4 @@ async function generateStockMovementReport(filters: Record<string, any>) {
   return { csv: toCsv(headers, rows), total: rows.length };
 }
 
-export const handler = withDatabaseUrl(processReportJobs);
+export const handler = withObservability(logger, withDatabaseUrl(processReportJobs));

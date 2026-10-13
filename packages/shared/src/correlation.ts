@@ -24,3 +24,43 @@ export function runWithCorrelationId<T>(correlationId: string, callback: () => T
 export function getCorrelationId(): string | undefined {
   return correlationStorage.getStore();
 }
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function parseJsonRecord(text: unknown): Record<string, unknown> | undefined {
+  if (typeof text !== "string") return undefined;
+  try {
+    return asRecord(JSON.parse(text));
+  } catch {
+    return undefined;
+  }
+}
+
+function firstSafeString(...candidates: unknown[]): string | undefined {
+  return candidates.find(
+    (candidate): candidate is string =>
+      typeof candidate === "string" && CORRELATION_ID_PATTERN.test(candidate),
+  );
+}
+
+// Lần theo một lần import/report bằng ID nghiệp vụ: import bắt đầu từ sự kiện S3 nên
+// không có correlationId do client gửi, importJobId chính là sợi chỉ nối các Lambda.
+export function extractCorrelationId(event: unknown): string | undefined {
+  const payload = asRecord(event);
+  const record = asRecord((Array.isArray(payload?.Records) ? payload.Records : [])[0]);
+  const body = parseJsonRecord(record?.body);
+  const attribute = asRecord(asRecord(record?.messageAttributes)?.[CORRELATION_ID_ATTRIBUTE]);
+
+  return firstSafeString(
+    payload?.[CORRELATION_ID_ATTRIBUTE],
+    payload?.importJobId,
+    attribute?.stringValue,
+    body?.[CORRELATION_ID_ATTRIBUTE],
+    body?.exportJobId,
+    body?.importJobId,
+  );
+}

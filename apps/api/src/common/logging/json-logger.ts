@@ -1,5 +1,6 @@
 import { LoggerService } from "@nestjs/common";
-import { createLogger, getCorrelationId } from "@stockflow/shared";
+import { createLogger } from "@stockflow/shared/dist/logger";
+import { getCorrelationId } from "@stockflow/shared/dist/correlation";
 
 const logger = createLogger("stockflow-api");
 

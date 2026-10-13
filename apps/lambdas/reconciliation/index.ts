@@ -1,5 +1,10 @@
 import { withDatabaseUrl } from "@stockflow/shared/dist/database-url";
+import { createLogger, withObservability } from "@stockflow/shared/dist/logger";
+import { createMetricEmitter, MetricUnit } from "@stockflow/shared/dist/metrics";
 import { PrismaClient, ReconciliationStatus } from "@prisma/client";
+
+const logger = createLogger("reconciliation");
+const emitMetric = createMetricEmitter("reconciliation");
 
 const prisma = new PrismaClient();
 
@@ -18,13 +23,11 @@ const prisma = new PrismaClient();
  * Input event: { dryRun?: boolean }
  */
 const handler = async (event: any) => {
-  console.log("Reconciliation event received:", JSON.stringify(event));
-
   const dryRun = event?.dryRun === true;
   const runId = `recon-${new Date().toISOString().replace(/[:.]/g, "-")}`;
 
   try {
-    console.log(`Starting reconciliation run: ${runId} (dryRun: ${dryRun})`);
+    logger.info(`Starting reconciliation run: ${runId} (dryRun: ${dryRun})`);
 
     // 1. Fetch all inventory records
     const inventoryRecords = await prisma.inventory.findMany({
@@ -34,7 +37,7 @@ const handler = async (event: any) => {
       },
     });
 
-    console.log(`Found ${inventoryRecords.length} inventory records to reconcile.`);
+    logger.info(`Found ${inventoryRecords.length} inventory records to reconcile.`);
 
     // 2. For each inventory record, calculate expected quantity from stock movements
     let issuesFound = 0;
@@ -77,7 +80,7 @@ const handler = async (event: any) => {
           difference,
         });
 
-        console.warn(
+        logger.warn(
           `MISMATCH: ${record.branch.code}/${record.component.sku} — ` +
             `expected: ${expectedQuantity}, actual: ${actualQuantity}, diff: ${difference}`,
         );
@@ -110,7 +113,7 @@ const handler = async (event: any) => {
         difference: -expectedQty,
       });
 
-      console.warn(
+      logger.warn(
         `ORPHAN: branch=${orphan.branch_id}, component=${orphan.component_id} — ` +
           `movements sum to ${expectedQty} but no inventory record exists`,
       );
@@ -141,7 +144,7 @@ const handler = async (event: any) => {
             resolvedAt: new Date(),
           },
         });
-        console.log(`Auto-resolved ${autoResolved.length} previously open issues.`);
+        logger.info(`Auto-resolved ${autoResolved.length} previously open issues.`);
       }
 
       // Upsert current issues
@@ -207,12 +210,12 @@ const handler = async (event: any) => {
               },
             });
           } catch (err: any) {
-            console.error(`Failed to create admin notification for user ${admin.id}:`, err);
+            logger.error(`Failed to create admin notification for user ${admin.id}:`, err);
           }
         }
       }
 
-      console.log(`Persisted ${issues.length} reconciliation issues to database.`);
+      logger.info(`Persisted ${issues.length} reconciliation issues to database.`);
     }
 
     const summary = {
@@ -232,11 +235,12 @@ const handler = async (event: any) => {
       })),
     };
 
-    console.log("Reconciliation summary:", JSON.stringify(summary, null, 2));
+    emitMetric("ReconciliationMismatch", MetricUnit.Count, issuesFound);
+    logger.info("Reconciliation summary", summary);
 
     return summary;
   } catch (err: any) {
-    console.error("Reconciliation failed:", err);
+    logger.error("Reconciliation failed", err);
     return {
       status: "FAILED",
       runId,
@@ -247,4 +251,4 @@ const handler = async (event: any) => {
   }
 };
 
-module.exports = { handler: withDatabaseUrl(handler) };
+module.exports = { handler: withObservability(logger, withDatabaseUrl(handler)) };

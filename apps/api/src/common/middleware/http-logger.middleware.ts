@@ -1,5 +1,5 @@
 import { Injectable, Logger, NestMiddleware } from "@nestjs/common";
-import { getCorrelationId, runWithCorrelationId } from "@stockflow/shared";
+import { getCorrelationId, runWithCorrelationId } from "@stockflow/shared/dist/correlation";
 import { Request, Response, NextFunction } from "express";
 
 @Injectable()

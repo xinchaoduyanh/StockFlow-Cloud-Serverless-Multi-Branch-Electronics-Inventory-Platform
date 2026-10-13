@@ -18,6 +18,7 @@ import { toPagination } from "../common/schemas/pagination.schema";
 import { PrismaService } from "../database/prisma.service";
 import { S3Service } from "./s3.service";
 import { AuthorizationPolicyService, PolicyActor } from "../auth/authorization-policy.service";
+import { tracer } from "../common/tracing/tracer";
 
 type PreparedImportRow = {
   rowNumber: number;
@@ -236,7 +237,7 @@ export class ImportsService {
     }
 
     if (job.awsTaskToken) {
-      const sfnClient = new SFNClient({});
+      const sfnClient = tracer.captureAWSv3Client(new SFNClient({}));
 
       try {
         await sfnClient.send(
@@ -372,7 +373,7 @@ export class ImportsService {
     if (actor) this.authorization.assertCanWriteImport(actor, job.branchId);
 
     if (job.awsTaskToken) {
-      const sfnClient = new SFNClient({});
+      const sfnClient = tracer.captureAWSv3Client(new SFNClient({}));
 
       try {
         await sfnClient.send(

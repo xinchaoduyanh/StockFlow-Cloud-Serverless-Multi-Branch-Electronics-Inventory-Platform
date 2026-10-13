@@ -1,19 +1,22 @@
 import { withDatabaseUrl } from "@stockflow/shared/dist/database-url";
+import { createLogger, withObservability } from "@stockflow/shared/dist/logger";
+import { createTracer } from "@stockflow/shared/dist/tracer";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { PrismaClient, ImportStatus, ImportRowStatus, Prisma } from "@prisma/client";
 import * as ExcelJS from "exceljs";
 import { importRowInputSchema, importRowIdempotencyKey } from "@stockflow/shared";
 
-const s3Client = new S3Client({});
+const logger = createLogger("import-parser");
+const tracer = createTracer("import-parser");
+
+const s3Client = tracer.captureAWSv3Client(new S3Client({}));
 const prisma = new PrismaClient();
 
 const handler = async (event: any) => {
-  console.log("Parser event received:", JSON.stringify(event));
-
   const { importJobId, bucket, key, executionArn } = event;
 
   if (!importJobId || !bucket || !key) {
-    console.error("Missing required S3 or job identification parameters.");
+    logger.error("Missing required S3 or job identification parameters.");
     throw new Error("Missing required parameters");
   }
 
@@ -208,7 +211,7 @@ const handler = async (event: any) => {
       },
     });
 
-    console.log(
+    logger.info(
       `Parsing finished. Total: ${totalRows}, Valid: ${validRows}, Invalid: ${invalidRows}`,
     );
 
@@ -220,7 +223,7 @@ const handler = async (event: any) => {
       invalidRows,
     };
   } catch (err: any) {
-    console.error("Stream parsing failed with exception:", err);
+    logger.error("Stream parsing failed with exception", err);
     await prisma.importJob.update({
       where: { id: importJobId },
       data: {
@@ -234,4 +237,4 @@ const handler = async (event: any) => {
   }
 };
 
-module.exports = { handler: withDatabaseUrl(handler) };
+module.exports = { handler: withObservability(logger, withDatabaseUrl(handler)) };

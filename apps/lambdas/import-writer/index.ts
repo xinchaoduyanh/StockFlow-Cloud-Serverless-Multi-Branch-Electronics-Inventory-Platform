@@ -1,17 +1,23 @@
 import { withDatabaseUrl } from "@stockflow/shared/dist/database-url";
+import { createLogger, withObservability } from "@stockflow/shared/dist/logger";
+import { createTracer } from "@stockflow/shared/dist/tracer";
+import { createMetricEmitter, MetricUnit } from "@stockflow/shared/dist/metrics";
 import { ImportPipelineAction, StockMovementReferenceType } from "@stockflow/shared";
 import { PrismaClient, ImportStatus, ImportRowStatus, StockMovementType } from "@prisma/client";
 import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
 
+const logger = createLogger("import-writer");
+const tracer = createTracer("import-writer");
+const emitMetric = createMetricEmitter("import-writer");
+
 const prisma = new PrismaClient();
 
 const handler = async (event: any) => {
-  console.log("Writer event received:", JSON.stringify(event));
-
+  const startedAt = Date.now();
   const { importJobId, action } = event;
 
   if (!importJobId) {
-    console.error("Missing importJobId in request payload.");
+    logger.error("Missing importJobId in request payload.");
     throw new Error("Missing importJobId");
   }
 
@@ -21,7 +27,7 @@ const handler = async (event: any) => {
     });
 
     if (!job) {
-      console.error(`Import job ${importJobId} not found.`);
+      logger.error(`Import job ${importJobId} not found.`);
       throw new Error("Import job not found");
     }
 
@@ -31,7 +37,7 @@ const handler = async (event: any) => {
         where: { id: importJobId },
         data: { status: ImportStatus.CANCELLED },
       });
-      console.log(`Job ${importJobId} cancelled by request.`);
+      logger.info(`Job ${importJobId} cancelled by request.`);
       return { status: "CANCELLED", importJobId };
     }
 
@@ -50,7 +56,7 @@ const handler = async (event: any) => {
       orderBy: { rowNumber: "asc" },
     });
 
-    console.log(`Retrieved ${stagedRows.length} valid rows to commit.`);
+    logger.info(`Retrieved ${stagedRows.length} valid rows to commit.`);
 
     let committedRows = await prisma.importJobRow.count({
       where: {
@@ -85,7 +91,7 @@ const handler = async (event: any) => {
     // 4. Batch transaction commit loop
     for (let i = 0; i < stagedRows.length; i += CHUNK_SIZE) {
       const chunk = stagedRows.slice(i, i + CHUNK_SIZE);
-      console.log(
+      logger.info(
         `Processing chunk ${i / CHUNK_SIZE + 1} of ${Math.ceil(stagedRows.length / CHUNK_SIZE)}`,
       );
 
@@ -178,9 +184,9 @@ const handler = async (event: any) => {
         );
 
         committedRows += committedInChunk;
-        console.log(`Successfully committed chunk. Progressive total: ${committedRows}`);
+        logger.info(`Successfully committed chunk. Progressive total: ${committedRows}`);
       } catch (chunkErr: any) {
-        console.error(`Chunk transaction failed: ${chunkErr.message}`);
+        logger.error(`Chunk transaction failed: ${chunkErr.message}`);
 
         // Mark only the failed rows in this chunk as FAILED so remaining batches aren't locked out
         const chunkIds = chunk.map((r) => r.id);
@@ -234,7 +240,9 @@ const handler = async (event: any) => {
       },
     });
 
-    console.log(`Job finishing with status: ${finalStatus}. Total committed: ${committedTotal}`);
+    emitMetric("ImportRowsCommitted", MetricUnit.Count, committedTotal);
+    emitMetric("ImportDurationMs", MetricUnit.Milliseconds, Date.now() - startedAt);
+    logger.info(`Job finishing with status: ${finalStatus}. Total committed: ${committedTotal}`);
 
     if (failedTotal > 0) {
       throw new Error(
@@ -270,7 +278,7 @@ const handler = async (event: any) => {
         });
       }
     } catch (notiErr: any) {
-      console.error("Failed to trigger success notification:", notiErr.message);
+      logger.error("Failed to trigger success notification", notiErr.message);
     }
 
     return {
@@ -279,7 +287,7 @@ const handler = async (event: any) => {
       committedRows: committedTotal,
     };
   } catch (err: any) {
-    console.error("Critical writer execution exception:", err);
+    logger.error("Critical writer execution exception", err);
     await prisma.importJob.update({
       where: { id: importJobId },
       data: {
@@ -302,15 +310,15 @@ async function publishNotification(payload: any) {
 
   if (snsTopicArn) {
     try {
-      const snsClient = new SNSClient({ region: awsRegion });
+      const snsClient = tracer.captureAWSv3Client(new SNSClient({ region: awsRegion }));
       const command = new PublishCommand({
         TopicArn: snsTopicArn,
         Message: JSON.stringify(payload),
       });
       await snsClient.send(command);
-      console.log("Successfully published completed notification message to SNS.");
+      logger.info("Successfully published completed notification message to SNS.");
     } catch (err: any) {
-      console.error("Failed to publish SNS completion message:", err.message);
+      logger.error("Failed to publish SNS completion message", err.message);
     }
   } else if (
     process.env.NODE_ENV !== "production" &&
@@ -319,7 +327,7 @@ async function publishNotification(payload: any) {
     // Local dev: Fallback to direct NestJS Webhook post to enable easy offline mock testing
     const localWebhookUrl =
       process.env.LOCAL_API_WEBHOOK_URL || "http://localhost:8000/api/notifications/sns-callback";
-    console.warn(
+    logger.warn(
       `NOTIFICATION_SNS_TOPIC_ARN environment variable not found. Direct posting to local webhook: ${localWebhookUrl}`,
     );
     try {
@@ -331,19 +339,18 @@ async function publishNotification(payload: any) {
         body: JSON.stringify(payload),
       });
       if (response.ok) {
-        console.log("Successfully triggered local notification callback direct post.");
+        logger.info("Successfully triggered local notification callback direct post.");
       } else {
-        console.error(
-          "Failed to trigger local notification callback direct post. Status:",
-          response.status,
+        logger.error(
+          `Failed to trigger local notification callback direct post. Status: ${response.status}`,
         );
       }
     } catch (err: any) {
-      console.error("Failed to fetch local webhook direct post:", err.message);
+      logger.error("Failed to fetch local webhook direct post", err.message);
     }
   } else {
-    console.warn("Notification topic is not configured; success notification was isolated.");
+    logger.warn("Notification topic is not configured; success notification was isolated.");
   }
 }
 
-module.exports = { handler: withDatabaseUrl(handler) };
+module.exports = { handler: withObservability(logger, withDatabaseUrl(handler)) };

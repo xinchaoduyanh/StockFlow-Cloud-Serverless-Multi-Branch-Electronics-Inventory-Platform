@@ -1,12 +1,17 @@
 import { withDatabaseUrl } from "@stockflow/shared/dist/database-url";
+import { createLogger, withObservability } from "@stockflow/shared/dist/logger";
+import { createTracer } from "@stockflow/shared/dist/tracer";
+import { createMetricEmitter, MetricUnit } from "@stockflow/shared/dist/metrics";
 import { PrismaClient, ImportStatus } from "@prisma/client";
 import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
+
+const logger = createLogger("import-job-fail-handler");
+const tracer = createTracer("import-job-fail-handler");
+const emitMetric = createMetricEmitter("import-job-fail-handler");
 
 const prisma = new PrismaClient();
 
 const handler = async (event: any) => {
-  console.log("Job failure handler event received:", JSON.stringify(event));
-
   // Step Functions error objects often contain Error and Cause
   let importJobId = event.importJobId || (event.Payload && event.Payload.importJobId);
 
@@ -27,7 +32,7 @@ const handler = async (event: any) => {
     "State machine execution failure";
 
   if (!importJobId) {
-    console.error("No importJobId found in the failure event payload.");
+    logger.error("No importJobId found in the failure event payload.");
     throw new Error("No importJobId found");
   }
 
@@ -40,7 +45,8 @@ const handler = async (event: any) => {
       },
     });
 
-    console.log(`Import job ${importJobId} successfully marked as FAILED.`);
+    emitMetric("ImportJobFailed", MetricUnit.Count, 1);
+    logger.info(`Import job ${importJobId} successfully marked as FAILED.`);
 
     // Trigger Failure email and In-app alert notification
     try {
@@ -64,7 +70,7 @@ const handler = async (event: any) => {
         });
       }
     } catch (notiErr: any) {
-      console.error("Failed to trigger failure notification:", notiErr.message);
+      logger.error("Failed to trigger failure notification", notiErr.message);
     }
 
     return {
@@ -72,7 +78,7 @@ const handler = async (event: any) => {
       importJobId,
     };
   } catch (err: any) {
-    console.error("Failed to mark job as failed:", err);
+    logger.error("Failed to mark job as failed", err);
     throw err;
   } finally {
     await prisma.$disconnect();
@@ -88,15 +94,15 @@ async function publishNotification(payload: any) {
 
   if (snsTopicArn) {
     try {
-      const snsClient = new SNSClient({ region: awsRegion });
+      const snsClient = tracer.captureAWSv3Client(new SNSClient({ region: awsRegion }));
       const command = new PublishCommand({
         TopicArn: snsTopicArn,
         Message: JSON.stringify(payload),
       });
       await snsClient.send(command);
-      console.log("Successfully published failure notification message to SNS.");
+      logger.info("Successfully published failure notification message to SNS.");
     } catch (err: any) {
-      console.error("Failed to publish SNS failure message:", err.message);
+      logger.error("Failed to publish SNS failure message", err.message);
     }
   } else if (
     process.env.NODE_ENV !== "production" &&
@@ -105,7 +111,7 @@ async function publishNotification(payload: any) {
     // Local dev: Fallback to direct NestJS Webhook post to enable easy offline mock testing
     const localWebhookUrl =
       process.env.LOCAL_API_WEBHOOK_URL || "http://localhost:8000/api/notifications/sns-callback";
-    console.warn(
+    logger.warn(
       `NOTIFICATION_SNS_TOPIC_ARN environment variable not found. Direct posting to local webhook: ${localWebhookUrl}`,
     );
     try {
@@ -117,22 +123,21 @@ async function publishNotification(payload: any) {
         body: JSON.stringify(payload),
       });
       if (response.ok) {
-        console.log("Successfully triggered local notification callback direct post.");
+        logger.info("Successfully triggered local notification callback direct post.");
       } else {
-        console.error(
-          "Failed to trigger local notification callback direct post. Status:",
-          response.status,
+        logger.error(
+          `Failed to trigger local notification callback direct post. Status: ${response.status}`,
         );
       }
     } catch (err: any) {
-      console.error(
-        "Failed to trigger local notification callback direct post. Status:",
+      logger.error(
+        "Failed to trigger local notification callback direct post. Status",
         err.message,
       );
     }
   } else {
-    console.warn("Notification topic is not configured; failure notification was isolated.");
+    logger.warn("Notification topic is not configured; failure notification was isolated.");
   }
 }
 
-module.exports = { handler: withDatabaseUrl(handler) };
+module.exports = { handler: withObservability(logger, withDatabaseUrl(handler)) };

@@ -1,15 +1,16 @@
 import { withDatabaseUrl } from "@stockflow/shared/dist/database-url";
+import { createLogger, withObservability } from "@stockflow/shared/dist/logger";
 import { PrismaClient, ImportStatus } from "@prisma/client";
+
+const logger = createLogger("import-approval-token-register");
 
 const prisma = new PrismaClient();
 
 const handler = async (event: any) => {
-  console.log("Approval token register event received:", JSON.stringify(event));
-
   const { importJobId, taskToken } = event;
 
   if (!importJobId || !taskToken) {
-    console.error("Missing required importJobId or taskToken payload.");
+    logger.error("Missing required importJobId or taskToken payload.");
     throw new Error("Missing required parameters");
   }
 
@@ -23,18 +24,18 @@ const handler = async (event: any) => {
       },
     });
 
-    console.log(`Task token successfully registered for Job ${importJobId}`);
+    logger.info(`Task token successfully registered for Job ${importJobId}`);
 
     return {
       success: true,
       importJobId,
     };
   } catch (err: any) {
-    console.error("Failed to register task token:", err);
+    logger.error("Failed to register task token", err);
     throw err;
   } finally {
     await prisma.$disconnect();
   }
 };
 
-module.exports = { handler: withDatabaseUrl(handler) };
+module.exports = { handler: withObservability(logger, withDatabaseUrl(handler)) };

@@ -3,7 +3,7 @@ import {
   CORRELATION_ID_HEADER,
   resolveCorrelationId,
   runWithCorrelationId,
-} from "@stockflow/shared";
+} from "@stockflow/shared/dist/correlation";
 import { NextFunction, Request, Response } from "express";
 
 @Injectable()

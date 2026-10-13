@@ -12,6 +12,7 @@ import { EnvService } from "../config/env.service";
 import { PrismaService } from "../database/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { AuthorizationPolicyService, PolicyActor } from "../auth/authorization-policy.service";
+import { tracer } from "../common/tracing/tracer";
 
 @Injectable()
 export class ReconciliationService {
@@ -197,7 +198,7 @@ export class ReconciliationService {
 
   private async invokeLambda(arn: string, payload: Record<string, unknown>) {
     const region = this.envService.get("AWS_REGION");
-    const client = new LambdaClient({ region });
+    const client = tracer.captureAWSv3Client(new LambdaClient({ region }));
 
     await client.send(
       new InvokeCommand({

@@ -5,8 +5,10 @@ import {
   TransferListQuery,
   TransferDTO,
 } from "@stockflow/shared";
+import { BusinessMetric, MetricUnit } from "@stockflow/shared/dist/metrics";
 import { Injectable } from "@nestjs/common";
 import { StockMovementType, TransferStatus } from "@prisma/client";
+import { emitMetric } from "../common/metrics/metrics";
 import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
 import { PrismaService } from "../database/prisma.service";
@@ -188,7 +190,7 @@ export class TransfersService {
 
   async approve(id: string, actor?: PolicyActor): Promise<TransferDTO> {
     const actorId = actor?.sub ?? actor?.id;
-    return this.prisma.$transaction(async (tx) => {
+    const approved = await this.prisma.$transaction(async (tx) => {
       const transfer = await tx.transfer.findUnique({
         where: { id },
         include: { items: true },
@@ -290,6 +292,9 @@ export class TransfersService {
         },
       }) as any;
     });
+    // Chỉ đếm sau khi transaction commit; nếu rollback thì không có chuyển kho nào xảy ra.
+    emitMetric(BusinessMetric.TRANSFER_APPROVED, MetricUnit.Count, 1);
+    return approved;
   }
 
   async reject(id: string, input: RejectTransferBody, actor?: PolicyActor): Promise<TransferDTO> {

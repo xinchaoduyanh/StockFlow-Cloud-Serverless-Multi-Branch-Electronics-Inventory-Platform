@@ -1,14 +1,17 @@
 import { withDatabaseUrl } from "@stockflow/shared/dist/database-url";
+import { createLogger, withObservability } from "@stockflow/shared/dist/logger";
+import { createTracer } from "@stockflow/shared/dist/tracer";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { PrismaClient, ImportStatus } from "@prisma/client";
 import * as ExcelJS from "exceljs";
 
-const s3Client = new S3Client({});
+const logger = createLogger("import-validator");
+const tracer = createTracer("import-validator");
+
+const s3Client = tracer.captureAWSv3Client(new S3Client({}));
 const prisma = new PrismaClient();
 
 const handler = async (event: any) => {
-  console.log("Validator event received:", JSON.stringify(event));
-
   let bucket: string;
   let key: string;
   let size: number;
@@ -25,18 +28,18 @@ const handler = async (event: any) => {
   }
 
   if (!key) {
-    console.error("S3 object key is empty.");
+    logger.error("S3 object key is empty.");
     return { isValid: false, error: "S3 object key is empty" };
   }
 
   if (!key.endsWith(".xlsx")) {
-    console.error("Invalid file format. Only .xlsx files are supported.");
+    logger.error("Invalid file format. Only .xlsx files are supported.");
     return { isValid: false, error: "Only .xlsx files are supported" };
   }
 
   const keyParts = key.split("/");
   if (keyParts.length < 3) {
-    console.error("Invalid S3 key structure:", key);
+    logger.error("Invalid S3 key structure", key);
     return { isValid: false, error: "Invalid S3 key structure" };
   }
 
@@ -49,7 +52,7 @@ const handler = async (event: any) => {
     });
 
     if (!job) {
-      console.error(`Import job ${jobId} not found in database.`);
+      logger.error(`Import job ${jobId} not found in database.`);
       return { isValid: false, error: "Import job not found" };
     }
 
@@ -62,7 +65,7 @@ const handler = async (event: any) => {
 
     if (size > 20971520) {
       const errMsg = "File exceeds maximum size limit of 20MB.";
-      console.error(errMsg);
+      logger.error(errMsg);
       await prisma.importJob.update({
         where: { id: jobId },
         data: {
@@ -106,7 +109,7 @@ const handler = async (event: any) => {
 
     if (missingHeaders.length > 0) {
       const errMsg = `Missing required columns: ${missingHeaders.join(", ")}`;
-      console.error(errMsg);
+      logger.error(errMsg);
       await prisma.importJob.update({
         where: { id: jobId },
         data: {
@@ -131,11 +134,11 @@ const handler = async (event: any) => {
       key,
     };
   } catch (err: any) {
-    console.error("Validation exception:", err);
+    logger.error("Validation exception", err);
     throw err;
   } finally {
     await prisma.$disconnect();
   }
 };
 
-module.exports = { handler: withDatabaseUrl(handler) };
+module.exports = { handler: withObservability(logger, withDatabaseUrl(handler)) };

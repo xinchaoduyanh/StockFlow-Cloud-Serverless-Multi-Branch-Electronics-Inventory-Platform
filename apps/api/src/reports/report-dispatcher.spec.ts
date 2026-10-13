@@ -1,4 +1,5 @@
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { runWithCorrelationId } from "@stockflow/shared/dist/correlation";
 import { EnvService } from "../config/env.service";
 import { ReportDispatcher } from "./report-dispatcher";
 
@@ -28,6 +29,32 @@ describe("ReportDispatcher", () => {
     expect(JSON.parse(command.input.MessageBody ?? "{}")).toEqual({
       version: 1,
       exportJobId: "11111111-1111-4111-8111-111111111111",
+    });
+  });
+
+  it("forwards the request correlation ID as an SQS message attribute", async () => {
+    const send = jest.spyOn(SQSClient.prototype, "send").mockResolvedValue({} as never);
+    const env = {
+      get: jest.fn(
+        (key: string) =>
+          (
+            ({
+              AWS_REGION: "ap-southeast-1",
+              REPORT_DISPATCH_MODE: "sqs",
+              REPORT_QUEUE_URL: "https://sqs.example.test/report",
+            }) as Record<string, string>
+          )[key],
+      ),
+    } as unknown as EnvService;
+
+    await runWithCorrelationId("req-123", () =>
+      new ReportDispatcher(env).dispatch("11111111-1111-4111-8111-111111111111"),
+    );
+
+    const command = send.mock.calls[0][0] as SendMessageCommand;
+    expect(command.input.MessageAttributes?.correlationId).toEqual({
+      DataType: "String",
+      StringValue: "req-123",
     });
   });
 

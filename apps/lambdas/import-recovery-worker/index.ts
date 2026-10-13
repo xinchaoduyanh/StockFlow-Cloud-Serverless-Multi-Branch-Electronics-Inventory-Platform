@@ -1,4 +1,5 @@
 import { withDatabaseUrl } from "@stockflow/shared/dist/database-url";
+import { createLogger, withObservability } from "@stockflow/shared/dist/logger";
 import { importTerminalEventSchema } from "@stockflow/shared";
 import {
   PrismaClient,
@@ -7,6 +8,8 @@ import {
   ImportStatus,
 } from "@prisma/client";
 import type { SQSBatchResponse, SQSEvent } from "aws-lambda";
+
+const logger = createLogger("import-recovery-worker");
 
 const prisma = new PrismaClient();
 
@@ -178,7 +181,7 @@ const processRecoveryEvent = async (event: ImportRecoveryEvent): Promise<ImportR
         Number(record.attributes?.ApproximateReceiveCount ?? "1"),
       );
     } catch (error) {
-      console.error("Import recovery event persistence failed", {
+      logger.error("Import recovery event persistence failed", {
         messageId: record.messageId,
         errorCode: error instanceof Error ? error.name : "UNKNOWN",
       });
@@ -188,4 +191,4 @@ const processRecoveryEvent = async (event: ImportRecoveryEvent): Promise<ImportR
   return { batchItemFailures };
 };
 
-export const handler = withDatabaseUrl(processRecoveryEvent);
+export const handler = withObservability(logger, withDatabaseUrl(processRecoveryEvent));

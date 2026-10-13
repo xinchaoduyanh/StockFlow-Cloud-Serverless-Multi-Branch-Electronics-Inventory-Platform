@@ -29,6 +29,7 @@ import { AuthorizationPolicyService, PolicyActor } from "../auth/authorization-p
 import { EnvService } from "../config/env.service";
 import { PrismaService } from "../database/prisma.service";
 import { ReportDispatcher } from "../reports/report-dispatcher";
+import { tracer } from "../common/tracing/tracer";
 
 const MAX_REPORT_REPLAYS = 3;
 
@@ -43,8 +44,8 @@ export class RecoveryService {
     private readonly authorization: AuthorizationPolicyService,
     private readonly reportDispatcher: ReportDispatcher,
   ) {
-    this.sqs = new SQSClient({ region: this.env.get("AWS_REGION") });
-    this.sfn = new SFNClient({ region: this.env.get("AWS_REGION") });
+    this.sqs = tracer.captureAWSv3Client(new SQSClient({ region: this.env.get("AWS_REGION") }));
+    this.sfn = tracer.captureAWSv3Client(new SFNClient({ region: this.env.get("AWS_REGION") }));
   }
 
   async listReports(

@@ -1,5 +1,5 @@
 import { INestApplication } from "@nestjs/common";
-import { CORRELATION_ID_HEADER } from "@stockflow/shared";
+import { CORRELATION_ID_HEADER } from "@stockflow/shared/dist/correlation";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 import { JsonLogger } from "./common/logging/json-logger";
 import { EnvService } from "./config/env.service";
