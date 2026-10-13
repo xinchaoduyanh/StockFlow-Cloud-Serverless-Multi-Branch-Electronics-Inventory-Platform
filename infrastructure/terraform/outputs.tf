@@ -70,3 +70,24 @@ output "api_domain_target" {
 output "api_lambda_name" {
   value = aws_lambda_function.api.function_name
 }
+
+# --- Cấu hình build frontend (không phải secret): pipeline sinh .env.production từ đây ---
+output "api_base_url" {
+  value = var.api_base_url
+}
+
+output "cognito_user_pool_id" {
+  value = var.cognito_user_pool_id
+}
+
+output "cognito_client_id" {
+  value = var.cognito_client_id
+}
+
+output "pusher_key" {
+  value = var.pusher_key
+}
+
+output "pusher_cluster" {
+  value = var.pusher_cluster
+}

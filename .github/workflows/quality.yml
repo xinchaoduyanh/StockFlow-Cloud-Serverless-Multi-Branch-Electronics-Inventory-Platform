@@ -8,10 +8,11 @@ on:
     branches: ["**"]
   workflow_dispatch:
 
-# Push liên tiếp vào cùng một nhánh thì huỷ run cũ, đỡ tốn phút chạy.
+# Push liên tiếp vào cùng một nhánh thì huỷ run cũ, đỡ tốn phút chạy. Riêng main thì không
+# huỷ: run đó có job deploy, huỷ giữa chừng `terraform apply` có thể để lại state dở.
 concurrency:
   group: quality-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
@@ -63,6 +64,9 @@ jobs:
       - name: Unit and API tests
         run: npm test -- --runInBand
 
+      - name: Script tests
+        run: npm run test:scripts
+
       - name: PostgreSQL integration tests
         run: npm run test:postgres
 
@@ -113,3 +117,164 @@ jobs:
         run: |
           terraform init -backend=false -input=false
           terraform validate
+
+  deploy:
+    name: Deploy to AWS
+    needs: [quality, terraform]
+    # Chỉ main; workflow_dispatch cho phép chạy tay (ví dụ kiểm tra OIDC hoặc deploy lại).
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Role OIDC chỉ cho assume khi job chạy trong environment này.
+    environment: production
+    # Không bao giờ huỷ giữa chừng một lần apply.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AWS_REGION: ap-southeast-1
+      TF_IN_AUTOMATION: "true"
+      TF_VAR_neon_database_url: ${{ secrets.NEON_DATABASE_URL }}
+      TF_VAR_neon_direct_url: ${{ secrets.NEON_DIRECT_URL }}
+      TF_VAR_pusher_secret: ${{ secrets.PUSHER_SECRET }}
+      TF_VAR_git_sha: ${{ github.sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          # Cần commit trước đó để biết frontend có đổi không.
+          fetch-depth: 2
+
+      # Fail sớm, nói rõ thiếu gì, thay vì lỗi khó hiểu giữa chừng Terraform.
+      - name: Check required secrets
+        env:
+          DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+        run: |
+          missing=0
+          for name in DEPLOY_ROLE_ARN TF_VAR_neon_database_url TF_VAR_neon_direct_url; do
+            if [ -z "${!name}" ]; then echo "::error::Missing secret for $name"; missing=1; fi
+          done
+          exit $missing
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Repo public nên log ai cũng đọc được: che account ID trước khi bất kỳ lệnh nào in ra
+      # ARN hay tên bucket chứa nó.
+      - name: Resolve and mask account ID
+        run: |
+          account_id="$(aws sts get-caller-identity --query Account --output text)"
+          echo "::add-mask::$account_id"
+          echo "ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+
+      - name: Build Lambda artifacts
+        run: |
+          npm --workspace packages/shared run build
+          npm run build:api
+          npm run build:lambdas
+          npm run build:api-lambda
+
+      # Migration phải tương thích ngược (expand rồi contract): bản code cũ còn chạy vài giây
+      # trước khi Lambda nhận bản mới.
+      - name: Migrate database
+        working-directory: apps/api
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DIRECT_URL }}
+          DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
+        run: npx prisma migrate deploy
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.5"
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: infrastructure/terraform
+        run: terraform init -input=false -backend-config="bucket=stockflow-tfstate-${ACCOUNT_ID}"
+
+      - name: Terraform plan
+        working-directory: infrastructure/terraform
+        run: terraform plan -input=false -out=tfplan
+
+      # Chốt an toàn: auto-deploy không được xoá hay thay thế resource có dữ liệu.
+      - name: Block destructive plan
+        working-directory: infrastructure/terraform
+        run: |
+          terraform show -json tfplan > "$RUNNER_TEMP/plan.json"
+          node "$GITHUB_WORKSPACE/scripts/check-plan-safety.js" "$RUNNER_TEMP/plan.json"
+
+      - name: Terraform apply
+        working-directory: infrastructure/terraform
+        run: terraform apply -input=false tfplan
+
+      # Chỉ build và sync frontend khi cần, để khỏi invalidate CloudFront vô ích.
+      - name: Detect frontend changes
+        id: frontend
+        working-directory: infrastructure/terraform
+        run: |
+          bucket="$(terraform output -raw web_bucket)"
+          changed=false
+          if ! aws s3api head-object --bucket "$bucket" --key index.html >/dev/null 2>&1; then
+            echo "Web bucket has no index.html yet."
+            changed=true
+          elif ! git diff --quiet HEAD~1 HEAD -- :/apps/web :/packages/shared; then
+            changed=true
+          fi
+          echo "deploy=$changed" >> "$GITHUB_OUTPUT"
+
+      - name: Build and deploy frontend
+        if: steps.frontend.outputs.deploy == 'true'
+        run: |
+          cd infrastructure/terraform
+          {
+            echo "NEXT_PUBLIC_API_URL=$(terraform output -raw api_base_url)/api"
+            echo "NEXT_PUBLIC_AUTH_MODE=cognito"
+            echo "NEXT_PUBLIC_COGNITO_REGION=${AWS_REGION}"
+            echo "NEXT_PUBLIC_COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)"
+            echo "NEXT_PUBLIC_COGNITO_CLIENT_ID=$(terraform output -raw cognito_client_id)"
+            echo "NEXT_PUBLIC_PUSHER_KEY=$(terraform output -raw pusher_key)"
+            echo "NEXT_PUBLIC_PUSHER_CLUSTER=$(terraform output -raw pusher_cluster)"
+          } > ../../apps/web/.env.production
+          bucket="$(terraform output -raw web_bucket)"
+          distribution_id="$(terraform output -raw cloudfront_distribution_id)"
+          cd ../..
+          npm run build:web
+          aws s3 sync apps/web/out "s3://${bucket}/" --delete
+          aws cloudfront create-invalidation --distribution-id "$distribution_id" --paths "/*"
+
+      # API phải trả đúng commit vừa deploy; thử lại vì Lambda có thể cần vài giây.
+      - name: Smoke test
+        working-directory: infrastructure/terraform
+        run: |
+          health_url="$(terraform output -raw api_base_url)/api/health"
+          for attempt in $(seq 1 12); do
+            sha="$(curl -fsS "$health_url" | jq -r '.commitSha' || true)"
+            if [ "$sha" = "$GITHUB_SHA" ]; then
+              echo "Smoke test passed: API is serving commit $GITHUB_SHA"
+              exit 0
+            fi
+            echo "Attempt $attempt: API reports '$sha', waiting for $GITHUB_SHA"
+            sleep 10
+          done
+          echo "::error::API did not report commit $GITHUB_SHA"
+          exit 1
