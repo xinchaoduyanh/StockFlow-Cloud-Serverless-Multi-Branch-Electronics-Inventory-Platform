@@ -141,6 +141,7 @@ jobs:
       TF_VAR_neon_direct_url: ${{ secrets.NEON_DIRECT_URL }}
       TF_VAR_pusher_secret: ${{ secrets.PUSHER_SECRET }}
       TF_VAR_git_sha: ${{ github.sha }}
+      TF_VAR_ops_alert_email: ${{ secrets.OPS_REPORT_EMAIL }}
 
     steps:
       - name: Checkout

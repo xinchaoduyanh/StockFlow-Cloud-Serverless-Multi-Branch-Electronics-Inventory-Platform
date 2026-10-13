@@ -175,6 +175,13 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# X-Ray active tracing cần quyền gửi segment.
+resource "aws_iam_role_policy_attachment" "lambda_xray" {
+  for_each   = local.lambdas
+  role       = aws_iam_role.lambda[each.key].name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+}
+
 # Mọi Lambda đều dùng Prisma nên đều đọc DATABASE_URL từ SSM lúc cold start.
 resource "aws_iam_role_policy" "lambda_database_url" {
   for_each = local.lambdas
@@ -310,6 +317,10 @@ resource "aws_lambda_function" "fn" {
   s3_key           = aws_s3_object.lambda[each.key].key
   source_code_hash = data.archive_file.lambda[each.key].output_base64sha256
 
+  tracing_config {
+    mode = "Active"
+  }
+
   environment {
     variables = merge(
       {
@@ -358,6 +369,7 @@ resource "aws_cloudwatch_metric_alarm" "report_dlq_messages" {
   threshold           = 0
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.ops_alerts.arn]
 }
 
 resource "aws_cloudwatch_metric_alarm" "report_queue_age" {
@@ -372,6 +384,7 @@ resource "aws_cloudwatch_metric_alarm" "report_queue_age" {
   threshold           = 900
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.ops_alerts.arn]
 }
 
 resource "aws_cloudwatch_metric_alarm" "import_recovery_dlq_messages" {
@@ -386,6 +399,7 @@ resource "aws_cloudwatch_metric_alarm" "import_recovery_dlq_messages" {
   threshold           = 0
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.ops_alerts.arn]
 }
 
 # ============================================================
@@ -441,6 +455,7 @@ resource "aws_cloudwatch_metric_alarm" "notification_delivery_dlq_messages" {
   threshold           = 0
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.ops_alerts.arn]
 }
 
 # ============================================================
@@ -479,9 +494,25 @@ resource "aws_iam_role_policy" "sfn_invoke" {
   })
 }
 
+resource "aws_iam_role_policy" "sfn_xray" {
+  role = aws_iam_role.sfn.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords", "xray:GetSamplingRules", "xray:GetSamplingTargets"]
+      Resource = "*" # X-Ray không hỗ trợ giới hạn theo resource cho các action này
+    }]
+  })
+}
+
 resource "aws_sfn_state_machine" "ingestion" {
   name     = "${var.project}-ingestion"
   role_arn = aws_iam_role.sfn.arn
+
+  tracing_configuration {
+    enabled = true
+  }
 
   definition = jsonencode({
     Comment = "StockFlow batch ingestion pipeline"
@@ -545,7 +576,7 @@ resource "aws_sfn_state_machine" "ingestion" {
     }
   })
 
-  depends_on = [aws_iam_role_policy.sfn_invoke]
+  depends_on = [aws_iam_role_policy.sfn_invoke, aws_iam_role_policy.sfn_xray]
 }
 
 # ============================================================

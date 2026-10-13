@@ -109,3 +109,9 @@ variable "import_approval_timeout_seconds" {
   description = "Maximum approval wait before the workflow becomes terminal"
   default     = 86400
 }
+
+variable "ops_alert_email" {
+  type        = string
+  description = "Email nhận cảnh báo vận hành; để trống thì không tạo subscription"
+  default     = ""
+}
