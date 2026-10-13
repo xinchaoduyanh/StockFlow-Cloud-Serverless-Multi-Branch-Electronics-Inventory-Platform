@@ -84,7 +84,7 @@ Tạo `aws_cloudwatch_log_group` tường minh cho cả 8 worker, `retention_in_
 
 ## Kiểm chứng
 
-- [ ] Test khởi động `handler` pass ở CI.
-- [ ] `sam local invoke` hoặc `node -e` gọi `handler` với event mẫu ở máy dev trả 200.
-- [ ] `terraform plan` không còn `aws_ecs_*`, `aws_lb*`, `aws_ecr_*`.
-- [ ] Gói Lambda giải nén < 250 MB; ghi lại kích thước và thời gian cold start đo được vào ADR-001.
+- [x] Test khởi động `handler` pass (`apps/api/test/lambda.e2e-spec.ts`); CI chạy qua `npm test`.
+- [x] `node -e` gọi `handler` của bundle `dist/api-lambda/index.js` với event HTTP API v2 trả 200 kèm `commitSha`.
+- [x] `terraform plan` (2026-10-13: 119 add, 0 change, 0 destroy) không còn `aws_ecs_*`, `aws_lb*`, `aws_ecr_*`.
+- [x] Gói Lambda giải nén < 250 MB: 49 MB giải nén, 19,8 MB zip (đo 2026-10-13). Cold start đo qua API Gateway: request đầu 3,0 giây, request sau 0,26 giây (gồm kết nối Neon). Chưa ghi vào ADR-001.

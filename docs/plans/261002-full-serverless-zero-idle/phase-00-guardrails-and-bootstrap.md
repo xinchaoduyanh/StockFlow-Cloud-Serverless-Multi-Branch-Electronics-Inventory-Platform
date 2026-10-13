@@ -45,7 +45,7 @@ Nâng `required_version` lên `>= 1.10` cho `use_lockfile`. CI đang dùng 1.15.
 
 - [ ] `terraform -chdir=infrastructure/bootstrap apply` thành công.
 - [ ] Nhận email xác nhận đăng ký từ AWS Budgets.
-- [ ] `terraform -chdir=infrastructure/terraform init -migrate-state` đọc được backend S3.
+- [x] `terraform -chdir=infrastructure/terraform init` đọc được backend S3 (state stack chính còn rỗng nên không cần migrate).
 - [ ] Từ một workflow thử (`workflow_dispatch`), `aws sts get-caller-identity` trả về role `stockflow-github-deploy`.
 
 ## Chủ dự án tự làm

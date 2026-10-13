@@ -47,7 +47,7 @@ Chuỗi kết nối pooled phải có: `sslmode=require&pgbouncer=true&connectio
 
 ## Kiểm chứng
 
-- [ ] `rg -n "aws_nat_gateway|aws_eip|aws_rds_|aws_vpc|vpc_config|AWSLambdaVPCAccessExecutionRole|secretsmanager" infrastructure/terraform` không còn kết quả.
-- [ ] `terraform validate` pass.
-- [ ] Ở máy dev, `prisma migrate deploy` chạy được tới Neon qua `DIRECT_URL`.
-- [ ] `npm run verify` pass trên Node 22.
+- [x] `rg -n "aws_nat_gateway|aws_eip|aws_rds_|aws_vpc|vpc_config|AWSLambdaVPCAccessExecutionRole|secretsmanager" infrastructure/terraform` không còn kết quả.
+- [x] `terraform validate` pass.
+- [x] Ở máy dev, `prisma migrate deploy` chạy được tới Neon qua `DIRECT_URL`.
+- [x] `npm run verify` pass trên Node 22.
