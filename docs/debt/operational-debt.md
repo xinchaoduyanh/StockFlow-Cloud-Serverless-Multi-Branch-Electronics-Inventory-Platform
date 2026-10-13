@@ -110,6 +110,8 @@ Nằm trong khối `environment`, không phải khối `secrets`. `DATABASE_URL`
 
 ## OD-05 — X-Ray đi dây trong code nhưng không tới đích
 
+> **Cập nhật 2026-10-13:** Code và Terraform đã làm trong P4 (Lambda `tracing_config` Active, Step Functions tracing, Powertools Tracer; không dùng ADOT/ECS nữa). Chờ kiểm chứng service map trên AWS rồi chuyển xuống "Đã đóng".
+
 **Bằng chứng:** `apps/api/src/tracing.ts` cấu hình OTel đầy đủ với `AWSXRayIdGenerator` và `AWSXRayPropagator`, exporter trỏ tới `http://localhost:4318/v1/traces`. Nhưng:
 
 ```
@@ -136,6 +138,8 @@ Sau E3, thiệt hại còn lớn hơn trước: giờ đã có Step Functions re
 ---
 
 ## OD-06 — Alarm mới phủ SQS/DLQ
+
+> **Cập nhật 2026-10-13:** P4 đã thêm SNS topic `stockflow-ops-alerts`, 5 alarm (API 5xx/p95, Lambda api throttle, Step Functions failed, lỗi worker) và dashboard `stockflow-overview`; các alarm cũ gửi về topic này. Các alarm ALB/ECS/Aurora không còn áp dụng (đã bỏ khỏi kiến trúc). Chờ kiểm chứng email trên AWS.
 
 **Bằng chứng:** `a1dc5c1` đã thêm 4 `aws_cloudwatch_metric_alarm`:
 
@@ -164,6 +168,8 @@ Thiếu dashboard cũng có nghĩa là khi demo, không có một màn hình duy
 ---
 
 ## OD-07 — Không có structured logging / correlation ID
+
+> **Cập nhật 2026-10-13:** P4 đã thay `console.*` trong worker bằng Powertools Logger và thêm correlation ID cho API/worker. Chờ kiểm chứng truy vấn Logs Insights trên AWS.
 
 **Bằng chứng:** 59 lời gọi `console.*` trong `apps/lambdas`. Log là chuỗi văn bản tự do, không phải JSON. Rule `no-console` đã bị tắt trong ESLint (xem TD-03) nên không còn tín hiệu nào nhắc phải thay.
 

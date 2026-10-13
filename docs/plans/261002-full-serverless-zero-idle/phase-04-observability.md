@@ -72,6 +72,26 @@ Một dashboard, bốn hàng:
 
 Tất cả gửi về SNS topic `stockflow-ops-alerts` → email.
 
+## Trạng thái — 2026-10-13
+
+Code và Terraform đã xong, đã push (`9ea70a7`, `d597b6f`, `394b913`). **Chưa kiểm chứng trên AWS** nên các ô ở mục Kiểm chứng chưa tick và OD-05/06/07 chưa đóng.
+
+Khác với plan ở trên:
+
+- **Correlation ID qua Step Functions:** không thêm `correlationId` vào input. Luồng import bắt đầu từ sự kiện S3 nên không có ID do client gửi; `importJobId` đã đi xuyên các state và được dùng làm correlation ID (`extractCorrelationId` trong `packages/shared/src/correlation.ts`). Report đi qua message attribute `correlationId` của SQS.
+- **Đường import của helper:** helper logging/trace/metrics import qua `@stockflow/shared/dist/<module>`, không qua `index`, vì `apps/web` import `@stockflow/shared` mà Next không bundle được `async_hooks`/`fs`.
+- **Alarm "Lambda api throttles":** đặt trên Lambda `api` với ý nghĩa "tài khoản chạm trần concurrency", vì không có reserved concurrency (hạn mức tài khoản 10). HTTP API không có metric throttle riêng.
+- **Endpoint debug 5xx:** không làm. Thử đường alarm → SNS → email bằng `aws cloudwatch set-alarm-state` (xem `docs/runbooks/observability.md`).
+- **Tổng:** 9 alarm, 1 dashboard `stockflow-overview`, 6 custom metric (EMF), SNS topic `stockflow-ops-alerts`.
+
+Việc còn lại để đóng P4:
+
+1. Đặt GitHub secret `OPS_REPORT_EMAIL`, duyệt deploy ở Environment `production`, rồi bấm Confirm trong email subscription của AWS.
+2. Chạy các mục Kiểm chứng bên dưới, chụp ảnh làm bằng chứng.
+3. Đo lại cold start của `/api/health` (trước P4: ~3,0 giây, request sau ~0,26 giây) để biết Tracer có làm chậm không.
+4. Xác nhận alarm `stockflow-api-5xx` và `stockflow-api-latency-p95` có dữ liệu (không kẹt ở `INSUFFICIENT_DATA`). Nếu kẹt, thử thêm dimension `Stage = "$default"`.
+5. Tick plan, đóng OD-05/06/07 trong `docs/debt/operational-debt.md`, viết `EXECUTION-REPORT.md`.
+
 ## Kiểm chứng
 
 - [ ] Logs Insights query theo một `correlationId` ra đủ log từ API → parser → writer của một lần import.

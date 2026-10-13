@@ -5,6 +5,24 @@
 > Thay thế: `docs/plans/260720-1804-neon-natless-terraform/` (giữ Phase 1–2 của plan đó, bỏ Phase 3 công tắc `system_on`)
 > Quyết định kiến trúc: [ADR-001](../../adr/ADR-001-full-serverless-zero-idle-cost.md)
 
+## Tiến độ (cập nhật 2026-10-13)
+
+| Phase | Trạng thái                                                                           |
+| ----- | ------------------------------------------------------------------------------------ |
+| P0–P3 | Xong, đã kiểm chứng trên AWS                                                         |
+| P4    | Code + Terraform đã push, **chờ deploy và kiểm chứng** (xem phase-04 mục Trạng thái) |
+| P5–P6 | Chưa làm                                                                             |
+
+Việc treo xuyên phase (làm trên máy nào cũng được):
+
+- Reset mật khẩu Neon (từng lộ trong chat) rồi cập nhật `terraform.tfvars` và 2 GitHub secret `NEON_DATABASE_URL`, `NEON_DIRECT_URL`.
+- `PUSHER_SECRET` vẫn nằm trong biến môi trường Lambda `api`, nên chuyển sang SSM.
+- P3 còn 2 ô chưa kiểm: chốt an toàn chặn đổi tên bucket; ghi thời gian push→deploy vào README kèm cách tái lập.
+- Reserved concurrency của Lambda `api` không đặt được (hạn mức tài khoản 10); chặn chi phí bằng throttling API Gateway (20 rps, burst 40).
+- Chưa thử đầu cuối: đăng nhập Cognito, import file, report, 8 worker, Step Functions (thuộc P6).
+
+Máy mới: xem `docs/runbooks/new-machine-setup.md`; deploy: `docs/runbooks/deploy.md`; quan sát: `docs/runbooks/observability.md`.
+
 ## Bối cảnh
 
 Ngân sách AWS của dự án là **0đ**. Kiến trúc hiện tại có 4 thứ tính tiền theo giờ dù không ai dùng: NAT Gateway, ALB, Fargate và public IPv4 (Aurora đã scale-to-zero nhưng là lý do kéo cả hệ thống vào VPC). Vì vậy hệ thống chỉ có thể "dựng thử rồi destroy", và:
