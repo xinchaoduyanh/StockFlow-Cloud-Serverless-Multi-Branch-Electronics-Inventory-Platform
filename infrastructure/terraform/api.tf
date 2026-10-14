@@ -169,6 +169,7 @@ resource "aws_lambda_function" "api" {
       CORS_ORIGIN                     = var.frontend_url
       FRONTEND_URL                    = var.frontend_url
       SWAGGER_ENABLED                 = "false"
+      DEBUG_ENDPOINTS_ENABLED         = tostring(var.enable_debug_endpoint)
       AWS_S3_BUCKET                   = aws_s3_bucket.imports.bucket
       REPORT_DISPATCH_MODE            = "sqs"
       REPORT_QUEUE_URL                = aws_sqs_queue.report_jobs.url

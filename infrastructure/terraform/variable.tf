@@ -115,3 +115,9 @@ variable "ops_alert_email" {
   description = "Email nhận cảnh báo vận hành; để trống thì không tạo subscription"
   default     = ""
 }
+
+variable "enable_debug_endpoint" {
+  type        = bool
+  description = "Bật GET /api/debug/fail (luôn trả 500) để kiểm chứng alarm 5xx; chỉ bật tạm khi thử"
+  default     = false
+}
