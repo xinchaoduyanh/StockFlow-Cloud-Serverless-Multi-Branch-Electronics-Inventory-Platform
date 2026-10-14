@@ -59,8 +59,8 @@ terraform -chdir=infrastructure/terraform apply first-apply.plan
 
 ## 5. Xác minh email (hai email từ AWS)
 
-1. **SNS subscription** (`stockflow-ops-alerts`): bấm **Confirm subscription**. Chưa bấm thì không nhận alarm.
-2. **SES identity** cho `ops_alert_email`: bấm link xác minh. Chưa xác minh thì Lambda `daily-ops-report` không gửi được email (SES sandbox).
+1. **SNS subscription** (`stockflow-ops-alerts`): Terraform tạo, AWS gửi email; bấm **Confirm subscription**. Chưa bấm thì không nhận alarm.
+2. **SES identity** cho `ops_alert_email`: Terraform **không** tạo identity này vì nó có thể dùng chung với dự án khác trong tài khoản. Nếu SES → Identities chưa có địa chỉ này ở trạng thái `Verified`, tạo tay ở console (Create identity → Email address) rồi bấm link xác minh. Chưa xác minh thì Lambda `daily-ops-report` không gửi được email (SES sandbox).
 
 ## 6. Migrate và seed Neon
 

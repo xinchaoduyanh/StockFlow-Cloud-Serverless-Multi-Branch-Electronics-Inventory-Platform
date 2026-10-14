@@ -54,6 +54,7 @@ Dòng đầu email là một trạng thái tổng: **Ổn**, **Cần xem** (có 
 
 - Dùng lại biến `ops_alert_email` (đã có từ P4, nối với GitHub secret `OPS_REPORT_EMAIL`) cho cả địa chỉ nhận và gửi, thay vì thêm biến `ops_report_email`. Một địa chỉ SES đã xác minh đủ cho sandbox.
 - Lambda khai báo trong `local.lambdas` (`serverless.tf`) để dùng chung vòng lặp role/log group/SSM; phần riêng nằm ở `daily-report.tf`. Nhờ vậy lỗi của nó cũng vào alarm `worker-errors` và dashboard.
+- Identity SES của địa chỉ nhận đã được xác minh tay từ trước (apply đầu báo `AlreadyExistsException`). Chủ dự án chọn để Terraform chỉ tham chiếu theo ARN thay vì `terraform import`, vì identity có thể dùng chung với dự án khác và destroy stack StockFlow không được xoá nó.
 - Không dùng thêm `sqs:GetQueueAttributes`: độ sâu DLQ lấy từ metric CloudWatch.
 - Nguồn nào lỗi thì phần đó thành "Không lấy được dữ liệu" và tiêu đề chuyển "Cần xem"; email không bao giờ báo "Ổn" khi thiếu API, DLQ hoặc alarm.
 - Logic thuần nằm ở `packages/shared/src/ops-report.ts`, test ở `apps/api/src/ops-report/ops-report.spec.ts`.

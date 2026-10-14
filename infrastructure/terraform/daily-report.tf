@@ -1,11 +1,10 @@
 # ============================================================
 # P5 — Email báo cáo vận hành hằng ngày
-# Console tương đương: SES > Verified identities, EventBridge > Scheduler > Schedules,
-#                      IAM > Roles
+# Console tương đương: EventBridge > Scheduler > Schedules, IAM > Roles
 #
 # Lambda `daily-ops-report` được khai báo trong local.lambdas (serverless.tf) nên role, log
 # group, quyền đọc SSM và function đã được tạo theo vòng lặp chung; file này chỉ thêm phần riêng:
-# quyền đọc metric/log, danh tính SES và lịch chạy. Chi phí: ~30 email/tháng và ~30 lần
+# quyền đọc metric/log, quyền gửi SES và lịch chạy. Chi phí: ~30 email/tháng và ~30 lần
 # GetMetricData/Logs Insights, đều trong free tier hoặc cỡ cent.
 # ============================================================
 
@@ -13,12 +12,11 @@ locals {
   # Cùng một địa chỉ vừa gửi vừa nhận: SES sandbox chỉ gửi được tới địa chỉ đã verify, và
   # báo cáo chỉ gửi cho chủ dự án nên không cần xin ra khỏi sandbox.
   ops_report_enabled = var.ops_alert_email != ""
-}
 
-# Trạng thái "Pending" tới khi chủ dự án bấm link trong email xác minh của AWS.
-resource "aws_sesv2_email_identity" "ops_report" {
-  count          = local.ops_report_enabled ? 1 : 0
-  email_identity = var.ops_alert_email
+  # Identity SES của địa chỉ này đã được xác minh tay từ trước và có thể dùng chung với dự án
+  # khác trong tài khoản, nên Terraform chỉ tham chiếu theo ARN chứ không sở hữu: destroy stack
+  # StockFlow không được xoá nó. Dựng tài khoản mới thì xác minh tay (runbook rebuild-from-zero).
+  ops_report_identity_arn = "arn:aws:ses:${var.aws_region}:${local.account_id}:identity/${var.ops_alert_email}"
 }
 
 resource "aws_iam_role_policy" "daily_ops_report_read_telemetry" {
@@ -61,7 +59,7 @@ resource "aws_iam_role_policy" "daily_ops_report_send_email" {
     Statement = [{
       Effect   = "Allow"
       Action   = ["ses:SendEmail"]
-      Resource = aws_sesv2_email_identity.ops_report[0].arn
+      Resource = local.ops_report_identity_arn
     }]
   })
 }
