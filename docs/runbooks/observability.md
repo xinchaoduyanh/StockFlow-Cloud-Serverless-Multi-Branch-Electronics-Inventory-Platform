@@ -24,6 +24,19 @@ fields @timestamp, service, level, message
 
 CloudWatch → X-Ray traces → Service map. Mong đợi thấy API Gateway → `stockflow-api` → SQS → `stockflow-report-exporter` → S3.
 
+## Báo cáo vận hành hằng ngày
+
+Lambda `stockflow-daily-ops-report` chạy 07:00 giờ Việt Nam (EventBridge Scheduler) và gửi email tóm tắt 24 giờ qua: request, 4xx/5xx, p50/p95, top endpoint, lỗi Lambda, cold start, DLQ, alarm đang ALARM, số liệu nghiệp vụ và chi phí ước tính. Tiêu đề cho biết trạng thái ngay: **Ổn**, **Cần xem** (có 5xx hoặc DLQ khác 0, hoặc thiếu dữ liệu ở phần quyết định) và **Có sự cố** (có alarm ở ALARM).
+
+- Cần `ops_alert_email` (GitHub secret `OPS_REPORT_EMAIL`) và phải bấm link xác minh của SES sau lần apply đầu; SES sandbox chỉ gửi được tới địa chỉ đã xác minh.
+- Chi phí ước tính cần bật **Receive Billing Alerts** ở Billing preferences; chưa bật thì email ghi `n/a`.
+- Một nguồn dữ liệu lỗi không làm mất email: phần đó hiện "Không lấy được dữ liệu" và lý do nằm trong log của Lambda.
+- Gửi thử không chờ 07:00 (chủ dự án chạy, dùng AWS credential): `aws lambda invoke --function-name stockflow-daily-ops-report --cli-binary-format raw-in-base64-out --payload '{}' /dev/null`.
+
+## Ép lỗi 5xx để thử alarm thật
+
+Đặt `enable_debug_endpoint = true` rồi apply (hoặc qua pipeline), gọi `GET /api/debug/fail` ít nhất 6 lần trong 5 phút; alarm `stockflow-api-5xx` chuyển ALARM và email về. Xong thì đặt lại `false` và apply: khi tắt endpoint trả 404.
+
 ## Thử alarm mà không cần gây lỗi thật
 
 Lệnh này ghi vào AWS nên chỉ chủ dự án chạy:
