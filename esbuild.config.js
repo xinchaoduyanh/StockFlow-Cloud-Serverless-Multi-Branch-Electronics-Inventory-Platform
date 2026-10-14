@@ -11,6 +11,7 @@ const entryPoints = [
   "apps/lambdas/report-exporter/index.ts",
   "apps/lambdas/import-recovery-worker/index.ts",
   "apps/lambdas/reconciliation/index.ts",
+  "apps/lambdas/daily-ops-report/index.ts",
 ];
 
 // npm workspaces hoist Prisma client lên root; fallback cho layout không hoist.
@@ -66,6 +67,7 @@ build({
       "report-exporter",
       "import-recovery-worker",
       "reconciliation",
+      "daily-ops-report",
     ];
 
     lambdaDirs.forEach((dir) => {

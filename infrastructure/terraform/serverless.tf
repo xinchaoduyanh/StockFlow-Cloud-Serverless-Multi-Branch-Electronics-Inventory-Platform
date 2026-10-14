@@ -10,7 +10,7 @@ locals {
   account_id = data.aws_caller_identity.current.account_id
   lambda_src = "${path.module}/../../dist/lambdas"
 
-  # 8 Lambda: timeout (giây) + memory (MB), Terraform là production owner.
+  # 9 Lambda: timeout (giây) + memory (MB), Terraform là production owner.
   lambdas = {
     "import-validator"               = { timeout = 60, memory = 256 }
     "import-parser"                  = { timeout = 300, memory = 512 }
@@ -20,6 +20,7 @@ locals {
     "report-exporter"                = { timeout = var.report_lambda_timeout_seconds, memory = 512 }
     "import-recovery-worker"         = { timeout = 120, memory = 256 }
     "reconciliation"                 = { timeout = 300, memory = 512 }
+    "daily-ops-report"               = { timeout = 120, memory = 256 }
   }
 
   # Env RIÊNG cho từng lambda (env chung DATABASE_URL_SSM_PARAMETER/S3_BUCKET set ở dưới).
@@ -27,6 +28,17 @@ locals {
     "import-writer"           = { NOTIFICATION_SNS_TOPIC_ARN = aws_sns_topic.notifications.arn }
     "import-job-fail-handler" = { NOTIFICATION_SNS_TOPIC_ARN = aws_sns_topic.notifications.arn }
     "import-recovery-worker"  = {}
+    "daily-ops-report" = {
+      PROJECT_PREFIX       = var.project
+      API_ID               = aws_apigatewayv2_api.api.id
+      API_LAMBDA_NAME      = local.api_function_name
+      LAMBDA_NAMES         = join(",", local.lambda_names)
+      DLQ_NAMES            = join(",", local.dlq_names)
+      API_ACCESS_LOG_GROUP = aws_cloudwatch_log_group.api_access.name
+      API_LOG_GROUP        = aws_cloudwatch_log_group.api.name
+      OPS_REPORT_EMAIL     = var.ops_alert_email
+      SYSTEM_FROM_EMAIL    = var.ops_alert_email
+    }
     "report-exporter" = {
       REPORT_MAX_RECEIVE_COUNT        = tostring(var.report_max_receive_count)
       REPORT_PROCESSING_LEASE_SECONDS = tostring(var.report_queue_visibility_timeout_seconds)

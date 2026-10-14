@@ -131,3 +131,4 @@ export * from "./recovery";
 export * from "./auth";
 export * from "./notifications";
 export * from "./templates";
+export * from "./ops-report";

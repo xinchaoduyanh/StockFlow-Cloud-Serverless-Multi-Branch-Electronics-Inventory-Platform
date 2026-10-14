@@ -50,6 +50,14 @@ Dòng đầu email là một trạng thái tổng: **Ổn**, **Cần xem** (có 
 
 ~30 email/tháng qua SES, ~30 lần gọi `GetMetricData` với vài chục metric, 30 lần Logs Insights trên vài MB log — tất cả cỡ cent hoặc nằm trong free tier. Không dùng Cost Explorer API vì nó tính $0.01 mỗi lần gọi.
 
+## Quyết định khi triển khai
+
+- Dùng lại biến `ops_alert_email` (đã có từ P4, nối với GitHub secret `OPS_REPORT_EMAIL`) cho cả địa chỉ nhận và gửi, thay vì thêm biến `ops_report_email`. Một địa chỉ SES đã xác minh đủ cho sandbox.
+- Lambda khai báo trong `local.lambdas` (`serverless.tf`) để dùng chung vòng lặp role/log group/SSM; phần riêng nằm ở `daily-report.tf`. Nhờ vậy lỗi của nó cũng vào alarm `worker-errors` và dashboard.
+- Không dùng thêm `sqs:GetQueueAttributes`: độ sâu DLQ lấy từ metric CloudWatch.
+- Nguồn nào lỗi thì phần đó thành "Không lấy được dữ liệu" và tiêu đề chuyển "Cần xem"; email không bao giờ báo "Ổn" khi thiếu API, DLQ hoặc alarm.
+- Logic thuần nằm ở `packages/shared/src/ops-report.ts`, test ở `apps/api/src/ops-report/ops-report.spec.ts`.
+
 ## Kiểm chứng
 
 - [ ] Invoke thủ công Lambda → nhận email trong vài giây.
