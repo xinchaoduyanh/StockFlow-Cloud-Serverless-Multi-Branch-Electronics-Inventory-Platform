@@ -1,5 +1,4 @@
 import { GetParameterCommand, SSMClient } from "@aws-sdk/client-ssm";
-import { createLogger } from "./logger";
 
 type ParameterReader = (name: string) => Promise<string | undefined>;
 
@@ -27,32 +26,16 @@ const readSsmParameter: ParameterReader = async (name) => {
   return result.Parameter?.Value;
 };
 
-// TODO(P6 full-serverless): tạm thời, gỡ khi worker hết lỗi "Environment variable not found: DATABASE_URL".
-// Chỉ ghi hình dạng của giá trị, không bao giờ ghi chính chuỗi kết nối.
-function logDatabaseUrlState(): void {
-  const url = process.env.DATABASE_URL;
-  createLogger("database-url").info("DATABASE_URL state after resolve", {
-    isSet: Boolean(url),
-    length: url?.length ?? 0,
-    scheme: url?.split("://")[0],
-    ssmParameterSet: Boolean(process.env.DATABASE_URL_SSM_PARAMETER),
-    arch: process.arch,
-    engineLibrary: process.env.PRISMA_QUERY_ENGINE_LIBRARY,
-  });
-}
-
 let pending: Promise<void> | undefined;
 
 // Chỉ gọi SSM một lần mỗi cold start. Prisma chụp DATABASE_URL ngay lúc `new PrismaClient()`
 // (engine được tạo ở đó), nên client chỉ được tạo SAU khi hàm này xong. Tạo client ở mức module
 // thì engine chụp env khi chưa có URL và mọi query sau đó fail "Environment variable not found".
 export function ensureDatabaseUrl(): Promise<void> {
-  pending ??= resolveDatabaseUrl(process.env, readSsmParameter)
-    .then(logDatabaseUrlState)
-    .catch((error: unknown) => {
-      pending = undefined; // lỗi tạm thời (throttle, mạng) thì lần invoke sau thử lại
-      throw error;
-    });
+  pending ??= resolveDatabaseUrl(process.env, readSsmParameter).catch((error: unknown) => {
+    pending = undefined; // lỗi tạm thời (throttle, mạng) thì lần invoke sau thử lại
+    throw error;
+  });
   return pending;
 }
 

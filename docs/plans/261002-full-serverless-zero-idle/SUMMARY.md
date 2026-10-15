@@ -16,6 +16,7 @@
 
 Việc treo xuyên phase (làm trên máy nào cũng được):
 
+- **Đã sửa 2026-10-15:** 9 Lambda worker không bao giờ truy cập được DB vì tạo `PrismaClient` ở mức module, trước khi SSM trả `DATABASE_URL` nên engine Prisma chụp env khi chưa có URL. Lỗi lộ ra nhờ email báo cáo ngày (`import-recovery-worker` lỗi 288 lần) trong khi `/api/health` vẫn xanh vì không chạm DB. Sửa ở `6552596`, worker `import-recovery-worker` đã chạy thành công trên AWS. Chưa kiểm: 8 worker còn lại và API (API đã đúng thứ tự từ code, nhưng chưa có request nào chạm DB thật). Smoke test ở P3/P6 phải có một endpoint đọc DB, không chỉ `/api/health`.
 - Reset mật khẩu Neon (từng lộ trong chat) rồi cập nhật `terraform.tfvars` và 2 GitHub secret `NEON_DATABASE_URL`, `NEON_DIRECT_URL`.
 - `PUSHER_SECRET` vẫn nằm trong biến môi trường Lambda `api`, nên chuyển sang SSM.
 - P3 còn 2 ô chưa kiểm: chốt an toàn chặn đổi tên bucket; ghi thời gian push→deploy vào README kèm cách tái lập.
