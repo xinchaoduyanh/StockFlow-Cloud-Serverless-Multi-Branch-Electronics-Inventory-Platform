@@ -142,6 +142,8 @@ jobs:
       TF_VAR_pusher_secret: ${{ secrets.PUSHER_SECRET }}
       TF_VAR_git_sha: ${{ github.sha }}
       TF_VAR_ops_alert_email: ${{ secrets.OPS_REPORT_EMAIL }}
+      # Biến repo (Settings > Variables), không phải secret. Chỉ đặt "true" khi thử alarm 5xx.
+      TF_VAR_enable_debug_endpoint: ${{ vars.ENABLE_DEBUG_ENDPOINT || 'false' }}
 
     steps:
       - name: Checkout

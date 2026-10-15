@@ -35,7 +35,7 @@ Lambda `stockflow-daily-ops-report` chạy 07:00 giờ Việt Nam (EventBridge S
 
 ## Ép lỗi 5xx để thử alarm thật
 
-Đặt `enable_debug_endpoint = true` rồi apply (hoặc qua pipeline), gọi `GET /api/debug/fail` ít nhất 6 lần trong 5 phút; alarm `stockflow-api-5xx` chuyển ALARM và email về. Xong thì đặt lại `false` và apply: khi tắt endpoint trả 404.
+Bật bằng cách đặt biến repo `ENABLE_DEBUG_ENDPOINT` = `true` (GitHub > Settings > Secrets and variables > Actions > Variables) rồi chạy lại job Deploy; pipeline truyền nó vào `enable_debug_endpoint`. Gọi `GET /api/debug/fail` ít nhất 6 lần trong 5 phút; alarm `stockflow-api-5xx` chuyển ALARM và email về. Xong thì xoá biến (hoặc đặt `false`) và chạy lại Deploy: khi tắt endpoint trả 404.
 
 ## Thử alarm mà không cần gây lỗi thật
 
