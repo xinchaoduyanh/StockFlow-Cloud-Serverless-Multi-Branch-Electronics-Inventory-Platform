@@ -51,6 +51,18 @@ describe("computeOpsStatus", () => {
     expect(computeOpsStatus(report)).toBe(OpsStatus.ATTENTION);
   });
 
+  it("asks for attention when a worker Lambda reported errors", () => {
+    const report = healthyReport({
+      lambda: {
+        errorsByFunction: [{ name: "stockflow-import-recovery-worker", errors: 288 }],
+        throttles: 0,
+        coldStarts: 0,
+        avgColdStartMs: null,
+      },
+    });
+    expect(computeOpsStatus(report)).toBe(OpsStatus.ATTENTION);
+  });
+
   it("reports an incident when any alarm is in ALARM, even if everything else is healthy", () => {
     const report = healthyReport({ alarmsInAlarm: ["stockflow-api-5xx"] });
     expect(computeOpsStatus(report)).toBe(OpsStatus.INCIDENT);

@@ -68,7 +68,8 @@ export function computeOpsStatus(data: OpsReportData): OpsStatus {
 
   const hasServerErrors = (data.api?.serverErrors ?? 0) > 0;
   const hasDeadLetters = (data.deadLetterQueues ?? []).some((queue) => queue.depth > 0);
-  if (hasServerErrors || hasDeadLetters) return OpsStatus.ATTENTION;
+  const hasWorkerErrors = (data.lambda?.errorsByFunction ?? []).some((fn) => fn.errors > 0);
+  if (hasServerErrors || hasDeadLetters || hasWorkerErrors) return OpsStatus.ATTENTION;
 
   // Thiếu dữ liệu ở phần quyết định trạng thái thì không thể báo "Ổn".
   const missingCriticalSection =
