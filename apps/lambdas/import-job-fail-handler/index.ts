@@ -9,7 +9,8 @@ const logger = createLogger("import-job-fail-handler");
 const tracer = createTracer("import-job-fail-handler");
 const emitMetric = createMetricEmitter("import-job-fail-handler");
 
-const prisma = new PrismaClient();
+// Tạo trong withDatabaseUrl, sau khi SSM trả về DATABASE_URL (xem ensureDatabaseUrl).
+let prisma: PrismaClient;
 
 const handler = async (event: any) => {
   // Step Functions error objects often contain Error and Cause
@@ -140,4 +141,11 @@ async function publishNotification(payload: any) {
   }
 }
 
-module.exports = { handler: withObservability(logger, withDatabaseUrl(handler)) };
+module.exports = {
+  handler: withObservability(
+    logger,
+    withDatabaseUrl(handler, () => {
+      prisma ??= new PrismaClient();
+    }),
+  ),
+};

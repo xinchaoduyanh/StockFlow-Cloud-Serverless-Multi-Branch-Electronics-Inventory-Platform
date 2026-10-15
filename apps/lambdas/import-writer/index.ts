@@ -10,7 +10,8 @@ const logger = createLogger("import-writer");
 const tracer = createTracer("import-writer");
 const emitMetric = createMetricEmitter("import-writer");
 
-const prisma = new PrismaClient();
+// Tạo trong withDatabaseUrl, sau khi SSM trả về DATABASE_URL (xem ensureDatabaseUrl).
+let prisma: PrismaClient;
 
 const handler = async (event: any) => {
   const startedAt = Date.now();
@@ -353,4 +354,11 @@ async function publishNotification(payload: any) {
   }
 }
 
-module.exports = { handler: withObservability(logger, withDatabaseUrl(handler)) };
+module.exports = {
+  handler: withObservability(
+    logger,
+    withDatabaseUrl(handler, () => {
+      prisma ??= new PrismaClient();
+    }),
+  ),
+};

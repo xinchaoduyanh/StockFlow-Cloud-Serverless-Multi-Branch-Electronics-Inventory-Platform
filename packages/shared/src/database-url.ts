@@ -43,8 +43,9 @@ function logDatabaseUrlState(): void {
 
 let pending: Promise<void> | undefined;
 
-// Chỉ gọi SSM một lần mỗi cold start. Prisma đọc DATABASE_URL ở query đầu tiên chứ không phải
-// lúc `new PrismaClient()`, nên chỉ cần gọi hàm này trước khi handler chạm tới DB.
+// Chỉ gọi SSM một lần mỗi cold start. Prisma chụp DATABASE_URL ngay lúc `new PrismaClient()`
+// (engine được tạo ở đó), nên client chỉ được tạo SAU khi hàm này xong. Tạo client ở mức module
+// thì engine chụp env khi chưa có URL và mọi query sau đó fail "Environment variable not found".
 export function ensureDatabaseUrl(): Promise<void> {
   pending ??= resolveDatabaseUrl(process.env, readSsmParameter)
     .then(logDatabaseUrlState)
@@ -55,11 +56,14 @@ export function ensureDatabaseUrl(): Promise<void> {
   return pending;
 }
 
+// `onReady` chạy sau khi DATABASE_URL đã có và trước handler; chỗ để tạo PrismaClient.
 export function withDatabaseUrl<TArgs extends unknown[], TResult>(
   handler: (...args: TArgs) => Promise<TResult>,
+  onReady?: () => void,
 ): (...args: TArgs) => Promise<TResult> {
   return async (...args) => {
     await ensureDatabaseUrl();
+    onReady?.();
     return handler(...args);
   };
 }

@@ -11,7 +11,8 @@ import type { SQSBatchResponse, SQSEvent } from "aws-lambda";
 
 const logger = createLogger("import-recovery-worker");
 
-const prisma = new PrismaClient();
+// Tạo trong withDatabaseUrl, sau khi SSM trả về DATABASE_URL (xem ensureDatabaseUrl).
+let prisma: PrismaClient;
 
 type TerminalEvent = {
   id?: string;
@@ -191,4 +192,9 @@ const processRecoveryEvent = async (event: ImportRecoveryEvent): Promise<ImportR
   return { batchItemFailures };
 };
 
-export const handler = withObservability(logger, withDatabaseUrl(processRecoveryEvent));
+export const handler = withObservability(
+  logger,
+  withDatabaseUrl(processRecoveryEvent, () => {
+    prisma ??= new PrismaClient();
+  }),
+);

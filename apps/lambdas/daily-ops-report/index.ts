@@ -21,7 +21,8 @@ import {
 } from "./collectors";
 
 const logger = createLogger("daily-ops-report");
-const prisma = new PrismaClient();
+// Tạo trong withDatabaseUrl, sau khi SSM trả về DATABASE_URL (xem ensureDatabaseUrl).
+let prisma: PrismaClient;
 const ses = new SESClient({});
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -112,4 +113,11 @@ const handler = async (): Promise<{ status: string; subject: string }> => {
   return { status, subject };
 };
 
-module.exports = { handler: withObservability(logger, withDatabaseUrl(handler)) };
+module.exports = {
+  handler: withObservability(
+    logger,
+    withDatabaseUrl(handler, () => {
+      prisma ??= new PrismaClient();
+    }),
+  ),
+};

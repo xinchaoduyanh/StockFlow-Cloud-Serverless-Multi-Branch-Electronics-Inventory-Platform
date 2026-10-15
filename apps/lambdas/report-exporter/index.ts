@@ -12,7 +12,8 @@ const tracer = createTracer("report-exporter");
 const emitMetric = createMetricEmitter("report-exporter");
 
 const s3Client = tracer.captureAWSv3Client(new S3Client({}));
-const prisma = new PrismaClient();
+// Tạo trong withDatabaseUrl, sau khi SSM trả về DATABASE_URL (xem ensureDatabaseUrl).
+let prisma: PrismaClient;
 
 const externalReportTypeByPrisma: Record<PrismaReportType, ExternalReportType> = {
   [PrismaReportType.INVENTORY]: ExternalReportType.INVENTORY,
@@ -422,4 +423,9 @@ async function generateStockMovementReport(filters: Record<string, any>) {
   return { csv: toCsv(headers, rows), total: rows.length };
 }
 
-export const handler = withObservability(logger, withDatabaseUrl(processReportJobs));
+export const handler = withObservability(
+  logger,
+  withDatabaseUrl(processReportJobs, () => {
+    prisma ??= new PrismaClient();
+  }),
+);

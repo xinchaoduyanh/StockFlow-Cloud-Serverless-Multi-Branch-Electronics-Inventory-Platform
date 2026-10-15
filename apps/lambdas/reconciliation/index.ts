@@ -6,7 +6,8 @@ import { PrismaClient, ReconciliationStatus } from "@prisma/client";
 const logger = createLogger("reconciliation");
 const emitMetric = createMetricEmitter("reconciliation");
 
-const prisma = new PrismaClient();
+// Tạo trong withDatabaseUrl, sau khi SSM trả về DATABASE_URL (xem ensureDatabaseUrl).
+let prisma: PrismaClient;
 
 /**
  * Reconciliation Lambda
@@ -251,4 +252,11 @@ const handler = async (event: any) => {
   }
 };
 
-module.exports = { handler: withObservability(logger, withDatabaseUrl(handler)) };
+module.exports = {
+  handler: withObservability(
+    logger,
+    withDatabaseUrl(handler, () => {
+      prisma ??= new PrismaClient();
+    }),
+  ),
+};

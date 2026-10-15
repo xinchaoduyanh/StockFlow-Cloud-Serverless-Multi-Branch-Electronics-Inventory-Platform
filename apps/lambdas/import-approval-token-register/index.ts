@@ -4,7 +4,8 @@ import { PrismaClient, ImportStatus } from "@prisma/client";
 
 const logger = createLogger("import-approval-token-register");
 
-const prisma = new PrismaClient();
+// Tạo trong withDatabaseUrl, sau khi SSM trả về DATABASE_URL (xem ensureDatabaseUrl).
+let prisma: PrismaClient;
 
 const handler = async (event: any) => {
   const { importJobId, taskToken } = event;
@@ -38,4 +39,11 @@ const handler = async (event: any) => {
   }
 };
 
-module.exports = { handler: withObservability(logger, withDatabaseUrl(handler)) };
+module.exports = {
+  handler: withObservability(
+    logger,
+    withDatabaseUrl(handler, () => {
+      prisma ??= new PrismaClient();
+    }),
+  ),
+};

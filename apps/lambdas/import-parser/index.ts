@@ -10,7 +10,8 @@ const logger = createLogger("import-parser");
 const tracer = createTracer("import-parser");
 
 const s3Client = tracer.captureAWSv3Client(new S3Client({}));
-const prisma = new PrismaClient();
+// Tạo trong withDatabaseUrl, sau khi SSM trả về DATABASE_URL (xem ensureDatabaseUrl).
+let prisma: PrismaClient;
 
 const handler = async (event: any) => {
   const { importJobId, bucket, key, executionArn } = event;
@@ -237,4 +238,11 @@ const handler = async (event: any) => {
   }
 };
 
-module.exports = { handler: withObservability(logger, withDatabaseUrl(handler)) };
+module.exports = {
+  handler: withObservability(
+    logger,
+    withDatabaseUrl(handler, () => {
+      prisma ??= new PrismaClient();
+    }),
+  ),
+};
