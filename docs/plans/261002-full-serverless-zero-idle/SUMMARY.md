@@ -5,13 +5,14 @@
 > Thay thế: `docs/plans/260720-1804-neon-natless-terraform/` (giữ Phase 1–2 của plan đó, bỏ Phase 3 công tắc `system_on`)
 > Quyết định kiến trúc: [ADR-001](../../adr/ADR-001-full-serverless-zero-idle-cost.md)
 
-## Tiến độ (cập nhật 2026-10-13)
+## Tiến độ (cập nhật 2026-10-15)
 
 | Phase | Trạng thái                                                                           |
 | ----- | ------------------------------------------------------------------------------------ |
 | P0–P3 | Xong, đã kiểm chứng trên AWS                                                         |
 | P4    | Code + Terraform đã push, **chờ deploy và kiểm chứng** (xem phase-04 mục Trạng thái) |
-| P5–P6 | Chưa làm                                                                             |
+| P5    | Code + Terraform đã push (2026-10-14), **chờ deploy và kiểm chứng** (xem phase-05)   |
+| P6    | Chưa làm (đã có runbook `rebuild-from-zero` và checklist bằng chứng)                 |
 
 Việc treo xuyên phase (làm trên máy nào cũng được):
 

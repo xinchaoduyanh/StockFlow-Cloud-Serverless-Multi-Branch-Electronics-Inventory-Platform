@@ -81,7 +81,7 @@ Khác với plan ở trên:
 - **Correlation ID qua Step Functions:** không thêm `correlationId` vào input. Luồng import bắt đầu từ sự kiện S3 nên không có ID do client gửi; `importJobId` đã đi xuyên các state và được dùng làm correlation ID (`extractCorrelationId` trong `packages/shared/src/correlation.ts`). Report đi qua message attribute `correlationId` của SQS.
 - **Đường import của helper:** helper logging/trace/metrics import qua `@stockflow/shared/dist/<module>`, không qua `index`, vì `apps/web` import `@stockflow/shared` mà Next không bundle được `async_hooks`/`fs`.
 - **Alarm "Lambda api throttles":** đặt trên Lambda `api` với ý nghĩa "tài khoản chạm trần concurrency", vì không có reserved concurrency (hạn mức tài khoản 10). HTTP API không có metric throttle riêng.
-- **Endpoint debug 5xx:** không làm. Thử đường alarm → SNS → email bằng `aws cloudwatch set-alarm-state` (xem `docs/runbooks/observability.md`).
+- **Endpoint debug 5xx:** ban đầu không làm, sau đó bổ sung ở `5ad81b7` (`/api/debug/fail`, chỉ bật qua biến môi trường). Vẫn có thể thử đường alarm → SNS → email bằng `aws cloudwatch set-alarm-state` (xem `docs/runbooks/observability.md`).
 - **Tổng:** 9 alarm, 1 dashboard `stockflow-overview`, 6 custom metric (EMF), SNS topic `stockflow-ops-alerts`.
 
 Việc còn lại để đóng P4:
