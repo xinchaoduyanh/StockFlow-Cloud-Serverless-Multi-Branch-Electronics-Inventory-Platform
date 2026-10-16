@@ -63,4 +63,5 @@ Dòng đầu email là một trạng thái tổng: **Ổn**, **Cần xem** (có 
 
 - [ ] Invoke thủ công Lambda → nhận email trong vài giây.
 - [ ] Nhận email tự động 2 sáng liên tiếp, đúng 07:00 ICT.
+  - 2026-10-15: email tự đến lúc 07:00 (sáng đầu tiên, vào thư rác). Lúc đó tiêu đề ghi "Ổn" dù `import-recovery-worker` lỗi 288 lần; đã sửa ở `2a3503e` để báo "Cần xem". Cần thêm sáng 2026-10-16.
 - [ ] Khi có message trong DLQ, tiêu đề email chuyển sang "Cần xem".

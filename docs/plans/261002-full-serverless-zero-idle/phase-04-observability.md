@@ -84,7 +84,7 @@ Khác với plan ở trên:
 - **Endpoint debug 5xx:** ban đầu không làm, sau đó bổ sung ở `5ad81b7` (`/api/debug/fail`, chỉ bật qua biến môi trường). Vẫn có thể thử đường alarm → SNS → email bằng `aws cloudwatch set-alarm-state` (xem `docs/runbooks/observability.md`).
 - **Tổng:** 9 alarm, 1 dashboard `stockflow-overview`, 6 custom metric (EMF), SNS topic `stockflow-ops-alerts`.
 
-Việc còn lại để đóng P4:
+Việc còn lại để đóng P4 (cập nhật 2026-10-15: API và worker đã đọc được DB, xem SUMMARY):
 
 1. Đặt GitHub secret `OPS_REPORT_EMAIL`, duyệt deploy ở Environment `production`, rồi bấm Confirm trong email subscription của AWS.
 2. Chạy các mục Kiểm chứng bên dưới, chụp ảnh làm bằng chứng.
@@ -97,4 +97,5 @@ Việc còn lại để đóng P4:
 - [ ] Logs Insights query theo một `correlationId` ra đủ log từ API → parser → writer của một lần import.
 - [ ] X-Ray service map hiển thị API Gateway → Lambda api → SQS → report-exporter → S3.
 - [ ] Ép lỗi 5xx bằng một endpoint debug (chỉ bật qua biến môi trường) → alarm chuyển ALARM → nhận email.
+  - 2026-10-15: endpoint đã có, pipeline đọc biến repo `ENABLE_DEBUG_ENDPOINT`; đang chờ deploy #24 để bật và gọi thử (xem Bàn giao trong SUMMARY).
 - [ ] Số alarm ≤ 10, số dashboard ≤ 3.
