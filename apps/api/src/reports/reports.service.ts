@@ -11,6 +11,13 @@ import { S3Service } from "../imports/s3.service";
 import { AuthorizationPolicyService, PolicyActor } from "../auth/authorization-policy.service";
 import { ReportDispatcher } from "./report-dispatcher";
 
+// Cùng định nghĩa "khả dụng" với InventoryService.list({ lowStock }): hàng đã giữ cho đơn chuyển kho không tính là còn bán được.
+export function selectLowStock<
+  T extends { quantity: number; reservedQuantity: number; minStockThreshold: number },
+>(items: T[]): T[] {
+  return items.filter((i) => i.quantity - i.reservedQuantity <= i.minStockThreshold);
+}
+
 const prismaReportTypeByExternal: Record<ReportType, PrismaReportType> = {
   [ReportType.INVENTORY]: PrismaReportType.INVENTORY,
   [ReportType.LOW_STOCK]: PrismaReportType.LOW_STOCK,
@@ -193,7 +200,7 @@ export class ReportsService {
       where: filters.branchId ? { branchId: filters.branchId } : {},
       include: { branch: true, component: true },
     });
-    const lowStock = items.filter((i) => i.quantity <= i.minStockThreshold);
+    const lowStock = selectLowStock(items);
     return { csv: `Generated ${lowStock.length} low-stock records`, total: lowStock.length };
   }
 }

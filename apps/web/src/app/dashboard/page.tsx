@@ -1689,14 +1689,15 @@ function LowStockReport({
               <th>Tên sản phẩm</th>
               <th>Chi nhánh</th>
               <th>Số lượng</th>
+              <th>Đang giữ</th>
               <th>Mức tối thiểu</th>
               <th>Thiếu hụt</th>
             </tr>
           </thead>
           <tbody>
-            {isLoading ? <TableState colSpan={6} text="Đang tải dữ liệu tồn thấp..." /> : null}
+            {isLoading ? <TableState colSpan={7} text="Đang tải dữ liệu tồn thấp..." /> : null}
             {!isLoading && items.length === 0 ? (
-              <TableState colSpan={6} text="Không có sản phẩm nào dưới mức tối thiểu." />
+              <TableState colSpan={7} text="Không có sản phẩm nào dưới mức tối thiểu." />
             ) : null}
             {!isLoading &&
               paginatedItems.map((item) => (
@@ -1711,9 +1712,10 @@ function LowStockReport({
                     </span>
                   </td>
                   <td>{item.quantity}</td>
+                  <td>{item.reservedQuantity}</td>
                   <td>{item.minStockThreshold}</td>
                   <td className="font-medium text-red-700 dark:text-red-400">
-                    {Math.max(item.minStockThreshold - item.quantity, 0)}
+                    {Math.max(item.minStockThreshold - (item.quantity - item.reservedQuantity), 0)}
                   </td>
                 </tr>
               ))}
