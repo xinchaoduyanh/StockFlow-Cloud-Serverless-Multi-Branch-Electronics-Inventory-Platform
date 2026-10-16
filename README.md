@@ -4,11 +4,14 @@
 [![NestJS](https://img.shields.io/badge/Backend-NestJS%2010-red?style=flat-square&logo=nestjs)](https://nestjs.com/)
 [![AWS Lambda](https://img.shields.io/badge/AWS-Lambda-orange?style=flat-square&logo=amazon-aws)](https://aws.amazon.com/lambda/)
 [![AWS Step Functions](https://img.shields.io/badge/AWS-Step%20Functions-pink?style=flat-square&logo=amazon-aws)](https://aws.amazon.com/step-functions/)
-[![PostgreSQL](https://img.shields.io/badge/Database-Aurora%20Serverless%20v2-blue?style=flat-square&logo=postgresql)](https://aws.amazon.com/rds/aurora/)
+[![PostgreSQL](https://img.shields.io/badge/Database-Neon%20Postgres-blue?style=flat-square&logo=postgresql)](https://neon.tech/)
 [![Pusher](https://img.shields.io/badge/Realtime-Pusher%20Channels-purple?style=flat-square&logo=pusher)](https://pusher.com/)
 [![AWS Cognito](https://img.shields.io/badge/Auth-AWS%20Cognito-red?style=flat-square&logo=amazon-aws)](https://aws.amazon.com/cognito/)
 
-**StockFlow Cloud** là hệ thống quản lý kho linh kiện điện tử chuyên nghiệp cho chuỗi cửa hàng nhiều chi nhánh. Dự án được thiết kế theo kiến trúc Serverless lai (Hybrid Serverless Architecture) trên nền tảng AWS, kết hợp giữa NestJS API chạy trên hạ tầng containerized và hệ thống Lambda Workers điều phối bởi Step Functions để xử lý các tác vụ bất đồng bộ nặng (Heavy Asynchronous Ingestion Job).
+**StockFlow Cloud** là hệ thống quản lý kho linh kiện điện tử chuyên nghiệp cho chuỗi cửa hàng nhiều chi nhánh. Dự án chạy hoàn toàn serverless trên AWS: NestJS API chạy trong Lambda sau API Gateway, các Lambda worker điều phối bởi Step Functions và SQS xử lý tác vụ bất đồng bộ nặng, database là Neon Postgres. Không có VPC, NAT, ALB hay container chạy thường trực nên lúc không có traffic chi phí về xấp xỉ 0 (xem [ADR-001](docs/adr/ADR-001-full-serverless-zero-idle-cost.md)).
+
+> [!NOTE]
+> **Cold start:** request đầu tiên sau một thời gian không dùng có thể mất vài giây vì Lambda khởi động NestJS và Neon tự ngủ. Số đo thật sẽ được ghi vào [bằng chứng P6](docs/evidence/261002-first-apply/README.md) sau khi đo.
 
 ---
 
@@ -62,7 +65,7 @@
 
 ### 1. Kiến trúc Tổng thể (High-Level Architecture)
 
-![High-Level Architecture](docs/Serverless%20Ingestion-2026-06-04-074910.svg)
+Sơ đồ kiến trúc hiện hành nằm ở mục [Hướng dẫn Triển khai](#️-hướng-dẫn-triển-khai-hệ-thống-deployment-guide). Hình SVG cũ (ECS/ALB) đã bị gỡ vì không còn đúng.
 
 ---
 
@@ -86,94 +89,42 @@
 
 ## 🛠️ Hướng dẫn Triển khai Hệ thống (Deployment Guide)
 
-Hệ thống được tổ chức theo cấu trúc Monorepo (quản lý bởi Turborepo) chia làm 3 mảng triển khai chính: NestJS API (đóng gói Container), Web Client (Next.js Static Export), và Serverless Workers do Terraform quản lý.
+Monorepo (Turborepo) gồm NestJS API (Lambda), Lambda worker, Web client (Next.js static export lên S3 + CloudFront). Terraform trong `infrastructure/terraform` là chủ sở hữu duy nhất của mọi resource AWS.
 
-### 1. Chuẩn bị & Biên dịch Lambdas
+```text
+Browser ─► CloudFront + S3 (frontend tĩnh)
+        └► API Gateway HTTP API ─► Lambda "api" (NestJS)
+                                      ├► Neon Postgres (pooled endpoint)
+                                      ├► SQS report-jobs ─► Lambda report-exporter ─► S3
+                                      ├► S3 imports ─► Step Functions ─► Lambda worker
+                                      └► Pusher, Cognito, SES
 
-Tất cả mã nguồn Lambdas viết bằng TypeScript cần được biên dịch và đóng gói thành file Javascript tối giản (minified) sử dụng `esbuild` nhằm tối ưu thời gian khởi động lạnh (cold-start < 100ms):
+EventBridge Scheduler (07:00) ─► Lambda daily-ops-report ─► SES ─► email vận hành
+GitHub Actions: quality ─► deploy (OIDC, không có access key) ─► smoke test
+```
+
+### 1. Triển khai tự động
+
+Push lên `main`: job `quality` và `terraform` xanh thì job `deploy` build Lambda, migrate Neon, chạy `terraform plan` (có chốt chặn resource stateful), `apply`, sync frontend và smoke test `/api/health` kiểm commit SHA. Chi tiết và danh sách secret: [deploy runbook](docs/runbooks/deploy.md).
+
+### 2. Dựng lại từ con số 0
+
+Làm theo [rebuild-from-zero](docs/runbooks/rebuild-from-zero.md) (bootstrap state bucket, OIDC, apply lần đầu, seed, trỏ DNS). Máy dev mới: [new-machine-setup](docs/runbooks/new-machine-setup.md).
+
+### 3. Chạy local
 
 ```bash
-# Cài đặt dependencies tại thư mục gốc
 npm install
-
-# Build & đóng gói toàn bộ Lambdas vào thư mục /dist/lambdas
-npm run build:lambdas
+npm run build:lambdas   # đóng gói Lambda worker bằng esbuild
+npm run verify          # format, lint, typecheck, build, test, build:lambdas
 ```
 
----
+API local dùng Postgres trong Docker qua `apps/api/.env`; Neon chỉ dành cho bản deploy.
 
-### 2. Triển khai API Backend (NestJS) lên AWS ECS Fargate & ALB
+### 4. Vận hành
 
-Ứng dụng NestJS chính (`apps/api`) được deploy dạng container để chạy 24/7 ổn định.
-
-#### Bước A: Đóng gói và Đẩy Docker Image lên ECR
-
-1. Khởi tạo một Repository trên AWS ECR: `stockflow-api`.
-2. Build Docker image từ Dockerfile trong thư mục `apps/api`:
-   ```bash
-   docker build -t stockflow-api ./apps/api
-   ```
-3. Login vào AWS ECR và đẩy image lên:
-   ```bash
-   aws ecr get-login-password --region <REGION> | docker login --username AWS --password-stdin <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com
-   docker tag stockflow-api:latest <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/stockflow-api:latest
-   docker push <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/stockflow-api:latest
-   ```
-
-#### Bước B: Cấu hình ECS Fargate & ALB
-
-1. **Khởi tạo VPC**: Sử dụng Public subnets cho Load Balancer và Private subnets cho ECS Tasks nhằm tối ưu bảo mật.
-2. **Cấu hình ACM (AWS Certificate Manager)**: Đăng ký chứng chỉ SSL/TLS miễn phí cho domain của bạn (ví dụ: `api.yourdomain.com`).
-3. **Cấu hình Application Load Balancer (ALB)**:
-   - Tạo ALB đặt ở các Public subnets của VPC.
-   - Tạo **Target Group** cấu hình kiểu Target Type là `IP` (bắt buộc cho Fargate), cổng `80` hoặc `3000` tùy cấu hình Docker, thiết lập Health Check endpoint chỉ tới `/health` hoặc `/api/health`.
-   - Cấu hình Listener HTTPS (cổng 443) trên ALB, gắn chứng chỉ ACM SSL đã tạo ở trên và chuyển tiếp traffic tới Target Group.
-4. **Cấu hình ECS Task & Service**:
-   - Khởi tạo ECS Cluster.
-   - Tạo ECS Task Definition kiểu khởi chạy Fargate. Khai báo Image URI từ ECR ở bước A, định nghĩa các biến môi trường cấu hình kết nối database, Pusher, Cognito User Pool, S3 Bucket...
-   - Tạo ECS Service chạy Task Definition trên ở các Private subnets.
-   - **Security Group (SG) Rules**:
-     - SG của ECS Service chỉ cho phép kết nối Ingress từ SG của ALB (ngăn chặn truy cập trực tiếp từ Internet bypass load balancer).
-     - SG của ALB cho phép Ingress cổng 80 (để redirect sang 443) và cổng 443 từ mọi nơi (`0.0.0.0/0`).
-
----
-
-### 3. Triển khai hạ tầng serverless
-
-Terraform là owner production duy nhất cho Lambda, SQS, Step Functions, EventBridge và SNS. Build handler rồi kiểm tra plan trước khi apply:
-
-```bash
-npm run build:lambdas
-terraform -chdir=infrastructure/terraform init
-terraform -chdir=infrastructure/terraform validate
-terraform -chdir=infrastructure/terraform plan
-```
-
-Không dùng SAM để deploy song song; các bước smoke test và rollback nằm trong [E3 recovery runbook](docs/runbooks/e3-recovery.md).
-
----
-
-### 4. Triển khai Frontend Web (Next.js) lên S3 & CloudFront
-
-Frontend Next.js (`apps/web`) được build ở dạng static export để host trực tiếp trên CDN giá rẻ và tốc độ siêu nhanh.
-
-1. Cấu hình các biến môi trường trong `.env.production` ở thư mục `apps/web` chỉ tới URL của ALB API (`api.yourdomain.com`) và cấu hình Cognito Client ID.
-2. Build và xuất bản static files:
-   ```bash
-   # Chạy lệnh tại thư mục gốc monorepo
-   npm run build:web
-   ```
-   Lệnh này sinh ra các file tĩnh tại thư mục `apps/web/out`.
-3. Khởi tạo một S3 Bucket với chính sách truy cập Private (không public ra ngoài).
-4. Đồng bộ các files tĩnh lên S3:
-   ```bash
-   aws s3 sync apps/web/out s3://your-nextjs-s3-bucket-name/
-   ```
-5. **Cấu hình AWS CloudFront**:
-   - Khởi tạo một CloudFront Distribution, chọn Origin Domain chỉ tới S3 Bucket chứa Next.js assets ở trên.
-   - **Bảo mật truy cập S3**: Sử dụng **OAC (Origin Access Control)** hoặc **OAI (Origin Access Identity)** để cấp quyền cho CloudFront đọc file từ S3, và cập nhật Bucket Policy trên S3 chỉ cho phép đọc từ CloudFront.
-   - Gắn chứng chỉ ACM SSL cho tên miền frontend (ví dụ: `app.yourdomain.com`).
-   - Thiết lập **Error Pages**: Định cấu hình lỗi `404` trả về file `/index.html` với mã HTTP `200` để hỗ trợ cơ chế Client-side Routing của ứng dụng Single Page (Next.js Static Export).
+- Quan sát (dashboard, alarm, X-Ray, Logs Insights): [observability runbook](docs/runbooks/observability.md).
+- Sự cố import và report (DLQ, redrive, replay): [E3 recovery runbook](docs/runbooks/e3-recovery.md).
 
 ---
 
@@ -208,10 +159,9 @@ PostgreSQL khóa row trong lúc update; request thứ hai nhận `affected rows 
 
 ### 3. Tối ưu hóa Kết nối PostgreSQL trong môi trường Serverless
 
-Mô hình Lambda tự động scale-out theo lượng requests đồng thời rất dễ làm cạn kiệt connection pool của cơ sở dữ liệu truyền thống. Hệ thống đã tối ưu bằng cách:
+Lambda scale-out theo số request đồng thời dễ làm cạn connection của PostgreSQL. Hệ thống xử lý bằng cách:
 
-- **Database hiện tại là Amazon Aurora Serverless v2** (`aurora-postgresql`, scaling 0–2 ACU), được định nghĩa trong `infrastructure/terraform/database.tf`. `min_capacity = 0` cho phép cluster tự pause khi không có kết nối, đổi lại bằng độ trễ đánh thức ở request đầu tiên.
-- Cấu hình Prisma Client trong mỗi function Lambda khởi tạo kết nối với tùy chọn `connection_limit=1`, đảm bảo mỗi container Lambda chỉ giữ tối đa một kết nối đến database trong suốt vòng đời.
-
-> [!NOTE]
-> Phiên bản đầu của dự án dùng Neon Serverless Postgres (có PgBouncer sẵn ở Transaction Mode). Hiện tại Terraform provision Aurora Serverless v2, nên **không còn PgBouncer** — giới hạn connection phụ thuộc hoàn toàn vào `connection_limit=1` của Prisma. Việc quay lại Neon để bỏ NAT Gateway đang là một đề xuất chưa thực thi trong `docs/plans/260720-1804-neon-natless-terraform/`.
+- **Database là Neon Postgres** (free tier, Singapore). Lambda dùng _pooled endpoint_ (PgBouncer của Neon), còn `prisma migrate deploy` dùng _direct endpoint_ qua `directUrl`.
+- Prisma Client trong mỗi Lambda dùng `connection_limit=1`, nên mỗi container giữ tối đa một kết nối.
+- URL database nằm trong SSM Parameter Store (`/stockflow/database-url`); Lambda đọc lúc khởi động rồi mới tạo `PrismaClient`.
+- Chặn "denial of wallet": API Gateway throttling (20 rps, burst 40) cộng budget alert $1 / $5.
