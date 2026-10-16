@@ -6,25 +6,26 @@
 
 ## Bảng tổng hợp
 
-| ID    | Nợ                                                              | Mức | Effort (ngày) |
-| ----- | --------------------------------------------------------------- | --- | ------------- |
-| OD-17 | Toàn bộ E3 chưa từng chạy trên AWS — 128 resource chưa apply    | P0  | 1–2           |
-| OD-02 | Terraform state để local, không remote backend/lock             | P0  | 0.5           |
-| OD-03 | Cognito nằm ngoài IaC, stack không dựng lại được từ zero        | P0  | 1             |
-| OD-04 | `PUSHER_SECRET` để plaintext trong task definition              | P0  | 0.5           |
-| OD-05 | X-Ray đi dây trong code nhưng không có ADOT sidecar             | P1  | 1             |
-| OD-06 | Alarm mới phủ SQS/DLQ; chưa có alarm ALB/ECS/DB, chưa dashboard | P1  | 1–2           |
-| OD-07 | Không có structured logging / correlation ID                    | P1  | 1–2           |
-| OD-08 | ECS cố định 1 task, không autoscaling, không circuit breaker    | P1  | 1             |
-| OD-09 | Aurora một instance, chưa từng test restore, không có RPO/RTO   | P1  | 1–2           |
-| OD-10 | Image tag `:latest` — không truy vết, không rollback được       | P1  | 0.5           |
-| OD-11 | Log group của Lambda không được quản lý, giữ log vĩnh viễn      | P1  | 0.5           |
-| OD-12 | Không có WAF, không có rate limit trước CloudFront/ALB          | P1  | 0.5           |
-| OD-13 | NAT Gateway đơn, không có interface VPC endpoint                | P2  | 1             |
-| OD-14 | Không có budget/cost alarm; công tắc `system_on` không về 0đ    | P1  | 0.5           |
-| OD-15 | Runbook mới phủ E3; chưa có runbook dựng lại toàn stack         | P1  | 1             |
-| OD-16 | Không có môi trường demo chạy thường trực                       | P2  | 1–2           |
-| OD-18 | 5 advisory `high` còn lại, chỉ vá được bằng semver-major        | P1  | 0.5–1         |
+| ID    | Nợ                                                                      | Mức | Effort (ngày) |
+| ----- | ----------------------------------------------------------------------- | --- | ------------- |
+| OD-17 | Toàn bộ E3 chưa từng chạy trên AWS — 128 resource chưa apply            | P0  | 1–2           |
+| OD-02 | Terraform state để local, không remote backend/lock                     | P0  | 0.5           |
+| OD-03 | Cognito nằm ngoài IaC, stack không dựng lại được từ zero                | P0  | 1             |
+| OD-04 | `PUSHER_SECRET` để plaintext trong task definition                      | P0  | 0.5           |
+| OD-05 | X-Ray đi dây trong code nhưng không có ADOT sidecar                     | P1  | 1             |
+| OD-06 | Alarm mới phủ SQS/DLQ; chưa có alarm ALB/ECS/DB, chưa dashboard         | P1  | 1–2           |
+| OD-07 | Không có structured logging / correlation ID                            | P1  | 1–2           |
+| OD-08 | ECS cố định 1 task, không autoscaling, không circuit breaker            | P1  | 1             |
+| OD-09 | Aurora một instance, chưa từng test restore, không có RPO/RTO           | P1  | 1–2           |
+| OD-10 | Image tag `:latest` — không truy vết, không rollback được               | P1  | 0.5           |
+| OD-11 | Log group của Lambda không được quản lý, giữ log vĩnh viễn              | P1  | 0.5           |
+| OD-12 | Không có WAF, không có rate limit trước CloudFront/ALB                  | P1  | 0.5           |
+| OD-13 | NAT Gateway đơn, không có interface VPC endpoint                        | P2  | 1             |
+| OD-14 | Không có budget/cost alarm; công tắc `system_on` không về 0đ            | P1  | 0.5           |
+| OD-15 | Runbook mới phủ E3; chưa có runbook dựng lại toàn stack                 | P1  | 1             |
+| OD-19 | 2 nhân viên `@stockflow.local` có trong DB nhưng không có trong Cognito | P2  | 0.25          |
+| OD-16 | Không có môi trường demo chạy thường trực                               | P2  | 1–2           |
+| OD-18 | 5 advisory `high` còn lại, chỉ vá được bằng semver-major                | P1  | 0.5–1         |
 
 ## Đã đóng trong đợt rà soát này
 
@@ -333,6 +334,16 @@ Sau khi chạy `npm audit fix` (chỉ nâng trong phạm vi semver, không break
 **Hiện đang xử lý thế nào:** CI tách làm hai bước — `--audit-level=critical` chặn cứng (hiện 0 critical), và `--audit-level=high` chạy với `continue-on-error: true` để lại annotation vàng.
 
 **Việc này có chấp nhận được không:** chấp nhận được có thời hạn. Nguy cơ thực sự của cách này là annotation vàng dần trở thành thứ không ai nhìn nửa. Đặt hạn rà soát lại khi sửa OD-05, và nếu số high tăng quá 5 thì phải xử lý ngay chứ không nâng trần.
+
+---
+
+## OD-19 — 2 nhân viên có trong DB nhưng không có trong Cognito
+
+**Bằng chứng:** khi duyệt UI 2026-10-15, trang nhân viên liệt kê 2 user email `@stockflow.local` không có trong Cognito user pool (chỉ có 6 user test).
+
+**Hậu quả:** hai người này hiện trên danh sách nhưng không bao giờ đăng nhập được; dữ liệu Neon là dữ liệu cũ (tháng 5–6/2026) từ trước khi sang serverless.
+
+**Cách sửa:** hoặc tạo user Cognito tương ứng, hoặc dọn khỏi DB seed. Gộp vào P6 khi chạy lại seed/import.
 
 ---
 

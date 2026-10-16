@@ -32,7 +32,7 @@
 - Mật khẩu 6 user Cognito test (dùng chung) lưu ở file `matkhaustockflow` trong `~/Documents/working/` (ngoài repo, không commit). Mật khẩu từng hiện trong chat với AI nên **đổi lại** sau khi test xong bằng `admin-set-user-password --permanent` chạy ở terminal của chủ dự án.
 - Lệnh gửi qua ô `!` của app Claude chạy ở Terminal 1 và kết quả hiện cho AI: không in secret ở đó.
 
-**Phát hiện khi duyệt UI (chưa là nợ chính thức, nên đưa vào `docs/debt/`):**
+**Phát hiện khi duyệt UI (đã ghi vào `docs/debt/`: TD-16, TD-17, TD-18, OD-19):**
 
 - Trang login không có "Quên mật khẩu"; user ở trạng thái "Reset required" không đăng nhập lại được từ UI.
 - `consumer.apply(...).forRoutes("*")` ở `apps/api/src/app.module.ts` gây WARN `Unsupported route path "/api/*"` mỗi cold start (path-to-regexp mới cần `*path`).
