@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useLogin } from "@/features/auth/use-auth";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -327,6 +328,15 @@ export default function LoginPage() {
                 ? "Thiết lập mật khẩu & Đăng nhập"
                 : "Đăng nhập"}
           </button>
+
+          {!cognitoUser && (
+            <Link
+              className="text-center text-xs font-medium text-slate-500 transition-colors hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+              href="/forgot-password"
+            >
+              Quên mật khẩu?
+            </Link>
+          )}
 
           {cognitoUser && (
             <button

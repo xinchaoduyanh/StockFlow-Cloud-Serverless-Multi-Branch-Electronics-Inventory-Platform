@@ -90,6 +90,39 @@ export async function completeNewPassword(
   });
 }
 
+function createCognitoUser(email: string): CognitoUser {
+  if (!userPool) {
+    throw new Error(
+      "Cognito User Pool is not configured. Please check your environment variables.",
+    );
+  }
+  return new CognitoUser({ Username: email, Pool: userPool });
+}
+
+export function requestPasswordReset(email: string): Promise<void> {
+  const cognitoUser = createCognitoUser(email);
+  return new Promise((resolve, reject) => {
+    cognitoUser.forgotPassword({
+      onSuccess: () => resolve(),
+      onFailure: (err) => reject(err),
+    });
+  });
+}
+
+export function confirmPasswordReset(
+  email: string,
+  code: string,
+  newPassword: string,
+): Promise<void> {
+  const cognitoUser = createCognitoUser(email);
+  return new Promise((resolve, reject) => {
+    cognitoUser.confirmPassword(code, newPassword, {
+      onSuccess: () => resolve(),
+      onFailure: (err) => reject(err),
+    });
+  });
+}
+
 export function logoutCognito() {
   clearAllTokens();
   if (userPool) {
