@@ -2,22 +2,30 @@ import { GetParameterCommand, SSMClient } from "@aws-sdk/client-ssm";
 
 type ParameterReader = (name: string) => Promise<string | undefined>;
 
-// Lambda không nhận DATABASE_URL qua biến môi trường để secret không hiện trên console
-// và không nằm trong state của function; nó chỉ nhận tên SSM parameter.
-export async function resolveDatabaseUrl(
+// Lambda không nhận secret qua biến môi trường để nó không hiện trên console và không nằm trong
+// state của function; nó chỉ nhận tên SSM parameter trong biến `<TÊN>_SSM_PARAMETER`.
+export async function resolveSecretFromSsm(
   env: NodeJS.ProcessEnv,
+  name: string,
   readParameter: ParameterReader,
 ): Promise<void> {
-  if (env.DATABASE_URL) return;
+  if (env[name]) return;
 
-  const parameterName = env.DATABASE_URL_SSM_PARAMETER;
+  const parameterName = env[`${name}_SSM_PARAMETER`];
   if (!parameterName) return;
 
   const value = await readParameter(parameterName);
   if (!value) {
     throw new Error(`SSM parameter ${parameterName} is missing or empty`);
   }
-  env.DATABASE_URL = value;
+  env[name] = value;
+}
+
+export function resolveDatabaseUrl(
+  env: NodeJS.ProcessEnv,
+  readParameter: ParameterReader,
+): Promise<void> {
+  return resolveSecretFromSsm(env, "DATABASE_URL", readParameter);
 }
 
 const readSsmParameter: ParameterReader = async (name) => {
@@ -37,6 +45,11 @@ export function ensureDatabaseUrl(): Promise<void> {
     throw error;
   });
   return pending;
+}
+
+// Chỉ API dùng Pusher; Lambda worker không gọi hàm này.
+export async function ensurePusherSecret(): Promise<void> {
+  await resolveSecretFromSsm(process.env, "PUSHER_SECRET", readSsmParameter);
 }
 
 // `onReady` chạy sau khi DATABASE_URL đã có và trước handler; chỗ để tạo PrismaClient.

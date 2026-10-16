@@ -1,5 +1,9 @@
 import { PrismaClient } from "@prisma/client";
-import { resolveDatabaseUrl, withDatabaseUrl } from "@stockflow/shared/dist/database-url";
+import {
+  resolveDatabaseUrl,
+  resolveSecretFromSsm,
+  withDatabaseUrl,
+} from "@stockflow/shared/dist/database-url";
 
 describe("resolveDatabaseUrl", () => {
   it("keeps an explicit DATABASE_URL and never calls SSM", async () => {
@@ -94,5 +98,27 @@ describe("withDatabaseUrl", () => {
     expect(calls).toEqual(["onReady", "handler:x"]);
     if (original === undefined) delete process.env.DATABASE_URL;
     else process.env.DATABASE_URL = original;
+  });
+});
+
+describe("resolveSecretFromSsm", () => {
+  it("loads PUSHER_SECRET from the SSM parameter named in the environment", async () => {
+    const env: NodeJS.ProcessEnv = { PUSHER_SECRET_SSM_PARAMETER: "/stockflow/pusher-secret" };
+    const readParameter = jest.fn().mockResolvedValue("pusher-secret-value");
+
+    await resolveSecretFromSsm(env, "PUSHER_SECRET", readParameter);
+
+    expect(readParameter).toHaveBeenCalledWith("/stockflow/pusher-secret");
+    expect(env.PUSHER_SECRET).toBe("pusher-secret-value");
+  });
+
+  it("skips SSM when the parameter name is empty", async () => {
+    const env: NodeJS.ProcessEnv = { PUSHER_SECRET_SSM_PARAMETER: "" };
+    const readParameter = jest.fn();
+
+    await resolveSecretFromSsm(env, "PUSHER_SECRET", readParameter);
+
+    expect(env.PUSHER_SECRET).toBeUndefined();
+    expect(readParameter).not.toHaveBeenCalled();
   });
 });

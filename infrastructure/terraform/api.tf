@@ -58,7 +58,7 @@ resource "aws_iam_role_policy" "api" {
         Sid      = "ReadDatabaseUrl"
         Effect   = "Allow"
         Action   = ["ssm:GetParameter"]
-        Resource = aws_ssm_parameter.database_url.arn
+        Resource = concat([aws_ssm_parameter.database_url.arn], aws_ssm_parameter.pusher_secret[*].arn)
       },
       {
         Sid      = "S3PresignedUploads"
@@ -165,6 +165,7 @@ resource "aws_lambda_function" "api" {
     variables = {
       NODE_ENV                        = "production"
       DATABASE_URL_SSM_PARAMETER      = local.database_url_parameter
+      PUSHER_SECRET_SSM_PARAMETER     = try(aws_ssm_parameter.pusher_secret[0].name, "")
       GIT_SHA                         = var.git_sha
       CORS_ORIGIN                     = var.frontend_url
       FRONTEND_URL                    = var.frontend_url
@@ -190,7 +191,6 @@ resource "aws_lambda_function" "api" {
       PUSHER_APP_ID                   = var.pusher_app_id
       PUSHER_KEY                      = var.pusher_key
       PUSHER_CLUSTER                  = var.pusher_cluster
-      PUSHER_SECRET                   = var.pusher_secret
     }
   }
 

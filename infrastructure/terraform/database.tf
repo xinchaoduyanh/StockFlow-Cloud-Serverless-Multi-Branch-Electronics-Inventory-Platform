@@ -28,3 +28,13 @@ resource "aws_ssm_parameter" "direct_url" {
 locals {
   database_url_parameter = aws_ssm_parameter.database_url.name
 }
+
+# Pusher secret: trước đây nằm thẳng trong biến môi trường của Lambda `api` (hiện trên console).
+# Chỉ tạo khi có giá trị, vì SSM không nhận parameter rỗng.
+resource "aws_ssm_parameter" "pusher_secret" {
+  count       = var.pusher_secret == "" ? 0 : 1
+  name        = "/${var.project}/pusher-secret"
+  description = "Pusher app secret cho API"
+  type        = "SecureString"
+  value       = var.pusher_secret
+}

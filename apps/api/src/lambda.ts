@@ -1,6 +1,6 @@
 import { NestFactory } from "@nestjs/core";
 import serverlessExpress from "@codegenie/serverless-express";
-import { ensureDatabaseUrl } from "@stockflow/shared/dist/database-url";
+import { ensureDatabaseUrl, ensurePusherSecret } from "@stockflow/shared/dist/database-url";
 import type { Handler } from "aws-lambda";
 import { AppModule } from "./app.module";
 import { setupApp } from "./app.setup";
@@ -9,7 +9,8 @@ import { setupApp } from "./app.setup";
 // trace đi qua X-Ray active tracing.
 async function bootstrapServer(): Promise<Handler> {
   // EnvService validate DATABASE_URL ngay khi khởi tạo, nên phải nạp từ SSM trước.
-  await ensureDatabaseUrl();
+  // PusherService đọc PUSHER_SECRET trong constructor, nên cũng phải nạp trước khi tạo app.
+  await Promise.all([ensureDatabaseUrl(), ensurePusherSecret()]);
 
   const app = await NestFactory.create(AppModule);
   setupApp(app);
