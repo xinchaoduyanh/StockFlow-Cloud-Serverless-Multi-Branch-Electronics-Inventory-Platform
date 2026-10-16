@@ -38,6 +38,6 @@ import { RecoveryModule } from "./recovery/recovery.module";
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(CorrelationIdMiddleware, HttpLoggerMiddleware).forRoutes("*");
+    consumer.apply(CorrelationIdMiddleware, HttpLoggerMiddleware).forRoutes("{*path}");
   }
 }
