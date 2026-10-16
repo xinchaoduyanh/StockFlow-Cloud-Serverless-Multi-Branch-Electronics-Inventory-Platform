@@ -7,22 +7,22 @@
 
 ## Tiến độ (cập nhật 2026-10-15)
 
-| Phase | Trạng thái                                                                                                  |
-| ----- | ----------------------------------------------------------------------------------------------------------- |
-| P0–P3 | Xong, đã kiểm chứng trên AWS                                                                                |
-| P4    | Đã deploy. API đọc DB thật qua Neon, log không lỗi. **Còn 3 ô chưa kiểm** (alarm 5xx, X-Ray, Logs Insights) |
-| P5    | Đã deploy. Email báo cáo tự đến lúc 07:00 ngày 2026-10-15 (mới 1 sáng; cần sáng 16/10 để đủ 2 sáng liền)    |
-| P6    | Chưa làm (đã có runbook `rebuild-from-zero` và checklist bằng chứng)                                        |
+| Phase | Trạng thái                                                                                                                      |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------- |
+| P0–P3 | Xong, đã kiểm chứng trên AWS                                                                                                    |
+| P4    | Đã deploy. API đọc DB thật qua Neon, alarm 5xx → email đã kiểm chứng (2026-10-16). **Còn 2 ô chưa kiểm** (X-Ray, Logs Insights) |
+| P5    | Đã deploy. Email báo cáo tự đến lúc 07:00 ngày 2026-10-15 (mới 1 sáng; cần sáng 16/10 để đủ 2 sáng liền)                        |
+| P6    | Chưa làm (đã có runbook `rebuild-from-zero` và checklist bằng chứng)                                                            |
 
 ## Bàn giao 2026-10-15 (làm tiếp ở máy khác)
 
 **Đã xong trong ngày:** sửa lỗi `PrismaClient` tạo trước khi SSM trả URL (`6552596`), email báo cáo giờ ghi "Cần xem" khi worker lỗi (`2a3503e`), đã duyệt toàn bộ 9 màn hình dashboard bằng tài khoản admin thật (không lỗi console, không lỗi log API), pipeline nhận biến repo `ENABLE_DEBUG_ENDPOINT` (`6d4a8cb`).
 
-**Đang dở: thử alarm 5xx (bước B của P4).** Pipeline #24 (`26b6ffa`) đã deploy với biến repo `ENABLE_DEBUG_ENDPOINT=true`; **sáng 2026-10-16 `GET /api/debug/fail` đang trả 500, tức endpoint đang BẬT** và alarm chưa được thử. Việc cần làm khi ngồi lại:
+**Thử alarm 5xx (bước B của P4): đã xong 2026-10-16, còn phải TẮT endpoint.** Pipeline #24 (`26b6ffa`) đã deploy với biến repo `ENABLE_DEBUG_ENDPOINT=true`; **sáng 2026-10-16 `GET /api/debug/fail` đang trả 500, tức endpoint đang BẬT** và alarm chưa được thử. Việc cần làm khi ngồi lại:
 
 1. Kiểm tra Lambda `api` có `DEBUG_ENDPOINTS_ENABLED=true` và `GET /api/debug/fail` trả 500 (trước đó trả 404).
 2. Gọi endpoint khoảng 8 lần trong 5 phút. Alarm `stockflow-api-5xx` cần hơn 5 lỗi 5xx trong 5 phút mới chuyển ALARM. Xác nhận email SNS (xem cả thư rác), chụp ảnh vào `docs/evidence/261002-first-apply/` (che account ID).
-3. **Bắt buộc tắt lại:** xoá biến repo `ENABLE_DEBUG_ENDPOINT` (hoặc đặt `false`), chạy lại Deploy, rồi xác nhận endpoint trả 404. Để endpoint bật là mở sẵn một đường ép lỗi 5xx cho người lạ.
+3. **Bắt buộc tắt lại (chưa làm lúc ghi dòng này):** xoá biến repo `ENABLE_DEBUG_ENDPOINT` (hoặc đặt `false`), chạy lại Deploy, rồi xác nhận endpoint trả 404. Để endpoint bật là mở sẵn một đường ép lỗi 5xx cho người lạ.
 4. Biến này từng bị tạo nhầm thành **secret** trùng tên; secret đó cần xoá. Workflow chỉ đọc `vars.`.
 
 **Còn lại của P4/P5:** X-Ray service map và Logs Insights theo `correlationId` cần một lần import và một lần xuất báo cáo thật (E3 chưa chạy trên AWS). Email báo cáo cần thêm sáng 2026-10-16 để đủ "2 sáng liền". Một lần email vào thư rác: bấm "không phải thư rác".

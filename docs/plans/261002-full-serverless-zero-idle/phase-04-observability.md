@@ -96,6 +96,6 @@ Việc còn lại để đóng P4 (cập nhật 2026-10-15: API và worker đã 
 
 - [ ] Logs Insights query theo một `correlationId` ra đủ log từ API → parser → writer của một lần import.
 - [ ] X-Ray service map hiển thị API Gateway → Lambda api → SQS → report-exporter → S3.
-- [ ] Ép lỗi 5xx bằng một endpoint debug (chỉ bật qua biến môi trường) → alarm chuyển ALARM → nhận email.
-  - 2026-10-15: endpoint đã có, pipeline đọc biến repo `ENABLE_DEBUG_ENDPOINT`; đang chờ deploy #24 để bật và gọi thử (xem Bàn giao trong SUMMARY).
+- [x] Ép lỗi 5xx bằng một endpoint debug (chỉ bật qua biến môi trường) → alarm chuyển ALARM → nhận email.
+  - 2026-10-16: gọi `GET /api/debug/fail` 8 lần lúc 02:32 UTC; alarm `stockflow-api-5xx` chuyển `OK -> ALARM` lúc 02:33:47 UTC (9 lỗi 5xx trong 5 phút, ngưỡng 5), email SNS về hộp thư đến lúc 09:33 giờ Việt Nam. Trước đó phải xác nhận đăng ký SNS (đang `PendingConfirmation`). Ảnh chưa lưu vì có account ID; nếu cần làm bằng chứng thì che trước.
 - [ ] Số alarm ≤ 10, số dashboard ≤ 3.
