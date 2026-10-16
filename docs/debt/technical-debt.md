@@ -6,20 +6,17 @@
 
 ## Bảng tổng hợp
 
-| ID    | Nợ                                                              | Mức | Effort (ngày) |
-| ----- | --------------------------------------------------------------- | --- | ------------- |
-| TD-02 | 8 Lambda và toàn bộ frontend không có test nào                  | P0  | 3–5           |
-| TD-03 | 118 chỗ dùng `any`, và rule đã bị tắt nên không ai đếm          | P1  | 2–3           |
-| TD-06 | Hai đường import song song (S3 pipeline và local JSON)          | P1  | 1–2           |
-| TD-07 | Schema thiếu các bảng đỡ nghiệp vụ đích                         | P1  | 3–5           |
-| TD-08 | `Component.warrantyMonths` là dead field                        | P1  | (gộp TD-07)   |
-| TD-09 | Không có lịch sử giá vốn theo lô                                | P2  | 2–3           |
-| TD-12 | Thiếu index cho truy vấn tra cứu chéo chi nhánh                 | P2  | 0.5           |
-| TD-13 | Không có ADR nào dù kế hoạch yêu cầu                            | P1  | 1             |
-| TD-14 | Module `dlq/` vẫn tồn tại song song với `recovery/`             | P2  | 0.5           |
-| TD-16 | Cảnh báo tồn thấp: danh sách và cột "thiếu hụt" lệch định nghĩa | P1  | 0.5           |
-| TD-17 | Trang login không có "Quên mật khẩu"                            | P1  | 1             |
-| TD-18 | `forRoutes("*")` gây WARN mỗi cold start                        | P2  | 0.1           |
+| ID    | Nợ                                                     | Mức | Effort (ngày) |
+| ----- | ------------------------------------------------------ | --- | ------------- |
+| TD-02 | 8 Lambda và toàn bộ frontend không có test nào         | P0  | 3–5           |
+| TD-03 | 118 chỗ dùng `any`, và rule đã bị tắt nên không ai đếm | P1  | 2–3           |
+| TD-06 | Hai đường import song song (S3 pipeline và local JSON) | P1  | 1–2           |
+| TD-07 | Schema thiếu các bảng đỡ nghiệp vụ đích                | P1  | 3–5           |
+| TD-08 | `Component.warrantyMonths` là dead field               | P1  | (gộp TD-07)   |
+| TD-09 | Không có lịch sử giá vốn theo lô                       | P2  | 2–3           |
+| TD-12 | Thiếu index cho truy vấn tra cứu chéo chi nhánh        | P2  | 0.5           |
+| TD-13 | Không có ADR nào dù kế hoạch yêu cầu                   | P1  | 1             |
+| TD-14 | Module `dlq/` vẫn tồn tại song song với `recovery/`    | P2  | 0.5           |
 
 ## Đã đóng trong đợt rà soát này
 
@@ -30,6 +27,10 @@
 | TD-05 | Ba service gọi Lambda fire-and-forget | `a1dc5c1` thay bằng `report-dispatcher` qua SQS + event source mapping         |
 | TD-10 | `awsTaskToken` treo vĩnh viễn         | `a1dc5c1` thêm approval timeout và stale scan `rate(15 minutes)`               |
 | TD-11 | Authorization chưa scope theo branch  | `343c514` thêm `AuthorizationPolicyService` áp lên toàn bộ controller          |
+
+| TD-16 | Cảnh báo tồn thấp lệch định nghĩa khả dụng | `451fbf4` thống nhất `quantity - reserved` ở API, báo cáo và UI, thêm test |
+| TD-17 | Trang login không có "Quên mật khẩu" | `215f1a2` thêm `/forgot-password`. Chưa thử thật: Cognito chỉ gửi mã nếu user có email đã verified |
+| TD-18 | `forRoutes("*")` gây WARN mỗi cold start | `933b285` đổi sang `{*path}`. Chưa xác nhận hết WARN trên AWS, cần deploy |
 
 Không xoá các mục này khỏi lịch sử: chúng là bằng chứng cho thấy sổ nợ có tác dụng.
 
@@ -221,37 +222,3 @@ Runtime **đúng**; chỉ có annotation `SQSHandler` là sai, và `event: any` 
 **Đã sửa:** thay `SQSHandler` bằng kiểu union tường minh cho cả hai nguồn sự kiện, giữ nguyên hành vi runtime, kèm comment giải thích hai nguồn. Thêm `typecheck:lambdas` vào `npm run typecheck` và vào CI để lỗi tương tự không lọt nữa.
 
 **Bài học ghi lại:** đây chính là lý do TD-02 quan trọng. Một thư mục vừa không có test vừa không có typecheck thì `npm run lint` xanh không nói lên điều gì về nó.
-
----
-
-## TD-16 — Cảnh báo tồn thấp: danh sách và cột "thiếu hụt" lệch định nghĩa
-
-**Bằng chứng** (phát hiện 2026-10-15 khi duyệt UI bằng tài khoản admin)
-
-- `apps/api/src/inventory/inventory.service.ts:42` lọc theo **tồn khả dụng**: `i.quantity - i.reserved_quantity <= i.min_stock_threshold`.
-- `apps/web/src/app/dashboard/page.tsx:1716` tính thiếu hụt theo **tồn vật lý**: `Math.max(item.minStockThreshold - item.quantity, 0)`.
-- `apps/api/src/reports/reports.service.ts:196` (báo cáo low-stock) lại lọc theo `i.quantity <= i.minStockThreshold`, không trừ phần đã giữ.
-
-**Hậu quả:** bảng có dòng số lượng 12, tối thiểu 8, thiếu hụt 0 (12 − reserved ≤ 8 nên vẫn lọt vào cảnh báo, nhưng thiếu hụt tính trên 12 ra 0). Người dùng thấy cảnh báo mà không hiểu vì sao. Báo cáo xuất ra và màn hình cho hai danh sách khác nhau.
-
-**Cách sửa:** chốt một định nghĩa (khả dụng = `quantity - reservedQuantity`), dùng chung cho API, báo cáo và UI; cột thiếu hụt tính trên khả dụng, và hiển thị thêm cột "đang giữ". Thêm test cho ca có `reservedQuantity > 0`.
-
----
-
-## TD-17 — Trang login không có "Quên mật khẩu"
-
-**Bằng chứng:** `grep -rniE "forgot|quên mật khẩu" apps/web/src` không có kết quả.
-
-**Hậu quả:** user Cognito ở trạng thái "Reset required" (sau `admin-set-user-password` không `--permanent`) không đăng nhập lại được từ UI; chỉ chủ dự án gỡ được bằng AWS CLI.
-
-**Cách sửa:** thêm luồng `ForgotPassword` / `ConfirmForgotPassword` của Cognito trong `apps/web/src/features/auth` qua `lib/api-client` hoặc SDK đang dùng. Không cài thêm thư viện khi chưa hỏi.
-
----
-
-## TD-18 — `forRoutes("*")` gây WARN mỗi cold start
-
-**Bằng chứng:** `apps/api/src/app.module.ts:41` — `consumer.apply(CorrelationIdMiddleware, HttpLoggerMiddleware).forRoutes("*")`. Log API có `WARN Unsupported route path "/api/*"` mỗi lần khởi động.
-
-**Hậu quả:** path-to-regexp bản mới đòi `*path`; hiện NestJS tự chuyển đổi nên middleware vẫn chạy, nhưng cảnh báo là rác trong log và sẽ thành lỗi ở bản NestJS sau.
-
-**Cách sửa:** đổi thành `.forRoutes("{*path}")` (hoặc dạng NestJS khuyến nghị cho bản đang dùng), kiểm tra `x-correlation-id` vẫn có trên mọi response.

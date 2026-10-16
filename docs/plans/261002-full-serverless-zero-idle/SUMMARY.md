@@ -32,7 +32,7 @@
 - Mật khẩu 6 user Cognito test (dùng chung) lưu ở file `matkhaustockflow` trong `~/Documents/working/` (ngoài repo, không commit). Mật khẩu từng hiện trong chat với AI nên **đổi lại** sau khi test xong bằng `admin-set-user-password --permanent` chạy ở terminal của chủ dự án.
 - Lệnh gửi qua ô `!` của app Claude chạy ở Terminal 1 và kết quả hiện cho AI: không in secret ở đó.
 
-**Phát hiện khi duyệt UI (đã ghi vào `docs/debt/`: TD-16, TD-17, TD-18, OD-19):**
+**Phát hiện khi duyệt UI (TD-16, TD-17, TD-18 đã sửa trong code ngày 2026-10-16, chờ deploy; OD-19 còn mở trong `docs/debt/`):**
 
 - Trang login không có "Quên mật khẩu"; user ở trạng thái "Reset required" không đăng nhập lại được từ UI.
 - `consumer.apply(...).forRoutes("*")` ở `apps/api/src/app.module.ts` gây WARN `Unsupported route path "/api/*"` mỗi cold start (path-to-regexp mới cần `*path`).
@@ -44,7 +44,7 @@ Việc treo xuyên phase (làm trên máy nào cũng được):
 
 - **Đã sửa 2026-10-15:** 9 Lambda worker không bao giờ truy cập được DB vì tạo `PrismaClient` ở mức module, trước khi SSM trả `DATABASE_URL` nên engine Prisma chụp env khi chưa có URL. Lỗi lộ ra nhờ email báo cáo ngày (`import-recovery-worker` lỗi 288 lần) trong khi `/api/health` vẫn xanh vì không chạm DB. Sửa ở `6552596`, worker `import-recovery-worker` đã chạy thành công trên AWS. Chưa kiểm: 8 worker còn lại và API (API đã đúng thứ tự từ code, nhưng chưa có request nào chạm DB thật). Smoke test ở P3/P6 phải có một endpoint đọc DB, không chỉ `/api/health`.
 - Reset mật khẩu Neon (từng lộ trong chat) rồi cập nhật `terraform.tfvars` và 2 GitHub secret `NEON_DATABASE_URL`, `NEON_DIRECT_URL`.
-- `PUSHER_SECRET` vẫn nằm trong biến môi trường Lambda `api`, nên chuyển sang SSM.
+- `PUSHER_SECRET` đã chuyển sang SSM trong code (`7cffc80`), **chờ `terraform apply` qua pipeline**; sau apply kiểm Lambda `api` không còn biến `PUSHER_SECRET` và log khởi tạo Pusher thành công.
 - P3 còn 2 ô chưa kiểm: chốt an toàn chặn đổi tên bucket; ghi thời gian push→deploy vào README kèm cách tái lập.
 - Reserved concurrency của Lambda `api` không đặt được (hạn mức tài khoản 10); chặn chi phí bằng throttling API Gateway (20 rps, burst 40).
 - Chưa thử đầu cuối: đăng nhập Cognito, import file, report, 8 worker, Step Functions (thuộc P6).
