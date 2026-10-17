@@ -9,9 +9,11 @@ import { TableHeader, TableState } from "@/components/table/TablePieces";
 import { USER_ROLE_LABELS } from "@/features/auth/role-labels";
 import { RejectTransferDialog } from "./RejectTransferDialog";
 import type { Transfer, TransferUser } from "./types";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 
 export function TransferList({
   items,
+  total,
   isLoading,
   isAdmin,
   onApprove,
@@ -20,6 +22,7 @@ export function TransferList({
   onPageChange,
 }: {
   items: Transfer[];
+  total: number;
   isLoading: boolean;
   isAdmin: boolean;
   onApprove: (id: string) => void;
@@ -28,10 +31,6 @@ export function TransferList({
   onPageChange: (page: number) => void;
 }) {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
-  const pageSize = 8;
-  const totalPages = Math.ceil(items.length / pageSize);
-  const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
   function renderUserBadge(user?: TransferUser | null) {
     if (!user) return <span className="text-slate-400">-</span>;
     const branchText = user.branch ? ` · ${user.branch.code}` : "";
@@ -62,7 +61,7 @@ export function TransferList({
 
   return (
     <section className="surface overflow-hidden animate-rise-in-delay-1">
-      <TableHeader title="Yêu cầu chuyển kho" count={items.length} />
+      <TableHeader title="Yêu cầu chuyển kho" count={total} />
       <div className="overflow-x-auto">
         <table className="data-table">
           <thead>
@@ -85,7 +84,7 @@ export function TransferList({
               <TableState colSpan={8} text="Không có yêu cầu chuyển kho nào." />
             ) : null}
             {!isLoading &&
-              paginatedItems.map((item) => (
+              items.map((item) => (
                 <tr key={item.id}>
                   <td>
                     <StatusBadge status={item.status} />
@@ -158,10 +157,10 @@ export function TransferList({
       </div>
       <Pagination
         currentPage={currentPage}
-        totalPages={totalPages}
+        totalPages={Math.ceil(total / TABLE_PAGE_SIZE)}
         onPageChange={onPageChange}
-        totalItems={items.length}
-        pageSize={pageSize}
+        totalItems={total}
+        pageSize={TABLE_PAGE_SIZE}
       />
       {rejectingId ? (
         <RejectTransferDialog

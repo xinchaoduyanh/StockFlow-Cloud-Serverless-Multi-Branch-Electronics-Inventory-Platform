@@ -4,6 +4,7 @@ import { Pagination } from "@/components/table/Pagination";
 import { StatusBadge } from "@/components/table/StatusBadge";
 import { TableHeader, TableState } from "@/components/table/TablePieces";
 import type { ExportJob } from "./types";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 
 const reportTypes = [
   { id: ReportType.INVENTORY, label: "Báo cáo tồn kho", icon: "package" },
@@ -15,6 +16,7 @@ const reportTypes = [
 
 export function ReportsTab({
   exports: exportJobs,
+  total,
   isLoading,
   onCreateExport,
   isCreating,
@@ -22,16 +24,13 @@ export function ReportsTab({
   onPageChange,
 }: {
   exports: ExportJob[];
+  total: number;
   isLoading: boolean;
   onCreateExport: (type: ReportType) => void;
   isCreating: boolean;
   currentPage: number;
   onPageChange: (page: number) => void;
 }) {
-  const pageSize = 8;
-  const totalPages = Math.ceil(exportJobs.length / pageSize);
-  const paginatedItems = exportJobs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
   return (
     <section className="grid gap-4 animate-rise-in-delay-1">
       <div className="surface p-5">
@@ -63,7 +62,7 @@ export function ReportsTab({
       </div>
 
       <div className="surface overflow-hidden">
-        <TableHeader title="Lịch sử xuất báo cáo" count={exportJobs.length} />
+        <TableHeader title="Lịch sử xuất báo cáo" count={total} />
         <div className="overflow-x-auto">
           <table className="data-table">
             <thead>
@@ -85,7 +84,7 @@ export function ReportsTab({
                 />
               ) : null}
               {!isLoading &&
-                paginatedItems.map((job) => (
+                exportJobs.map((job) => (
                   <tr key={job.id}>
                     <td className="font-medium text-slate-800">
                       {job.reportType === ReportType.INVENTORY
@@ -131,10 +130,10 @@ export function ReportsTab({
         </div>
         <Pagination
           currentPage={currentPage}
-          totalPages={totalPages}
+          totalPages={Math.ceil(total / TABLE_PAGE_SIZE)}
           onPageChange={onPageChange}
-          totalItems={exportJobs.length}
-          pageSize={pageSize}
+          totalItems={total}
+          pageSize={TABLE_PAGE_SIZE}
         />
       </div>
     </section>

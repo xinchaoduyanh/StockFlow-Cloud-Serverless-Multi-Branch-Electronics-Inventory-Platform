@@ -3,9 +3,11 @@ import { Pagination } from "@/components/table/Pagination";
 import { StatusBadge } from "@/components/table/StatusBadge";
 import { TableHeader, TableState } from "@/components/table/TablePieces";
 import type { ImportJob } from "./types";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 
 export function ImportJobsTable({
   items,
+  total,
   isLoading,
   selectedId,
   onSelect,
@@ -13,19 +15,16 @@ export function ImportJobsTable({
   onPageChange,
 }: {
   items: ImportJob[];
+  total: number;
   isLoading: boolean;
   selectedId: string;
   onSelect: (id: string) => void;
   currentPage: number;
   onPageChange: (page: number) => void;
 }) {
-  const pageSize = 8;
-  const totalPages = Math.ceil(items.length / pageSize);
-  const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
   return (
     <section className="surface overflow-hidden animate-rise-in-delay-1">
-      <TableHeader title="Danh sách nhập kho" count={items.length} />
+      <TableHeader title="Danh sách nhập kho" count={total} />
       <div className="overflow-x-auto">
         <table className="data-table">
           <thead>
@@ -44,7 +43,7 @@ export function ImportJobsTable({
               <TableState colSpan={6} text="Chưa có yêu cầu nhập kho nào." />
             ) : null}
             {!isLoading &&
-              paginatedItems.map((item) => {
+              items.map((item) => {
                 const isProcessing =
                   item.status === ImportStatus.UPLOADED || item.status === ImportStatus.VALIDATING;
                 return (
@@ -100,10 +99,10 @@ export function ImportJobsTable({
       </div>
       <Pagination
         currentPage={currentPage}
-        totalPages={totalPages}
+        totalPages={Math.ceil(total / TABLE_PAGE_SIZE)}
         onPageChange={onPageChange}
-        totalItems={items.length}
-        pageSize={pageSize}
+        totalItems={total}
+        pageSize={TABLE_PAGE_SIZE}
       />
     </section>
   );

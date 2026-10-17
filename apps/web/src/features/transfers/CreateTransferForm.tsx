@@ -2,9 +2,9 @@
 
 import type { Branch } from "@stockflow/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 import { Notice } from "@/components/Notice";
-import type { InventoryItem } from "@/features/inventory/types";
+import { useInventory } from "@/features/inventory/use-inventory";
 import { apiRequest } from "@/lib/api-client";
 import { errorMessage } from "@/lib/errors";
 import type { Transfer } from "./types";
@@ -17,20 +17,23 @@ const EMPTY_FORM = {
   note: "",
 };
 
+// The API caps a page at 100 rows, which is also the most SKUs this picker can offer per branch.
+const MAX_COMPONENT_OPTIONS = 100;
+
 type CreateTransferFormProps = {
   branches: Branch[];
-  inventoryItems: InventoryItem[];
 };
 
-export function CreateTransferForm({ branches, inventoryItems }: CreateTransferFormProps) {
+export function CreateTransferForm({ branches }: CreateTransferFormProps) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY_FORM);
 
-  const selectableComponents = useMemo(
-    () =>
-      inventoryItems.filter((item) => !form.fromBranchId || item.branchId === form.fromBranchId),
-    [inventoryItems, form.fromBranchId],
-  );
+  const sourceStock = useInventory({
+    branchId: form.fromBranchId,
+    limit: MAX_COMPONENT_OPTIONS,
+    enabled: Boolean(form.fromBranchId),
+  });
+  const selectableComponents = form.fromBranchId ? (sourceStock.data?.items ?? []) : [];
 
   const createTransfer = useMutation({
     mutationFn: () =>

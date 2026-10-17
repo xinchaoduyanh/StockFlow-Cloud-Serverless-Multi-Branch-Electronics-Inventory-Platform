@@ -1,9 +1,10 @@
 "use client";
 
-import type { ReconciliationIssue, ReconciliationStatus } from "@stockflow/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Paginated, ReconciliationIssue, ReconciliationStatus } from "@stockflow/shared";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { apiRequest } from "@/lib/api-client";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 import { ReconciliationTab } from "./ReconciliationTab";
 
 export function ReconciliationPanel() {
@@ -12,12 +13,15 @@ export function ReconciliationPanel() {
   const [statusFilter, setStatusFilter] = useState<ReconciliationStatus | "">("");
 
   const issuesQuery = useQuery({
-    queryKey: ["reconciliation", statusFilter],
+    queryKey: ["reconciliation", statusFilter, page],
     queryFn: () => {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({ page: String(page), limit: String(TABLE_PAGE_SIZE) });
       if (statusFilter) params.set("status", statusFilter);
-      return apiRequest<ReconciliationIssue[]>(`/reconciliation/issues?${params.toString()}`);
+      return apiRequest<Paginated<ReconciliationIssue>>(
+        `/reconciliation/issues?${params.toString()}`,
+      );
     },
+    placeholderData: keepPreviousData,
   });
 
   function refreshIssues() {
@@ -40,11 +44,15 @@ export function ReconciliationPanel() {
       currentPage={page}
       isLoading={issuesQuery.isLoading}
       isRunning={runReconciliation.isPending}
-      issues={issuesQuery.data ?? []}
+      issues={issuesQuery.data?.items ?? []}
+      total={issuesQuery.data?.total ?? 0}
       onPageChange={setPage}
       onResolve={(id) => resolveIssue.mutate(id)}
       onRun={() => runReconciliation.mutate()}
-      onStatusFilterChange={setStatusFilter}
+      onStatusFilterChange={(status) => {
+        setStatusFilter(status);
+        setPage(1);
+      }}
       statusFilter={statusFilter}
     />
   );

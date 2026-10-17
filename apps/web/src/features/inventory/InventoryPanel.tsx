@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { StatCard } from "@/features/dashboard/StatCard";
 import { useTransfers } from "@/features/transfers/use-transfers";
 import { InventoryTable, LowStockReport } from "./InventoryTables";
-import { useInventory, useLowStock } from "./use-inventory";
+import { useInventory, useInventorySummary, useLowStock } from "./use-inventory";
 
 type InventoryPanelProps = {
   mode: "inventory" | "low-stock";
@@ -30,24 +30,31 @@ export function InventoryPanel({
   const [inventoryPage, setInventoryPage] = useState(1);
   const [lowStockPage, setLowStockPage] = useState(1);
 
-  const inventoryQuery = useInventory({ search, category, branchId: selectedBranchId });
-  const lowStockQuery = useLowStock(selectedBranchId);
-  const transfersQuery = useTransfers(selectedBranchId);
+  const isInventoryMode = mode === "inventory";
+  const filters = { search, category, branchId: selectedBranchId };
+  const inventoryQuery = useInventory({
+    ...filters,
+    page: inventoryPage,
+    enabled: isInventoryMode,
+  });
+  const lowStockQuery = useLowStock({ ...filters, page: lowStockPage, enabled: !isInventoryMode });
+  const summaryQuery = useInventorySummary(selectedBranchId);
+  const pendingTransfersQuery = useTransfers({
+    branchId: selectedBranchId,
+    status: TransferStatus.PENDING,
+    limit: 1,
+  });
 
   useEffect(() => {
     setInventoryPage(1);
     setLowStockPage(1);
   }, [search, category, selectedBranchId]);
 
-  const inventoryItems = inventoryQuery.data ?? [];
-  const lowStockItems = lowStockQuery.data ?? [];
-
   const summary = useMemo(() => {
-    const totalUnits = inventoryItems.reduce((sum, item) => sum + item.quantity, 0);
-    const reservedUnits = inventoryItems.reduce((sum, item) => sum + item.reservedQuantity, 0);
-    const pendingTransfers = (transfersQuery.data ?? []).filter(
-      (item) => item.status === TransferStatus.PENDING,
-    ).length;
+    const totalUnits = summaryQuery.data?.totalUnits ?? 0;
+    const reservedUnits = summaryQuery.data?.reservedUnits ?? 0;
+    const lowStockCount = summaryQuery.data?.lowStockCount ?? 0;
+    const pendingTransfers = pendingTransfersQuery.data?.total ?? 0;
 
     return [
       {
@@ -66,10 +73,10 @@ export function InventoryPanel({
       },
       {
         label: "Tồn thấp",
-        value: formatCount(lowStockItems.length),
+        value: formatCount(lowStockCount),
         caption: "Mặt hàng đã chạm mức tối thiểu",
         icon: "alert",
-        tone: lowStockItems.length > 0 ? "danger" : "neutral",
+        tone: lowStockCount > 0 ? "danger" : "neutral",
       },
       {
         label: "Chờ duyệt",
@@ -79,7 +86,7 @@ export function InventoryPanel({
         tone: pendingTransfers > 0 ? "accent" : "neutral",
       },
     ] as const;
-  }, [inventoryItems, lowStockItems.length, transfersQuery.data]);
+  }, [summaryQuery.data, pendingTransfersQuery.data]);
 
   return (
     <>
@@ -140,15 +147,17 @@ export function InventoryPanel({
         <InventoryTable
           currentPage={inventoryPage}
           isLoading={inventoryQuery.isLoading}
-          items={inventoryItems}
+          items={inventoryQuery.data?.items ?? []}
           onPageChange={setInventoryPage}
+          total={inventoryQuery.data?.total ?? 0}
         />
       ) : (
         <LowStockReport
           currentPage={lowStockPage}
           isLoading={lowStockQuery.isLoading}
-          items={lowStockItems}
+          items={lowStockQuery.data?.items ?? []}
           onPageChange={setLowStockPage}
+          total={lowStockQuery.data?.total ?? 0}
         />
       )}
     </>

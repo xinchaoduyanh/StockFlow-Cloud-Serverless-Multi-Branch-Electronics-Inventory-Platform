@@ -1,11 +1,12 @@
 "use client";
 
 import { ImportStatus } from "@stockflow/shared";
-import type { Branch } from "@stockflow/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Branch, Paginated } from "@stockflow/shared";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { apiRequest } from "@/lib/api-client";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 import { ImportJobsTable } from "./ImportJobsTable";
 import { ImportPreview, ImportPreviewModal } from "./ImportPreview";
 import type { ImportJob, ImportPreviewRow } from "./types";
@@ -35,14 +36,18 @@ export function ImportsPanel({ branches, selectedBranchId, defaultBranchId }: Im
   }, [defaultBranchId, uploadBranchId]);
 
   const importsQuery = useQuery({
-    queryKey: ["imports", selectedBranchId],
+    queryKey: ["imports", "list", selectedBranchId, jobsPage],
     queryFn: () => {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({
+        page: String(jobsPage),
+        limit: String(TABLE_PAGE_SIZE),
+      });
       if (selectedBranchId) params.set("branchId", selectedBranchId);
-      return apiRequest<ImportJob[]>(`/imports?${params.toString()}`);
+      return apiRequest<Paginated<ImportJob>>(`/imports?${params.toString()}`);
     },
+    placeholderData: keepPreviousData,
     refetchInterval: (query) => {
-      const hasActiveJobs = query.state.data?.some(
+      const hasActiveJobs = query.state.data?.items.some(
         (job) => job.status === ImportStatus.UPLOADED || job.status === ImportStatus.VALIDATING,
       );
       return hasActiveJobs ? ACTIVE_JOB_POLL_MS : false;
@@ -74,7 +79,7 @@ export function ImportsPanel({ branches, selectedBranchId, defaultBranchId }: Im
     uploader.reset();
   }
 
-  const importJobs = importsQuery.data ?? [];
+  const importJobs = importsQuery.data?.items ?? [];
   const selectedJob = useMemo(
     () => importJobs.find((job) => job.id === selectedImportId),
     [importJobs, selectedImportId],
@@ -123,6 +128,7 @@ export function ImportsPanel({ branches, selectedBranchId, defaultBranchId }: Im
         currentPage={jobsPage}
         isLoading={importsQuery.isLoading}
         items={importJobs}
+        total={importsQuery.data?.total ?? 0}
         onPageChange={setJobsPage}
         onSelect={(id) => {
           setPreviewPage(1);

@@ -1,25 +1,24 @@
 import { Pagination } from "@/components/table/Pagination";
 import { TableHeader, TableState } from "@/components/table/TablePieces";
 import type { InventoryItem } from "./types";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 
 export function InventoryTable({
   items,
+  total,
   isLoading,
   currentPage,
   onPageChange,
 }: {
   items: InventoryItem[];
+  total: number;
   isLoading: boolean;
   currentPage: number;
   onPageChange: (page: number) => void;
 }) {
-  const pageSize = 8;
-  const totalPages = Math.ceil(items.length / pageSize);
-  const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
   return (
     <section className="surface overflow-hidden animate-rise-in-delay-1">
-      <TableHeader title="Danh sách tồn kho" count={items.length} />
+      <TableHeader title="Danh sách tồn kho" count={total} />
       <div className="overflow-x-auto">
         <table className="data-table">
           <thead>
@@ -39,7 +38,7 @@ export function InventoryTable({
               <TableState colSpan={7} text="Không tìm thấy dữ liệu tồn kho." />
             ) : null}
             {!isLoading &&
-              paginatedItems.map((item) => (
+              items.map((item) => (
                 <tr key={`${item.branchId}-${item.componentId}`}>
                   <td className="code">{item.component.sku}</td>
                   <td>{item.component.name}</td>
@@ -61,10 +60,10 @@ export function InventoryTable({
       </div>
       <Pagination
         currentPage={currentPage}
-        totalPages={totalPages}
+        totalPages={Math.ceil(total / TABLE_PAGE_SIZE)}
         onPageChange={onPageChange}
-        totalItems={items.length}
-        pageSize={pageSize}
+        totalItems={total}
+        pageSize={TABLE_PAGE_SIZE}
       />
     </section>
   );
@@ -72,22 +71,20 @@ export function InventoryTable({
 
 export function LowStockReport({
   items,
+  total,
   isLoading,
   currentPage,
   onPageChange,
 }: {
   items: InventoryItem[];
+  total: number;
   isLoading: boolean;
   currentPage: number;
   onPageChange: (page: number) => void;
 }) {
-  const pageSize = 8;
-  const totalPages = Math.ceil(items.length / pageSize);
-  const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
   return (
     <section className="surface overflow-hidden animate-rise-in-delay-1">
-      <TableHeader title="Báo cáo tồn kho thấp" count={items.length} />
+      <TableHeader title="Báo cáo tồn kho thấp" count={total} />
       <div className="overflow-x-auto">
         <table className="data-table">
           <thead>
@@ -107,7 +104,7 @@ export function LowStockReport({
               <TableState colSpan={7} text="Không có sản phẩm nào dưới mức tối thiểu." />
             ) : null}
             {!isLoading &&
-              paginatedItems.map((item) => (
+              items.map((item) => (
                 <tr key={`${item.branchId}-${item.componentId}`}>
                   <td className="code">{item.component.sku}</td>
                   <td>{item.component.name}</td>
@@ -131,10 +128,10 @@ export function LowStockReport({
       </div>
       <Pagination
         currentPage={currentPage}
-        totalPages={totalPages}
+        totalPages={Math.ceil(total / TABLE_PAGE_SIZE)}
         onPageChange={onPageChange}
-        totalItems={items.length}
-        pageSize={pageSize}
+        totalItems={total}
+        pageSize={TABLE_PAGE_SIZE}
       />
     </section>
   );

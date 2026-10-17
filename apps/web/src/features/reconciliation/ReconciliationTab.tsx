@@ -2,9 +2,11 @@ import { ReconciliationIssue, ReconciliationStatus } from "@stockflow/shared";
 import { Pagination } from "@/components/table/Pagination";
 import { StatusBadge } from "@/components/table/StatusBadge";
 import { TableHeader, TableState } from "@/components/table/TablePieces";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 
 export function ReconciliationTab({
   issues,
+  total,
   isLoading,
   onRun,
   onResolve,
@@ -15,6 +17,7 @@ export function ReconciliationTab({
   onPageChange,
 }: {
   issues: ReconciliationIssue[];
+  total: number;
   isLoading: boolean;
   onRun: () => void;
   onResolve: (id: string) => void;
@@ -24,10 +27,6 @@ export function ReconciliationTab({
   currentPage: number;
   onPageChange: (page: number) => void;
 }) {
-  const pageSize = 8;
-  const totalPages = Math.ceil(issues.length / pageSize);
-  const paginatedItems = issues.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
   return (
     <section className="grid gap-4 animate-rise-in-delay-1">
       <div className="surface p-5">
@@ -59,7 +58,7 @@ export function ReconciliationTab({
       </div>
 
       <div className="surface overflow-hidden">
-        <TableHeader title="Chênh lệch đối soát" count={issues.length} />
+        <TableHeader title="Chênh lệch đối soát" count={total} />
         <div className="overflow-x-auto">
           <table className="data-table">
             <thead>
@@ -86,7 +85,7 @@ export function ReconciliationTab({
                 />
               ) : null}
               {!isLoading &&
-                paginatedItems.map((issue) => (
+                issues.map((issue) => (
                   <tr key={issue.id}>
                     <td className="code">{issue.branch.code}</td>
                     <td className="code">{issue.component.sku}</td>
@@ -137,10 +136,10 @@ export function ReconciliationTab({
         </div>
         <Pagination
           currentPage={currentPage}
-          totalPages={totalPages}
+          totalPages={Math.ceil(total / TABLE_PAGE_SIZE)}
           onPageChange={onPageChange}
-          totalItems={issues.length}
-          pageSize={pageSize}
+          totalItems={total}
+          pageSize={TABLE_PAGE_SIZE}
         />
       </div>
     </section>

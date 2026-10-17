@@ -3,7 +3,6 @@
 import type { Branch } from "@stockflow/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useInventory } from "@/features/inventory/use-inventory";
 import { apiRequest } from "@/lib/api-client";
 import { CreateTransferForm } from "./CreateTransferForm";
 import { TransferList } from "./TransferList";
@@ -19,8 +18,7 @@ export function TransfersPanel({ isAdmin, branches, selectedBranchId }: Transfer
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
 
-  const transfersQuery = useTransfers(selectedBranchId);
-  const inventoryQuery = useInventory({ branchId: selectedBranchId });
+  const transfersQuery = useTransfers({ branchId: selectedBranchId, page });
 
   function refreshStock() {
     void queryClient.invalidateQueries({ queryKey: ["transfers"] });
@@ -43,14 +41,15 @@ export function TransfersPanel({ isAdmin, branches, selectedBranchId }: Transfer
 
   return (
     <section className="grid gap-5 lg:grid-cols-[340px_1fr] animate-rise-in-delay-1">
-      <CreateTransferForm branches={branches} inventoryItems={inventoryQuery.data ?? []} />
+      <CreateTransferForm branches={branches} />
 
       <div className="flex min-w-0 flex-col gap-4">
         <TransferList
           currentPage={page}
           isAdmin={isAdmin}
           isLoading={transfersQuery.isLoading}
-          items={transfersQuery.data ?? []}
+          items={transfersQuery.data?.items ?? []}
+          total={transfersQuery.data?.total ?? 0}
           onApprove={(id) => approveTransfer.mutate(id)}
           onPageChange={setPage}
           onReject={(id, reason) => rejectTransfer.mutate({ id, reason })}

@@ -1,9 +1,10 @@
 "use client";
 
-import type { ReportType } from "@stockflow/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Paginated, ReportType } from "@stockflow/shared";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { apiRequest } from "@/lib/api-client";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 import { ReportsTab } from "./ReportsTab";
 import type { ExportJob } from "./types";
 
@@ -17,8 +18,10 @@ export function ReportsPanel({ branchFilter }: ReportsPanelProps) {
   const [page, setPage] = useState(1);
 
   const exportsQuery = useQuery({
-    queryKey: ["exports"],
-    queryFn: () => apiRequest<ExportJob[]>("/reports/exports"),
+    queryKey: ["exports", page],
+    queryFn: () =>
+      apiRequest<Paginated<ExportJob>>(`/reports/exports?page=${page}&limit=${TABLE_PAGE_SIZE}`),
+    placeholderData: keepPreviousData,
   });
 
   const createExport = useMutation({
@@ -38,7 +41,8 @@ export function ReportsPanel({ branchFilter }: ReportsPanelProps) {
   return (
     <ReportsTab
       currentPage={page}
-      exports={exportsQuery.data ?? []}
+      exports={exportsQuery.data?.items ?? []}
+      total={exportsQuery.data?.total ?? 0}
       isCreating={createExport.isPending}
       isLoading={exportsQuery.isLoading}
       onCreateExport={(type) => createExport.mutate(type)}
