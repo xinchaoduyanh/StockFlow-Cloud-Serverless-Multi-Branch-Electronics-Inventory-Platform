@@ -26,6 +26,7 @@ import {
   PresignedPostResponse,
   ImportJobDTO,
   ImportPreviewRowDTO,
+  Paginated,
 } from "@stockflow/shared";
 import { AuthenticatedRequest, JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
@@ -97,7 +98,7 @@ export class ImportsController {
   list(
     @Query(new ZodValidationPipe(importListQuerySchema)) query: ImportListQuery,
     @Req() request: AuthenticatedRequest,
-  ): Promise<ImportJobDTO[]> {
+  ): Promise<Paginated<ImportJobDTO>> {
     return this.importsService.list(query, request.user);
   }
 

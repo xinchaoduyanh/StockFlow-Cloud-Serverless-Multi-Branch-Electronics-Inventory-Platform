@@ -84,3 +84,41 @@ describe("TransfersService reservation", () => {
     expect(executeRaw.mock.calls[1][3]).toBe(higherComponentId);
   });
 });
+
+describe("TransfersService list", () => {
+  const authorization = new AuthorizationPolicyService();
+
+  function createPrisma(total: number) {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const count = jest.fn().mockResolvedValue(total);
+    const prisma = {
+      transfer: { findMany, count },
+      user: { findMany: jest.fn().mockResolvedValue([]) },
+    } as unknown as PrismaService;
+    return { prisma, findMany, count };
+  }
+
+  it("returns the total of all matching transfers with the page", async () => {
+    const { prisma, findMany } = createPrisma(31);
+
+    const page = await new TransfersService(prisma, authorization).list({ page: 2, limit: 8 });
+
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 8, take: 8 }));
+    expect(page).toEqual({ items: [], total: 31, page: 2, limit: 8 });
+  });
+
+  it("filters by status in the database and counts with the same filter", async () => {
+    const { prisma, findMany, count } = createPrisma(4);
+
+    await new TransfersService(prisma, authorization).list({
+      page: 1,
+      limit: 1,
+      status: "PENDING",
+    });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { status: "PENDING" } }),
+    );
+    expect(count).toHaveBeenCalledWith({ where: { status: "PENDING" } });
+  });
+});

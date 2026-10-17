@@ -5,6 +5,8 @@ import {
   ReconciliationIssue,
   ReconciliationRunResponse,
   ReconciliationStatus,
+  Paginated,
+  toPaginated,
 } from "@stockflow/shared";
 import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
@@ -28,20 +30,26 @@ export class ReconciliationService {
   async listIssues(
     query: ReconciliationListQuery,
     actor?: PolicyActor,
-  ): Promise<ReconciliationIssue[]> {
+  ): Promise<Paginated<ReconciliationIssue>> {
     if (actor) this.authorization.assertAdmin(actor);
     const { skip, take } = toPagination(query);
+    const where = query.status ? { status: query.status } : {};
 
-    return this.prisma.reconciliationIssue.findMany({
-      skip,
-      take,
-      where: query.status ? { status: query.status } : {},
-      include: {
-        branch: { select: { code: true, name: true } },
-        component: { select: { sku: true, name: true } },
-      },
-      orderBy: { detectedAt: "desc" },
-    }) as unknown as Promise<ReconciliationIssue[]>;
+    const [issues, total] = await Promise.all([
+      this.prisma.reconciliationIssue.findMany({
+        skip,
+        take,
+        where,
+        include: {
+          branch: { select: { code: true, name: true } },
+          component: { select: { sku: true, name: true } },
+        },
+        orderBy: { detectedAt: "desc" },
+      }),
+      this.prisma.reconciliationIssue.count({ where }),
+    ]);
+
+    return toPaginated(issues as unknown as ReconciliationIssue[], total, query);
   }
 
   async run(actor?: PolicyActor): Promise<ReconciliationRunResponse> {

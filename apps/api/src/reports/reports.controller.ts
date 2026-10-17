@@ -6,6 +6,7 @@ import {
   ExportListQuery,
   exportListQuerySchema,
   ExportJobDTO,
+  Paginated,
 } from "@stockflow/shared";
 import { AuthenticatedRequest, JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
@@ -33,7 +34,7 @@ export class ReportsController {
   listExports(
     @Query(new ZodValidationPipe(exportListQuerySchema)) query: ExportListQuery,
     @Req() request: AuthenticatedRequest,
-  ): Promise<ExportJobDTO[]> {
+  ): Promise<Paginated<ExportJobDTO>> {
     return this.reportsService.listExports(query, request.user);
   }
 

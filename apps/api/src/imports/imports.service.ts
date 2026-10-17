@@ -8,6 +8,9 @@ import {
   StartImportBody,
   PresignedPostRequest,
   importRowIdempotencyKey,
+  ImportJobDTO,
+  Paginated,
+  toPaginated,
 } from "@stockflow/shared";
 import { Injectable } from "@nestjs/common";
 import { SFNClient, SendTaskSuccessCommand } from "@aws-sdk/client-sfn";
@@ -143,17 +146,23 @@ export class ImportsService {
     return this.get(job.id, actor);
   }
 
-  list(query: ImportListQuery, actor?: PolicyActor) {
+  async list(query: ImportListQuery, actor?: PolicyActor): Promise<Paginated<ImportJobDTO>> {
     const { skip, take } = toPagination(query);
     const branchId = this.scopeBranchId(query.branchId, actor);
+    const where: Prisma.ImportJobWhereInput = branchId ? { branchId } : {};
 
-    return this.prisma.importJob.findMany({
-      skip,
-      take,
-      where: branchId ? { branchId } : {},
-      include: { branch: true },
-      orderBy: { createdAt: "desc" },
-    });
+    const [items, total] = await Promise.all([
+      this.prisma.importJob.findMany({
+        skip,
+        take,
+        where,
+        include: { branch: true },
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.importJob.count({ where }),
+    ]);
+
+    return toPaginated(items, total, query);
   }
 
   async get(id: string, actor?: PolicyActor) {

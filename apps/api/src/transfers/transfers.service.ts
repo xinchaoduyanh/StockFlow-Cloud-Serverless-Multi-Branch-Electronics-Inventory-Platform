@@ -4,10 +4,12 @@ import {
   RejectTransferBody,
   TransferListQuery,
   TransferDTO,
+  Paginated,
+  toPaginated,
 } from "@stockflow/shared";
 import { BusinessMetric, MetricUnit } from "@stockflow/shared/dist/metrics";
 import { Injectable } from "@nestjs/common";
-import { StockMovementType, TransferStatus } from "@prisma/client";
+import { Prisma, StockMovementType, TransferStatus } from "@prisma/client";
 import { emitMetric } from "../common/metrics/metrics";
 import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
@@ -21,25 +23,28 @@ export class TransfersService {
     private readonly authorization: AuthorizationPolicyService,
   ) {}
 
-  async list(query: TransferListQuery, actor?: PolicyActor): Promise<TransferDTO[]> {
+  async list(query: TransferListQuery, actor?: PolicyActor): Promise<Paginated<TransferDTO>> {
     const { skip, take } = toPagination(query);
     const branchId = this.scopeBranchId(query.branchId, actor);
+    const where: Prisma.TransferWhereInput = {
+      ...(branchId ? { OR: [{ fromBranchId: branchId }, { toBranchId: branchId }] } : {}),
+      ...(query.status ? { status: query.status } : {}),
+    };
 
-    const transfers = await this.prisma.transfer.findMany({
-      skip,
-      take,
-      where: branchId
-        ? {
-            OR: [{ fromBranchId: branchId }, { toBranchId: branchId }],
-          }
-        : {},
-      include: {
-        fromBranch: true,
-        toBranch: true,
-        items: { include: { component: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const [transfers, total] = await Promise.all([
+      this.prisma.transfer.findMany({
+        skip,
+        take,
+        where,
+        include: {
+          fromBranch: true,
+          toBranch: true,
+          items: { include: { component: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.transfer.count({ where }),
+    ]);
 
     const userIds = Array.from(
       new Set(
@@ -61,12 +66,14 @@ export class TransfersService {
 
     const userMap = new Map(users.map((u) => [u.id, u]));
 
-    return transfers.map((t) => ({
+    const items = transfers.map((t) => ({
       ...t,
       requestedByUser: t.requestedBy ? userMap.get(t.requestedBy) : null,
       approvedByUser: t.approvedBy ? userMap.get(t.approvedBy) : null,
       rejectedByUser: t.rejectedBy ? userMap.get(t.rejectedBy) : null,
-    })) as any;
+    }));
+
+    return toPaginated(items as unknown as TransferDTO[], total, query);
   }
 
   async get(id: string, actor?: PolicyActor): Promise<TransferDTO> {

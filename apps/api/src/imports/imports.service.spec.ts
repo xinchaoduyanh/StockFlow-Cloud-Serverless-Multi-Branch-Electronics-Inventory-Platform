@@ -84,3 +84,17 @@ describe("ImportsService lifecycle", () => {
     });
   });
 });
+
+describe("ImportsService list", () => {
+  it("returns the total import jobs with the page", async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const count = jest.fn().mockResolvedValue(12);
+    const prisma = { importJob: { findMany, count } } as unknown as PrismaService;
+    const service = new ImportsService(prisma, {} as S3Service, new AuthorizationPolicyService());
+
+    const page = await service.list({ page: 2, limit: 5 });
+
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 5, take: 5 }));
+    expect(page).toEqual({ items: [], total: 12, page: 2, limit: 5 });
+  });
+});

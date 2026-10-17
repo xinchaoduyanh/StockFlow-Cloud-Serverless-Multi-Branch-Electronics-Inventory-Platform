@@ -1,4 +1,11 @@
-import { ReportType, CreateExportBody, ExportListQuery, ExportJobDTO } from "@stockflow/shared";
+import {
+  ReportType,
+  CreateExportBody,
+  ExportListQuery,
+  ExportJobDTO,
+  Paginated,
+  toPaginated,
+} from "@stockflow/shared";
 import { Injectable, Logger } from "@nestjs/common";
 import { ExportJobStatus, ReportType as PrismaReportType, type ExportJob } from "@prisma/client";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
@@ -84,15 +91,26 @@ export class ReportsService {
     return this.getExport(job.id, actor);
   }
 
-  async listExports(query: ExportListQuery, actor?: PolicyActor): Promise<ExportJobDTO[]> {
+  async listExports(query: ExportListQuery, actor?: PolicyActor): Promise<Paginated<ExportJobDTO>> {
     const { skip, take } = toPagination(query);
-    const jobs = await this.prisma.exportJob.findMany({
-      skip,
-      take,
-      where: actor && actor.role !== "ADMIN" ? { createdBy: actor.sub ?? actor.id } : undefined,
-      orderBy: { createdAt: "desc" },
-    });
-    return jobs.map((job) => this.serializeExportJob(job)) as any;
+    const where =
+      actor && actor.role !== "ADMIN" ? { createdBy: actor.sub ?? actor.id } : undefined;
+
+    const [jobs, total] = await Promise.all([
+      this.prisma.exportJob.findMany({
+        skip,
+        take,
+        where,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.exportJob.count({ where }),
+    ]);
+
+    return toPaginated(
+      jobs.map((job) => this.serializeExportJob(job)) as unknown as ExportJobDTO[],
+      total,
+      query,
+    );
   }
 
   async getExport(id: string, actor?: PolicyActor): Promise<ExportJobDTO> {

@@ -33,6 +33,7 @@ describe("Reconciliation (e2e)", () => {
     onModuleDestroy: jest.fn(),
     reconciliationIssue: {
       findMany: jest.fn().mockResolvedValue(mockIssues),
+      count: jest.fn().mockResolvedValue(mockIssues.length),
       findUnique: jest.fn(),
       update: jest.fn().mockResolvedValue(mockIssues[0]),
       create: jest.fn().mockResolvedValue(mockIssues[0]),
@@ -104,15 +105,29 @@ describe("Reconciliation (e2e)", () => {
   });
 
   describe("GET /api/reconciliation/issues", () => {
-    it("should return a list of reconciliation issues", () => {
+    it("should return one page of reconciliation issues with the total", () => {
       return request(app.getHttpServer())
         .get("/api/reconciliation/issues")
         .expect(200)
         .expect((res) => {
-          expect(res.body).toBeInstanceOf(Array);
-          expect(res.body).toHaveLength(1);
-          expect(res.body[0].id).toBe(mockIssues[0].id);
+          expect(res.body.items).toHaveLength(1);
+          expect(res.body.items[0].id).toBe(mockIssues[0].id);
+          expect(res.body).toMatchObject({ total: 1, page: 1, limit: 10 });
         });
+    });
+
+    it("should pass page and limit through to the database query", async () => {
+      await request(app.getHttpServer())
+        .get("/api/reconciliation/issues?page=3&limit=5")
+        .expect(200);
+
+      expect(mockPrismaService.reconciliationIssue.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({ skip: 10, take: 5 }),
+      );
+    });
+
+    it("should reject a limit above the maximum page size", () => {
+      return request(app.getHttpServer()).get("/api/reconciliation/issues?limit=1000").expect(400);
     });
   });
 

@@ -7,6 +7,7 @@ import {
   reconciliationListQuerySchema,
   ReconciliationIssue,
   ReconciliationRunResponse,
+  Paginated,
 } from "@stockflow/shared";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AuthenticatedRequest } from "../auth/jwt-auth.guard";
@@ -30,7 +31,7 @@ export class ReconciliationController {
     @Query(new ZodValidationPipe(reconciliationListQuerySchema))
     query: ReconciliationListQuery,
     @Req() request: AuthenticatedRequest,
-  ): Promise<ReconciliationIssue[]> {
+  ): Promise<Paginated<ReconciliationIssue>> {
     return this.reconciliationService.listIssues(query, request.user);
   }
 

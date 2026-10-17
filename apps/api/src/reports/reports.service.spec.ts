@@ -1,4 +1,5 @@
-import { selectLowStock } from "./reports.service";
+import { PrismaService } from "../database/prisma.service";
+import { ReportsService, selectLowStock } from "./reports.service";
 
 describe("selectLowStock", () => {
   it("counts reserved quantity as unavailable", () => {
@@ -8,5 +9,19 @@ describe("selectLowStock", () => {
     ];
 
     expect(selectLowStock(items).map((i) => i.sku)).toEqual(["A"]);
+  });
+});
+
+describe("ReportsService.listExports", () => {
+  it("returns the total of the caller's exports with the page", async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const count = jest.fn().mockResolvedValue(23);
+    const prisma = { exportJob: { findMany, count } } as unknown as PrismaService;
+    const service = new ReportsService(prisma, {} as never, {} as never, {} as never, {} as never);
+
+    const page = await service.listExports({ page: 3, limit: 10 });
+
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 20, take: 10 }));
+    expect(page).toEqual({ items: [], total: 23, page: 3, limit: 10 });
   });
 });

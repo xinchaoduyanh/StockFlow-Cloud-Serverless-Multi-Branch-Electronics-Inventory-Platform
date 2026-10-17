@@ -8,6 +8,7 @@ import {
   TransferListQuery,
   transferListQuerySchema,
   TransferDTO,
+  Paginated,
 } from "@stockflow/shared";
 import { AuthenticatedRequest, JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
@@ -36,7 +37,7 @@ export class TransfersController {
   list(
     @Query(new ZodValidationPipe(transferListQuerySchema)) query: TransferListQuery,
     @Req() request: AuthenticatedRequest,
-  ): Promise<TransferDTO[]> {
+  ): Promise<Paginated<TransferDTO>> {
     return this.transfersService.list(query, request.user);
   }
 

@@ -5,7 +5,10 @@ import {
   adjustInventoryBodySchema,
   InventoryQuery,
   inventoryQuerySchema,
+  inventorySummaryQuerySchema,
   InventoryItem,
+  InventorySummary,
+  Paginated,
   Branch,
 } from "@stockflow/shared";
 import { branchIdParamSchema, skuParamSchema } from "../common/schemas/params.schema";
@@ -25,8 +28,18 @@ export class InventoryController {
   list(
     @Query(new ZodValidationPipe(inventoryQuerySchema)) query: InventoryQuery,
     @Req() request: AuthenticatedRequest,
-  ): Promise<InventoryItem[]> {
+  ): Promise<Paginated<InventoryItem>> {
     return this.inventoryService.list(query, request.user);
+  }
+
+  @Get("inventory/summary")
+  @ApiOkResponse({ description: "Unit totals and low-stock count across all matching rows." })
+  summary(
+    @Query(new ZodValidationPipe(inventorySummaryQuerySchema))
+    query: Pick<InventoryQuery, "branchId">,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<InventorySummary> {
+    return this.inventoryService.summary(query, request.user);
   }
 
   @Get("inventory/:sku")
@@ -51,7 +64,7 @@ export class InventoryController {
     @Query(new ZodValidationPipe(inventoryQuerySchema.omit({ branchId: true })))
     query: Omit<InventoryQuery, "branchId">,
     @Req() request: AuthenticatedRequest,
-  ): Promise<InventoryItem[]> {
+  ): Promise<Paginated<InventoryItem>> {
     return this.inventoryService.listByBranch(params.branchId, query, request.user);
   }
 
