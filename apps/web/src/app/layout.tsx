@@ -1,17 +1,30 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
 const geist = Geist({
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext", "vietnamese"],
   display: "swap",
   variable: "--font-geist",
 });
 
+const geistMono = Geist_Mono({
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  display: "swap",
+  variable: "--font-geist-mono",
+});
+
+// Display face for headings and big numbers; Geist stays on body text and forms.
+const bricolage = Bricolage_Grotesque({
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  display: "swap",
+  variable: "--font-bricolage",
+});
+
 export const metadata: Metadata = {
-  title: "StockFlow Cloud",
-  description: "Serverless multi-branch electronics inventory platform",
+  title: "DuyAnhShop | StockFlow Cloud",
+  description: "Quản lý tồn kho linh kiện điện tử đa chi nhánh",
 };
 
 export default function RootLayout({
@@ -20,7 +33,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={geist.variable} suppressHydrationWarning>
+    <html
+      lang="vi"
+      className={`${geist.variable} ${geistMono.variable} ${bricolage.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -37,6 +54,9 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased">
+        <a className="skip-link" href="#main">
+          Bỏ qua điều hướng
+        </a>
         <Providers>{children}</Providers>
       </body>
     </html>
