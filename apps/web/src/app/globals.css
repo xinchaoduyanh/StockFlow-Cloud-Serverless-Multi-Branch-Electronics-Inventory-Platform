@@ -15,6 +15,9 @@
   --color-accent-hover: #9a4513;
   --color-accent-active: #7f3a10;
   --color-accent-contrast: #fff8ef;
+  --color-accent-soft: color-mix(in srgb, var(--color-accent-solid) 12%, transparent);
+  --color-accent-border: color-mix(in srgb, var(--color-accent-solid) 30%, transparent);
+  --color-accent-text: #96440f;
 
   /* Input states */
   --color-input-bg: #fdfbf6;
@@ -49,6 +52,7 @@
   --color-accent-hover: #eb9d55;
   --color-accent-active: #c9772d;
   --color-accent-contrast: #1d1206;
+  --color-accent-text: #f0b27a;
 
   /* Input states */
   --color-input-bg: #241e14;
@@ -80,9 +84,8 @@
   --font-display: var(--font-bricolage), var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 
-  /* Transitional remap: pages still use Tailwind's slate-* and indigo-* classes.
-     Pointing them at warm neutrals and the orange accent re-skins every screen
-     at once; the classes get renamed to semantic tokens as each screen is reworked. */
+  /* Neutral scale: pages use Tailwind slate-* utilities, remapped to warm paper tones.
+     The dark-mode flip lives further down so dark: pairs are not needed. */
   --color-slate-50: #faf6ec;
   --color-slate-100: #f1ebdc;
   --color-slate-200: #e3dac6;
@@ -94,18 +97,6 @@
   --color-slate-800: #342d24;
   --color-slate-900: #221d16;
   --color-slate-950: #15110c;
-
-  --color-indigo-50: #fbf0e3;
-  --color-indigo-100: #f6dcbd;
-  --color-indigo-200: #ecbf8e;
-  --color-indigo-300: #e19e62;
-  --color-indigo-400: #d4823f;
-  --color-indigo-500: #c4672a;
-  --color-indigo-600: #b4531a;
-  --color-indigo-700: #96440f;
-  --color-indigo-800: #78380f;
-  --color-indigo-900: #5e2e10;
-  --color-indigo-950: #351a0a;
 }
 
 .dark {
@@ -357,7 +348,9 @@ html {
   }
 
   .badge-accent {
-    @apply border-indigo-600/25 bg-indigo-600/10 text-indigo-700 dark:text-indigo-300;
+    border-color: var(--color-accent-border);
+    background-color: var(--color-accent-soft);
+    color: var(--color-accent-text);
   }
 
   .badge-ok {
@@ -376,7 +369,7 @@ html {
   .chip {
     border-color: var(--color-border-subtle);
     background-color: var(--color-bg-muted);
-    @apply inline-flex items-center rounded-sm border px-2 py-0.5 font-mono text-xs text-[var(--color-text-secondary)];
+    @apply inline-flex items-center whitespace-nowrap rounded-sm border px-2 py-0.5 font-mono text-xs text-[var(--color-text-secondary)];
   }
 
   /* Tables */

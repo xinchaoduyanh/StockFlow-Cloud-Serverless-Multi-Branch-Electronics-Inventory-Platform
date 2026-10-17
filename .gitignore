@@ -39,3 +39,6 @@ infrastructure/terraform/backend.hcl
 *.plan
 # zip code lambda Terraform sinh ra (~600MB), tạo lại bằng apply
 infrastructure/terraform/builds/
+
+# next dev tự sinh file hướng dẫn agent này mỗi lần chạy
+apps/web/AGENTS.md

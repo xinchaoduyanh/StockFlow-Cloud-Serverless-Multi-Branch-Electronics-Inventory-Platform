@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useState } from "react";
 import { apiRequest } from "@/lib/api-client";
+import { errorMessage } from "@/lib/errors";
 import type { Branch, CreateBranchBody, UpdateBranchBody } from "@stockflow/shared";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Notice } from "@/components/Notice";
@@ -11,10 +12,6 @@ import { TableHeader, TableState } from "@/components/table/TablePieces";
 
 const PAGE_SIZE = 8;
 const MIN_BRANCH_CODE_LENGTH = 2;
-
-function errorMessage(error: Error, fallback: string) {
-  return error.message || fallback;
-}
 
 export function BranchesAdmin() {
   const queryClient = useQueryClient();

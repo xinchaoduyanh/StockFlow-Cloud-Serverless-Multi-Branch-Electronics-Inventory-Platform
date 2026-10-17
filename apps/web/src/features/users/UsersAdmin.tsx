@@ -3,6 +3,7 @@ import { FormEvent, useState } from "react";
 import { UserRole } from "@stockflow/shared";
 import type { UserDTO, Branch, AdminCreateUserBody, AdminUpdateUserBody } from "@stockflow/shared";
 import { apiRequest } from "@/lib/api-client";
+import { errorMessage } from "@/lib/errors";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Notice } from "@/components/Notice";
 import { Pagination } from "@/components/table/Pagination";
@@ -12,10 +13,6 @@ import { TableHeader, TableState } from "@/components/table/TablePieces";
 import { isBranchBoundRole, toUserRole, USER_ROLE_LABELS } from "@/features/auth/role-labels";
 
 const PAGE_SIZE = 8;
-
-function errorMessage(error: Error, fallback: string) {
-  return error.message || fallback;
-}
 
 export function UsersAdmin() {
   const queryClient = useQueryClient();
@@ -277,12 +274,12 @@ export function UsersAdmin() {
                     <td className="font-medium text-slate-900">
                       {userItem.fullName ?? "Chưa đặt tên"}
                     </td>
-                    <td className="text-slate-600">{userItem.email}</td>
+                    <td className="whitespace-nowrap text-slate-600">{userItem.email}</td>
                     <td>
                       <span
                         className={`chip font-sans ${
                           userItem.role === UserRole.ADMIN
-                            ? "border-indigo-600/30 bg-indigo-600/10 text-indigo-700 dark:text-indigo-300"
+                            ? "border-[var(--color-accent-border)] bg-[var(--color-accent-soft)] text-[var(--color-accent-text)]"
                             : ""
                         }`}
                       >

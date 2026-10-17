@@ -117,7 +117,7 @@ export function UploadImportDialog({
             <div
               className={`grid cursor-pointer justify-items-center gap-1.5 rounded-md border border-dashed p-7 text-center transition-colors duration-150 ${
                 isDragOver
-                  ? "border-[var(--color-accent-solid)] bg-indigo-600/10"
+                  ? "border-[var(--color-accent-solid)] bg-[var(--color-accent-soft)]"
                   : "border-[var(--color-input-border)] bg-[var(--color-bg-muted)]/50 hover:border-[var(--color-accent-solid)]"
               }`}
               onClick={() => fileInputRef.current?.click()}

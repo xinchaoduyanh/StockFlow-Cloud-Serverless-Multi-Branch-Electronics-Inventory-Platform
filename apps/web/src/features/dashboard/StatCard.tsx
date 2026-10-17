@@ -18,7 +18,7 @@ const TONE_STYLES: Record<StatTone, { band: string; icon: string; value: string 
   },
   accent: {
     band: "bg-[var(--color-accent-solid)]",
-    icon: "bg-indigo-600/10 text-[var(--color-accent-solid)]",
+    icon: "bg-[var(--color-accent-soft)] text-[var(--color-accent-solid)]",
     value: "text-[var(--color-text-primary)]",
   },
   danger: {
