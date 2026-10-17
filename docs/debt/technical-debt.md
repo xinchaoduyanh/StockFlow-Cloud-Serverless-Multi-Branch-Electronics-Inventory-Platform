@@ -6,18 +6,18 @@
 
 ## Bảng tổng hợp
 
-| ID    | Nợ                                                            | Mức | Effort (ngày) |
-| ----- | ------------------------------------------------------------- | --- | ------------- |
-| TD-02 | 8 Lambda và toàn bộ frontend không có test nào                | P0  | 3–5           |
-| TD-03 | 118 chỗ dùng `any`, và rule đã bị tắt nên không ai đếm        | P1  | 2–3           |
-| TD-06 | Hai đường import song song (S3 pipeline và local JSON)        | P1  | 1–2           |
-| TD-07 | Schema thiếu các bảng đỡ nghiệp vụ đích                       | P1  | 3–5           |
-| TD-08 | `Component.warrantyMonths` là dead field                      | P1  | (gộp TD-07)   |
-| TD-09 | Không có lịch sử giá vốn theo lô                              | P2  | 2–3           |
-| TD-12 | Thiếu index cho truy vấn tra cứu chéo chi nhánh               | P2  | 0.5           |
-| TD-13 | Không có ADR nào dù kế hoạch yêu cầu                          | P1  | 1             |
-| TD-14 | Module `dlq/` vẫn tồn tại song song với `recovery/`           | P2  | 0.5           |
-| TD-19 | Web phân trang trong bộ nhớ trên dữ liệu API đã cắt ở 10 dòng | P0  | 2–3           |
+| ID    | Nợ                                                     | Mức | Effort (ngày) |
+| ----- | ------------------------------------------------------ | --- | ------------- |
+| TD-02 | 8 Lambda và toàn bộ frontend không có test nào         | P0  | 3–5           |
+| TD-03 | 118 chỗ dùng `any`, và rule đã bị tắt nên không ai đếm | P1  | 2–3           |
+| TD-06 | Hai đường import song song (S3 pipeline và local JSON) | P1  | 1–2           |
+| TD-07 | Schema thiếu các bảng đỡ nghiệp vụ đích                | P1  | 3–5           |
+| TD-08 | `Component.warrantyMonths` là dead field               | P1  | (gộp TD-07)   |
+| TD-09 | Không có lịch sử giá vốn theo lô                       | P2  | 2–3           |
+| TD-12 | Thiếu index cho truy vấn tra cứu chéo chi nhánh        | P2  | 0.5           |
+| TD-13 | Không có ADR nào dù kế hoạch yêu cầu                   | P1  | 1             |
+| TD-14 | Module `dlq/` vẫn tồn tại song song với `recovery/`    | P2  | 0.5           |
+| TD-21 | Danh sách phụ chưa phân trang phía server              | P2  | 1–2           |
 
 ## Đã đóng trong đợt rà soát này
 
@@ -33,6 +33,7 @@
 | TD-17 | Trang login không có "Quên mật khẩu" | `215f1a2` thêm `/forgot-password`. Chưa thử thật: Cognito chỉ gửi mã nếu user có email đã verified |
 | TD-18 | `forRoutes("*")` gây WARN mỗi cold start | `933b285` đổi sang `{*path}`. Chưa xác nhận hết WARN trên AWS, cần deploy |
 | TD-20 | `dashboard/page.tsx` dài 2.8k dòng; thang `indigo-*` bị remap sang cam | `231b48c` tách mỗi tab thành panel riêng (page còn 142 dòng); `07b696b` thay bằng token accent |
+| TD-19 | Web phân trang trong bộ nhớ trên dữ liệu API đã cắt ở 10 dòng | `916f1dc` thêm Paginated và giới hạn limit; `17d81d4` API trả { items, total } và thêm `/inventory/summary`; `a826b9b` web phân trang phía server. Chưa chạy `test:postgres` (Docker không khởi động được) |
 
 Không xoá các mục này khỏi lịch sử: chúng là bằng chứng cho thấy sổ nợ có tác dụng.
 
@@ -229,17 +230,15 @@ Runtime **đúng**; chỉ có annotation `SQSHandler` là sai, và `event: any` 
 
 ---
 
-## TD-19 — Web phân trang trong bộ nhớ trên dữ liệu API đã cắt ở 10 dòng
+## TD-21 — Danh sách phụ chưa phân trang phía server
 
-**Bằng chứng**
+Còn lại sau khi đóng TD-19 (web nay phân trang phía server cho năm bảng chính):
 
-- `packages/shared/src/reconciliation.ts:5-7`: `paginationQuerySchema` có `limit` mặc định **10**.
-- `apps/api/src/inventory/inventory.controller.ts:26` dùng `ZodValidationPipe(inventoryQuerySchema)`, và `toPagination` (`apps/api/src/common/schemas/pagination.schema.ts:10`) chuyển thành `skip`/`take`.
-- `grep -rn "limit" apps/web/src` không trả về chỗ nào truyền `page` hay `limit` lên API.
-- Chín bảng ở web tự cắt trang bằng `slice((currentPage - 1) * pageSize, ...)`: `InventoryTables.tsx:18,86`, `TransferList.tsx:33`, `ImportJobsTable.tsx:24`, `ImportPreview.tsx:50`, `ReportsTab.tsx:33`, `ReconciliationTab.tsx:29`, `UsersAdmin.tsx:135`, `BranchesAdmin.tsx:127`.
+- **Khôi phục sự cố** — `RecoveryTab.tsx` gọi `/admin/recovery/reports` và `/admin/recovery/imports` không truyền `page`/`limit`, API (`recovery.service.ts`, `toPagination`) mặc định cắt ở 10 dòng, và bảng không có phân trang. Nếu có hơn 10 tác vụ lỗi thì phần còn lại **không hiển thị** trên giao diện.
+- **Xem trước nhập kho** — `/imports/:id/preview` trả toàn bộ dòng của tệp (`imports.service.ts`, `importJobRow.findMany` không có `take`), web cắt trang trong bộ nhớ. Tệp hàng chục nghìn dòng sẽ kéo cả về trình duyệt.
+- **Nhân viên và chi nhánh** — API trả toàn bộ, web cắt trang trong bộ nhớ. Chấp nhận được khi số lượng nhỏ.
+- **Chọn linh kiện trong form chuyển kho** — chỉ nạp tối đa 100 SKU của chi nhánh gửi (trần `limit` của API). Chi nhánh có hơn 100 SKU sẽ thiếu lựa chọn.
 
-**Hậu quả:** mỗi danh sách chỉ nhận 10 dòng đầu từ API, web cắt tiếp thành trang 8 dòng, nên trang 2 chỉ có 2 dòng và phần còn lại không bao giờ tới được. Thẻ "Tổng số lượng" và "Đang tạm giữ" trên tab Tồn kho cộng từ đúng 10 dòng đó nên **hiển thị sai** khi kho có hơn 10 dòng. Quy tắc trong `CLAUDE.md` cũng yêu cầu phân trang và lọc ở SQL, không làm trong bộ nhớ.
+**Hậu quả:** chỉ lộ khi dữ liệu thật lớn hơn dữ liệu demo. Mục đầu tiên là mục đáng sửa trước vì nó âm thầm ẩn dữ liệu.
 
-Chưa thấy khi xem giao diện vì API giả dùng để xem thử không cắt dữ liệu. Chưa kiểm chứng trên API thật với dữ liệu lớn.
-
-**Cách sửa:** API trả `{ items, total }` thay vì mảng thô; web truyền `page`/`limit` và dùng `total` cho thanh phân trang; số liệu của thẻ thống kê lấy từ một endpoint tổng hợp thay vì cộng các dòng đang hiển thị. Đây là thay đổi hợp đồng API nên cần cập nhật `packages/shared` và test của `apps/api`.
+**Cách sửa:** cho các endpoint recovery trả `Paginated` giống các endpoint đã sửa; thêm `page`/`limit` cho `preview`; thay ô chọn linh kiện bằng ô tìm kiếm gọi API theo từ khoá.
