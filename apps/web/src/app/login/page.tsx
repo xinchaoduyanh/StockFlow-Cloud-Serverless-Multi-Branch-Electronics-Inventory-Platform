@@ -1,360 +1,195 @@
 "use client";
 
 import Link from "next/link";
+import type { CognitoUser } from "amazon-cognito-identity-js";
 import { FormEvent, useEffect, useState } from "react";
 import { useLogin } from "@/features/auth/use-auth";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { AuthShell } from "@/components/AuthShell";
+import { FieldInput, PasswordInput } from "@/components/FieldInput";
+import { Icon } from "@/components/Icon";
+
+const MIN_PASSWORD_LENGTH = 8;
+
+function toMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
 
-  // States for force change password challenge
-  const [cognitoUser, setCognitoUser] = useState<any>(null);
+  // Set when Cognito asks a first-time user to choose a new password.
+  const [cognitoUser, setCognitoUser] = useState<CognitoUser | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showNewPassword, setShowNewPassword] = useState(false);
   const [customError, setCustomError] = useState<string | null>(null);
   const [isSubmittingNewPassword, setIsSubmittingNewPassword] = useState(false);
 
   const login = useLogin();
 
-  // Asynchronously pre-fetch Cognito identity library and warm up DB pool
+  // Warm up the Cognito bundle and the serverless DB while the user is typing.
   useEffect(() => {
-    // 1. Pre-fetch Cognito library in the background while user is typing
     void import("@/lib/cognito").catch(() => {});
 
-    // 2. Wake up database serverless instance (Neon DB warm-up)
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
     void fetch(`${apiBaseUrl}/health`).catch(() => {});
   }, []);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function submitNewPassword(user: CognitoUser) {
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      setCustomError(`Mật khẩu mới phải dài ít nhất ${MIN_PASSWORD_LENGTH} ký tự.`);
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setCustomError("Mật khẩu xác nhận không trùng khớp.");
+      return;
+    }
+
+    setIsSubmittingNewPassword(true);
+    try {
+      const { completeNewPassword } = await import("@/lib/cognito");
+      await completeNewPassword(user, newPassword);
+      window.location.href = "/dashboard";
+    } catch (error) {
+      setCustomError(toMessage(error, "Không thể thiết lập mật khẩu mới."));
+    } finally {
+      setIsSubmittingNewPassword(false);
+    }
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setCustomError(null);
 
     if (cognitoUser) {
-      if (newPassword.length < 8) {
-        setCustomError("Mật khẩu mới phải dài ít nhất 8 ký tự.");
-        return;
-      }
-      if (newPassword !== confirmPassword) {
-        setCustomError("Mật khẩu xác nhận không trùng khớp.");
-        return;
-      }
-
-      setIsSubmittingNewPassword(true);
-      try {
-        const { completeNewPassword } = await import("@/lib/cognito");
-        await completeNewPassword(cognitoUser, newPassword);
-        // Successful - redirect to dashboard
-        window.location.href = "/dashboard";
-      } catch (err: any) {
-        setCustomError(err.message || "Không thể thiết lập mật khẩu mới.");
-      } finally {
-        setIsSubmittingNewPassword(false);
-      }
-    } else {
-      login.mutate(
-        { email, password },
-        {
-          onSuccess: (data) => {
-            if (data.newPasswordRequired && data.cognitoUser) {
-              setCognitoUser(data.cognitoUser);
-            }
-          },
-        },
-      );
+      void submitNewPassword(cognitoUser);
+      return;
     }
+
+    login.mutate(
+      { email, password },
+      {
+        onSuccess: (data) => {
+          if (data.newPasswordRequired && data.cognitoUser) {
+            setCognitoUser(data.cognitoUser);
+          }
+        },
+      },
+    );
+  }
+
+  function backToLogin() {
+    setCognitoUser(null);
+    setNewPassword("");
+    setConfirmPassword("");
+    setCustomError(null);
   }
 
   const isPending = login.isPending || isSubmittingNewPassword;
-  const hasError = login.error || customError;
   const errorMessage =
-    customError || (login.error instanceof Error ? login.error.message : String(login.error));
+    customError ?? (login.error ? toMessage(login.error, "Đăng nhập thất bại.") : null);
+  const isFirstLogin = cognitoUser !== null;
 
   return (
-    <main className="app-background grid place-items-center px-6 py-12 min-h-screen">
-      {/* Floating Theme Toggle in top-right */}
-      <div className="absolute top-6 right-6 z-50">
-        <ThemeToggle />
-      </div>
-
-      <form
-        className="content-layer grid w-full max-w-[440px] gap-7 p-9 surface animate-rise-in"
-        onSubmit={handleSubmit}
-      >
-        <div className="text-center">
-          <div className="mx-auto mb-4 grid h-11 w-11 place-items-center rounded-lg bg-[var(--color-accent-solid)] text-base font-semibold text-white">
-            SF
-          </div>
-          <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-            StockFlow Cloud
+    <AuthShell
+      footer="DuyAnhShop · StockFlow Cloud"
+      subtitle={
+        isFirstLogin
+          ? "Đây là lần đăng nhập đầu tiên của tài khoản. Hãy đặt mật khẩu mới trước khi vào hệ thống."
+          : "Đăng nhập để xem tồn kho và duyệt chuyển kho của chi nhánh bạn phụ trách."
+      }
+      title={isFirstLogin ? "Đặt mật khẩu mới" : "Đăng nhập"}
+    >
+      <form className="grid gap-5" onSubmit={handleSubmit}>
+        {isFirstLogin ? (
+          <p className="m-0 flex items-center gap-2 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-bg-muted)] px-3.5 py-2.5 text-sm text-[var(--color-text-secondary)]">
+            <Icon name="mail" className="h-4 w-4 shrink-0" />
+            <span className="min-w-0 truncate">{email}</span>
           </p>
-          <h1 className="m-0 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
-            {cognitoUser ? "Đăng nhập lần đầu" : "Chào mừng trở lại"}
-          </h1>
-          <p className="mt-2 text-xs font-normal text-slate-500 dark:text-slate-400">
-            {cognitoUser
-              ? "Để bảo mật tài khoản, vui lòng thiết lập mật khẩu mới cho lần đăng nhập đầu tiên."
-              : "Đăng nhập để quản lý kho hàng đa chi nhánh"}
-          </p>
-        </div>
+        ) : null}
 
-        {cognitoUser && (
-          <div className="rounded-lg border border-slate-200/60 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 px-4.5 py-3 text-xs text-slate-600 dark:text-slate-400">
-            Tài khoản: <strong className="text-slate-900 dark:text-slate-200">{email}</strong>
-          </div>
+        {isFirstLogin ? (
+          <>
+            <label className="field">
+              <span>Mật khẩu mới</span>
+              <PasswordInput
+                autoComplete="new-password"
+                name="newPassword"
+                onChange={(event) => setNewPassword(event.target.value)}
+                placeholder={`Tối thiểu ${MIN_PASSWORD_LENGTH} ký tự`}
+                required
+                value={newPassword}
+              />
+            </label>
+            <label className="field">
+              <span>Nhập lại mật khẩu mới</span>
+              <PasswordInput
+                autoComplete="new-password"
+                name="confirmPassword"
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                required
+                value={confirmPassword}
+              />
+            </label>
+          </>
+        ) : (
+          <>
+            <label className="field">
+              <span>Email</span>
+              <FieldInput
+                autoComplete="email"
+                icon="mail"
+                name="email"
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="ten@duyanhshop.vn"
+                required
+                type="email"
+                value={email}
+              />
+            </label>
+            <label className="field">
+              <span>Mật khẩu</span>
+              <PasswordInput
+                autoComplete="current-password"
+                name="password"
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                value={password}
+              />
+            </label>
+          </>
         )}
 
-        <div className="grid gap-5">
-          {!cognitoUser ? (
-            <>
-              <label className="field">
-                <span>Địa chỉ Email</span>
-                <div className="relative flex items-center">
-                  <span className="absolute left-4 text-slate-400 dark:text-slate-500">
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.8}
-                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                      />
-                    </svg>
-                  </span>
-                  <input
-                    className="input pl-12"
-                    autoComplete="email"
-                    name="email"
-                    onChange={(event) => setEmail(event.target.value)}
-                    required
-                    type="email"
-                    value={email}
-                    placeholder="ten@congty.com"
-                  />
-                </div>
-              </label>
-
-              <label className="field">
-                <span>Mật khẩu</span>
-                <div className="relative flex items-center">
-                  <span className="absolute left-4 text-slate-400 dark:text-slate-500">
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.8}
-                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                      />
-                    </svg>
-                  </span>
-                  <input
-                    className="input pl-12 pr-12"
-                    autoComplete="current-password"
-                    name="password"
-                    onChange={(event) => setPassword(event.target.value)}
-                    required
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    placeholder="••••••••"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 cursor-pointer text-slate-400 transition-colors hover:text-slate-700 dark:hover:text-slate-200 focus:outline-none"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? (
-                      <svg
-                        className="h-5 w-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.8}
-                          d="M13.875 18.825A10.05 10.05 0 0112 19c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.8}
-                          d="M1 1l22 22"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        className="h-5 w-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.8}
-                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.8}
-                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                        />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-              </label>
-            </>
-          ) : (
-            <>
-              <label className="field">
-                <span>Mật khẩu mới</span>
-                <div className="relative flex items-center">
-                  <span className="absolute left-4 text-slate-400 dark:text-slate-500">
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.8}
-                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                      />
-                    </svg>
-                  </span>
-                  <input
-                    className="input pl-12 pr-12"
-                    name="newPassword"
-                    onChange={(event) => setNewPassword(event.target.value)}
-                    required
-                    type={showNewPassword ? "text" : "password"}
-                    value={newPassword}
-                    placeholder="••••••••"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-4 cursor-pointer text-slate-400 transition-colors hover:text-slate-700 dark:hover:text-slate-200 focus:outline-none"
-                    tabIndex={-1}
-                  >
-                    {showNewPassword ? (
-                      <svg
-                        className="h-5 w-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.8}
-                          d="M13.875 18.825A10.05 10.05 0 0112 19c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.8}
-                          d="M1 1l22 22"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        className="h-5 w-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.8}
-                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.8}
-                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                        />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-              </label>
-
-              <label className="field">
-                <span>Xác nhận mật khẩu mới</span>
-                <div className="relative flex items-center">
-                  <span className="absolute left-4 text-slate-400 dark:text-slate-500">
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.8}
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </span>
-                  <input
-                    className="input pl-12"
-                    name="confirmPassword"
-                    onChange={(event) => setConfirmPassword(event.target.value)}
-                    required
-                    type={showNewPassword ? "text" : "password"}
-                    value={confirmPassword}
-                    placeholder="••••••••"
-                  />
-                </div>
-              </label>
-            </>
-          )}
-        </div>
-
-        {hasError ? (
-          <p className="m-0 rounded-lg border border-red-200/70 bg-red-50 dark:bg-red-950/20 px-4 py-3 text-center text-xs font-medium text-red-700 dark:text-red-400 animate-slide-down">
+        {errorMessage ? (
+          <p className="error-text animate-slide-down" role="alert">
             {errorMessage}
           </p>
         ) : null}
 
         <div className="grid gap-3">
           <button className="button-primary w-full" disabled={isPending} type="submit">
-            {isPending
-              ? "Đang xử lý..."
-              : cognitoUser
-                ? "Thiết lập mật khẩu & Đăng nhập"
-                : "Đăng nhập"}
+            {isPending ? "Đang xử lý…" : isFirstLogin ? "Lưu mật khẩu và đăng nhập" : "Đăng nhập"}
           </button>
 
-          {!cognitoUser && (
+          {isFirstLogin ? (
+            <button
+              className="button-secondary w-full"
+              disabled={isPending}
+              onClick={backToLogin}
+              type="button"
+            >
+              Quay lại đăng nhập
+            </button>
+          ) : (
             <Link
-              className="text-center text-xs font-medium text-slate-500 transition-colors hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+              className="mx-auto text-sm font-medium text-[var(--color-text-secondary)] underline decoration-[var(--color-border-subtle)] underline-offset-4 transition-colors hover:text-[var(--color-accent-solid)] hover:decoration-current"
               href="/forgot-password"
             >
               Quên mật khẩu?
             </Link>
           )}
-
-          {cognitoUser && (
-            <button
-              className="button-secondary w-full"
-              type="button"
-              disabled={isPending}
-              onClick={() => {
-                setCognitoUser(null);
-                setNewPassword("");
-                setConfirmPassword("");
-                setCustomError(null);
-              }}
-            >
-              Quay lại đăng nhập
-            </button>
-          )}
         </div>
       </form>
-    </main>
+    </AuthShell>
   );
 }
