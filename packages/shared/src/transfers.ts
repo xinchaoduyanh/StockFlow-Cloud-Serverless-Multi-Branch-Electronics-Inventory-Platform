@@ -24,6 +24,9 @@ export const rejectTransferBodySchema = z.object({
 
 export const transferListQuerySchema = paginationQuerySchema.extend({
   branchId: z.string().uuid().optional(),
+  status: z
+    .enum(["PENDING", "APPROVED", "REJECTED", "COMPLETED", "FAILED", "CANCELLED"])
+    .optional(),
 });
 
 export type CreateTransferBody = z.infer<typeof createTransferBodySchema>;

@@ -1,9 +1,10 @@
 import { z } from "zod";
 
 // 1. Pagination base schema
+export const MAX_PAGE_SIZE = 100;
 export const paginationQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().default(10),
+  limit: z.coerce.number().int().positive().max(MAX_PAGE_SIZE).default(10),
 });
 
 // 2. Reconciliation List Query Schema & Type

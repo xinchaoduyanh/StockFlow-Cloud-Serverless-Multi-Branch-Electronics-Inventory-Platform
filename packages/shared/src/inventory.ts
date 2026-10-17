@@ -2,6 +2,10 @@ import { z } from "zod";
 import { ComponentCategory } from "./index";
 import { paginationQuerySchema } from "./reconciliation";
 
+export const inventorySummaryQuerySchema = z.object({
+  branchId: z.string().uuid().optional(),
+});
+
 export const inventoryQuerySchema = paginationQuerySchema.extend({
   branchId: z.string().uuid().optional(),
   category: z.nativeEnum(ComponentCategory).optional(),
@@ -42,6 +46,13 @@ export interface Component {
   createdAt: string | Date;
   updatedAt: string | Date;
 }
+
+/** Totals across every matching row, not just the rows on the current page. */
+export type InventorySummary = {
+  totalUnits: number;
+  reservedUnits: number;
+  lowStockCount: number;
+};
 
 export interface InventoryItem {
   branchId: string;
