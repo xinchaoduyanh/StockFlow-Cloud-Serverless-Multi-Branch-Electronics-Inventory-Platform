@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/api-client";
 import { NotificationBase, NotificationType } from "@stockflow/shared";
 import { useCurrentUser } from "@/features/auth/use-auth";
 import { usePusherNotification } from "@/hooks/usePusher";
+import { Icon } from "@/components/Icon";
 
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
@@ -75,182 +76,122 @@ export function NotificationBell() {
     if (minutes < 60) return `${minutes} phút trước`;
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return `${hours} giờ trước`;
-    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    return date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
   };
 
-  // Limit dropdown items to the 5 most recent alerts to keep the navbar light
+  // Keep the dropdown short; the full history lives on its own page.
   const displayItems = notifications.slice(0, 5);
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Icon Trigger Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="relative flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200/70 bg-white text-slate-500 transition-all duration-200 hover:scale-[1.05] hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-100 active:scale-[0.95] focus:outline-none focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-800"
-        type="button"
-        aria-label="Toggle notifications"
         aria-expanded={isOpen}
         aria-haspopup="dialog"
+        aria-label={unreadCount > 0 ? `Thông báo, ${unreadCount} chưa đọc` : "Thông báo"}
+        className="toolbar-button"
+        onClick={() => setIsOpen(!isOpen)}
+        type="button"
       >
-        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.8}
-            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-          />
-        </svg>
-
-        {/* Live Unread Pill Indicator */}
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-md bg-rose-700 px-1.5 text-[9px] font-medium text-white ring-2 ring-white dark:ring-slate-950 animate-pulse">
+        <Icon className="h-[18px] w-[18px]" name="bell" />
+        {unreadCount > 0 ? (
+          <span className="absolute -right-1.5 -top-1.5 grid h-[18px] min-w-[18px] place-items-center rounded-sm bg-rose-700 px-1 font-mono text-[11px] font-semibold text-white ring-2 ring-[var(--color-bg-base)]">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
-        )}
+        ) : null}
       </button>
 
-      {/* Glassmorphic Dropdown Popover */}
-      {isOpen && (
-        <div
-          className="dropdown-popover animate-slide-down"
-          role="region"
-          aria-label="Notifications"
-        >
-          <div className="relative flex items-center justify-between border-b border-slate-200/60 dark:border-slate-805 bg-slate-50 dark:bg-slate-900/50 px-4.5 pb-3 pt-4">
+      {isOpen ? (
+        <div aria-label="Thông báo" className="dropdown-popover animate-slide-down" role="region">
+          <div className="flex items-center justify-between gap-3 border-b border-[var(--color-table-border)] px-4 py-3.5">
             <div>
-              <h3 className="m-0 text-xs font-medium uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                Thông báo
-              </h3>
-              <p className="m-0 text-[10px] font-normal text-slate-500 dark:text-slate-400">
-                Bạn có {unreadCount} thông báo chưa đọc
+              <h3 className="m-0 text-sm font-semibold">Thông báo</h3>
+              <p className="m-0 text-xs text-[var(--color-text-muted)]">
+                {unreadCount > 0 ? `${unreadCount} thông báo chưa đọc` : "Bạn đã đọc hết"}
               </p>
             </div>
-            {unreadCount > 0 && (
+            {unreadCount > 0 ? (
               <button
-                onClick={() => markAllReadMutation.mutate()}
+                className="button-small-secondary"
                 disabled={markAllReadMutation.isPending}
-                className="cursor-pointer border-0 bg-transparent text-[11px] font-medium text-slate-600 dark:text-slate-400 transition-colors hover:text-slate-950 dark:hover:text-slate-200 hover:underline"
+                onClick={() => markAllReadMutation.mutate()}
                 type="button"
               >
-                Đánh dấu tất cả đã đọc
+                Đọc tất cả
               </button>
-            )}
+            ) : null}
           </div>
 
-          <div className="relative p-3">
+          <div className="p-2">
             <div className="dropdown-scroll">
               {displayItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-50 dark:bg-slate-900/50 text-slate-400 dark:text-slate-500 border border-slate-100/50 dark:border-slate-800/50">
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.8}
-                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0V9a2 2 0 00-2-2H6a2 2 0 00-2 2v4.5m12 3h.01M12 17h.01M8 17h.01"
-                      />
-                    </svg>
-                  </div>
-                  <p className="mt-3 text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Chưa có thông báo nào
-                  </p>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-                    Các cảnh báo hệ thống sẽ hiển thị tại đây
+                <div className="grid justify-items-center gap-2 py-10 text-center">
+                  <span className="grid h-10 w-10 place-items-center rounded-md bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]">
+                    <Icon className="h-5 w-5" name="inbox" />
+                  </span>
+                  <p className="m-0 text-sm font-medium">Chưa có thông báo nào</p>
+                  <p className="m-0 text-xs text-[var(--color-text-muted)]">
+                    Kết quả nhập kho và cảnh báo đối soát sẽ hiện ở đây.
                   </p>
                 </div>
               ) : (
                 displayItems.map((item) => {
                   const isSuccess = item.type === NotificationType.IMPORT_SUCCESS;
                   return (
-                    <div
+                    <button
+                      className={`flex w-full cursor-pointer items-start gap-3 rounded-md p-3 text-left transition-colors duration-150 hover:bg-[var(--color-bg-muted)] ${
+                        item.read ? "" : "bg-[var(--color-bg-muted)]/60"
+                      }`}
                       key={item.id}
                       onClick={() => handleNotificationClick(item)}
-                      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors duration-200 hover:bg-slate-50 dark:hover:bg-slate-850 ${
-                        !item.read
-                          ? "border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50"
-                          : "border-slate-100 dark:border-slate-800/50 bg-white dark:bg-slate-900/10"
-                      }`}
+                      type="button"
                     >
-                      {/* Status Badge - ultra-soft style */}
-                      <div
+                      <span
                         className={`grid h-8 w-8 shrink-0 place-items-center rounded-md ${
                           isSuccess
-                            ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
-                            : "bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400"
+                            ? "bg-emerald-700/10 text-emerald-800 dark:text-emerald-300"
+                            : "bg-rose-700/10 text-rose-800 dark:text-rose-300"
                         }`}
                       >
-                        {isSuccess ? (
-                          <svg
-                            className="h-4.5 w-4.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2.2}
-                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                          </svg>
-                        ) : (
-                          <svg
-                            className="h-4.5 w-4.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2.2}
-                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                            />
-                          </svg>
-                        )}
-                      </div>
-
-                      {/* Alert Message Text */}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="truncate text-xs font-medium text-slate-800 dark:text-slate-200">
-                            {item.title}
-                          </span>
-                          <span className="shrink-0 font-sans text-[9px] font-normal text-slate-400 dark:text-slate-500">
+                        <Icon className="h-4 w-4" name={isSuccess ? "checkCircle" : "alert"} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="truncate text-sm font-medium">{item.title}</span>
+                          <span className="shrink-0 text-xs text-[var(--color-text-muted)]">
                             {formatTime(item.createdAt)}
                           </span>
-                        </div>
-                        <p className="m-0 mt-0.5 line-clamp-2 text-[11px] font-normal leading-relaxed text-slate-500 dark:text-slate-400">
+                        </span>
+                        <span className="mt-0.5 line-clamp-2 block text-xs leading-relaxed text-[var(--color-text-secondary)]">
                           {item.message}
-                        </p>
-                      </div>
-
-                      {/* Unread indicator dot */}
-                      {!item.read && (
-                        <span className="h-2 w-2 shrink-0 self-center rounded-full bg-slate-900 dark:bg-slate-200" />
+                        </span>
+                      </span>
+                      {item.read ? null : (
+                        <span
+                          aria-label="Chưa đọc"
+                          className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[var(--color-accent-solid)]"
+                        />
                       )}
-                    </div>
+                    </button>
                   );
                 })
               )}
             </div>
           </div>
 
-          {/* Footer View All Shortcut */}
-          <div className="relative border-t border-slate-200/60 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 px-3 py-3 text-center">
+          <div className="border-t border-[var(--color-table-border)] p-2">
             <button
+              className="w-full cursor-pointer rounded-md py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors duration-150 hover:bg-[var(--color-bg-muted)] hover:text-[var(--color-text-primary)]"
               onClick={() => {
                 setIsOpen(false);
                 router.push("/dashboard/notifications");
               }}
-              className="w-full rounded-lg border-0 bg-transparent py-2.5 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors duration-200 hover:bg-white dark:hover:bg-slate-800 hover:text-slate-950 dark:hover:text-slate-100"
               type="button"
             >
-              Xem toàn bộ lịch sử thông báo
+              Xem toàn bộ lịch sử
             </button>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
