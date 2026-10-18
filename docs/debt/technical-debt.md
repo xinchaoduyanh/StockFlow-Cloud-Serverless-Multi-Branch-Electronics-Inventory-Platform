@@ -17,7 +17,6 @@
 | TD-12 | Thiếu index cho truy vấn tra cứu chéo chi nhánh        | P2  | 0.5           |
 | TD-13 | Không có ADR nào dù kế hoạch yêu cầu                   | P1  | 1             |
 | TD-14 | Module `dlq/` vẫn tồn tại song song với `recovery/`    | P2  | 0.5           |
-| TD-21 | Danh sách phụ chưa phân trang phía server              | P2  | 1–2           |
 
 ## Đã đóng trong đợt rà soát này
 
@@ -34,6 +33,7 @@
 | TD-18 | `forRoutes("*")` gây WARN mỗi cold start | `933b285` đổi sang `{*path}`. Chưa xác nhận hết WARN trên AWS, cần deploy |
 | TD-20 | `dashboard/page.tsx` dài 2.8k dòng; thang `indigo-*` bị remap sang cam | `231b48c` tách mỗi tab thành panel riêng (page còn 142 dòng); `07b696b` thay bằng token accent |
 | TD-19 | Web phân trang trong bộ nhớ trên dữ liệu API đã cắt ở 10 dòng | `916f1dc` thêm Paginated và giới hạn limit; `17d81d4` API trả { items, total } và thêm `/inventory/summary`; `a826b9b` web phân trang phía server. Chưa chạy `test:postgres` (Docker không khởi động được) |
+| TD-21 | Danh sách phụ chưa phân trang phía server | `ad7884c` API phân trang khôi phục sự cố, xem trước nhập kho và nhân viên; `e153d61` web dùng trang từ API và đổi ô chọn linh kiện thành ô tìm kiếm. `/branches` cố ý giữ trả toàn bộ vì các ô chọn chi nhánh cần đủ danh sách. Chưa chạy `test:postgres` |
 
 Không xoá các mục này khỏi lịch sử: chúng là bằng chứng cho thấy sổ nợ có tác dụng.
 
@@ -227,18 +227,3 @@ Runtime **đúng**; chỉ có annotation `SQSHandler` là sai, và `event: any` 
 **Đã sửa:** thay `SQSHandler` bằng kiểu union tường minh cho cả hai nguồn sự kiện, giữ nguyên hành vi runtime, kèm comment giải thích hai nguồn. Thêm `typecheck:lambdas` vào `npm run typecheck` và vào CI để lỗi tương tự không lọt nữa.
 
 **Bài học ghi lại:** đây chính là lý do TD-02 quan trọng. Một thư mục vừa không có test vừa không có typecheck thì `npm run lint` xanh không nói lên điều gì về nó.
-
----
-
-## TD-21 — Danh sách phụ chưa phân trang phía server
-
-Còn lại sau khi đóng TD-19 (web nay phân trang phía server cho năm bảng chính):
-
-- **Khôi phục sự cố** — `RecoveryTab.tsx` gọi `/admin/recovery/reports` và `/admin/recovery/imports` không truyền `page`/`limit`, API (`recovery.service.ts`, `toPagination`) mặc định cắt ở 10 dòng, và bảng không có phân trang. Nếu có hơn 10 tác vụ lỗi thì phần còn lại **không hiển thị** trên giao diện.
-- **Xem trước nhập kho** — `/imports/:id/preview` trả toàn bộ dòng của tệp (`imports.service.ts`, `importJobRow.findMany` không có `take`), web cắt trang trong bộ nhớ. Tệp hàng chục nghìn dòng sẽ kéo cả về trình duyệt.
-- **Nhân viên và chi nhánh** — API trả toàn bộ, web cắt trang trong bộ nhớ. Chấp nhận được khi số lượng nhỏ.
-- **Chọn linh kiện trong form chuyển kho** — chỉ nạp tối đa 100 SKU của chi nhánh gửi (trần `limit` của API). Chi nhánh có hơn 100 SKU sẽ thiếu lựa chọn.
-
-**Hậu quả:** chỉ lộ khi dữ liệu thật lớn hơn dữ liệu demo. Mục đầu tiên là mục đáng sửa trước vì nó âm thầm ẩn dữ liệu.
-
-**Cách sửa:** cho các endpoint recovery trả `Paginated` giống các endpoint đã sửa; thêm `page`/`limit` cho `preview`; thay ô chọn linh kiện bằng ô tìm kiếm gọi API theo từ khoá.

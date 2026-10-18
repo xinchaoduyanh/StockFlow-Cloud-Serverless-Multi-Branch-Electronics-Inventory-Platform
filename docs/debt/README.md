@@ -44,7 +44,7 @@ Tất cả đều chạy thật, không lấy từ tài liệu có sẵn:
 
 | Loại        | P0  | P1  | P2  | Tổng | Đã đóng đợt này |
 | ----------- | --- | --- | --- | ---- | --------------- |
-| Nợ kỹ thuật | 1   | 5   | 4   | 10   | 10              |
+| Nợ kỹ thuật | 1   | 5   | 3   | 9    | 11              |
 | Nợ vận hành | 4   | 11  | 3   | 18   | 1               |
 
 ## Ba mục đáng làm trước
