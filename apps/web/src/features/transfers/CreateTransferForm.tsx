@@ -4,7 +4,8 @@ import type { Branch } from "@stockflow/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useState } from "react";
 import { Notice } from "@/components/Notice";
-import { useInventory } from "@/features/inventory/use-inventory";
+import type { InventoryItem } from "@/features/inventory/types";
+import { StockPicker } from "@/features/inventory/StockPicker";
 import { apiRequest } from "@/lib/api-client";
 import { errorMessage } from "@/lib/errors";
 import type { Transfer } from "./types";
@@ -17,9 +18,6 @@ const EMPTY_FORM = {
   note: "",
 };
 
-// The API caps a page at 100 rows, which is also the most SKUs this picker can offer per branch.
-const MAX_COMPONENT_OPTIONS = 100;
-
 type CreateTransferFormProps = {
   branches: Branch[];
 };
@@ -28,12 +26,7 @@ export function CreateTransferForm({ branches }: CreateTransferFormProps) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY_FORM);
 
-  const sourceStock = useInventory({
-    branchId: form.fromBranchId,
-    limit: MAX_COMPONENT_OPTIONS,
-    enabled: Boolean(form.fromBranchId),
-  });
-  const selectableComponents = form.fromBranchId ? (sourceStock.data?.items ?? []) : [];
+  const [selectedStock, setSelectedStock] = useState<InventoryItem | null>(null);
 
   const createTransfer = useMutation({
     mutationFn: () =>
@@ -48,6 +41,7 @@ export function CreateTransferForm({ branches }: CreateTransferFormProps) {
       }),
     onSuccess: () => {
       setForm((current) => ({ ...current, componentId: "", quantity: "1", note: "" }));
+      setSelectedStock(null);
       void queryClient.invalidateQueries({ queryKey: ["transfers"] });
       void queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
@@ -55,6 +49,17 @@ export function CreateTransferForm({ branches }: CreateTransferFormProps) {
 
   function updateField(field: keyof typeof EMPTY_FORM, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  // Stock belongs to the sending branch, so a different branch invalidates the chosen part.
+  function changeFromBranch(branchId: string) {
+    setForm((current) => ({ ...current, fromBranchId: branchId, componentId: "" }));
+    setSelectedStock(null);
+  }
+
+  function selectStock(item: InventoryItem | null) {
+    setSelectedStock(item);
+    updateField("componentId", item?.componentId ?? "");
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -73,7 +78,7 @@ export function CreateTransferForm({ branches }: CreateTransferFormProps) {
         <span>Chi nhánh gửi</span>
         <select
           className="input"
-          onChange={(event) => updateField("fromBranchId", event.target.value)}
+          onChange={(event) => changeFromBranch(event.target.value)}
           required
           value={form.fromBranchId}
         >
@@ -105,23 +110,10 @@ export function CreateTransferForm({ branches }: CreateTransferFormProps) {
         </select>
       </label>
 
-      <label className="field">
+      <div className="field">
         <span>Linh kiện</span>
-        <select
-          className="input"
-          onChange={(event) => updateField("componentId", event.target.value)}
-          required
-          value={form.componentId}
-        >
-          <option value="">Chọn sản phẩm trong kho</option>
-          {selectableComponents.map((item) => (
-            <option key={`${item.branchId}-${item.componentId}`} value={item.componentId}>
-              {item.component.sku} · {item.component.name} ({item.quantity - item.reservedQuantity}{" "}
-              khả dụng)
-            </option>
-          ))}
-        </select>
-      </label>
+        <StockPicker branchId={form.fromBranchId} onChange={selectStock} value={selectedStock} />
+      </div>
 
       <label className="field">
         <span>Số lượng</span>
@@ -148,7 +140,11 @@ export function CreateTransferForm({ branches }: CreateTransferFormProps) {
         <Notice tone="error">{errorMessage(createTransfer.error)}</Notice>
       ) : null}
 
-      <button className="button-primary" disabled={createTransfer.isPending} type="submit">
+      <button
+        className="button-primary"
+        disabled={createTransfer.isPending || !form.componentId}
+        type="submit"
+      >
         {createTransfer.isPending ? "Đang tạo…" : "Tạo yêu cầu"}
       </button>
     </form>

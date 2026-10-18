@@ -1,10 +1,13 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Paginated } from "@stockflow/shared";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ReactNode, useState } from "react";
 import { apiRequest } from "@/lib/api-client";
 import { ReasonDialog } from "@/components/ReasonDialog";
+import { Pagination } from "@/components/table/Pagination";
 import { TableState } from "@/components/table/TablePieces";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 
 const MAX_IMPORT_REPLAYS = 3;
 
@@ -51,13 +54,24 @@ export function RecoveryTab() {
   const queryClient = useQueryClient();
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
+  const [reportsPage, setReportsPage] = useState(1);
+  const [importsPage, setImportsPage] = useState(1);
+
   const reports = useQuery({
-    queryKey: ["recovery-reports"],
-    queryFn: () => apiRequest<ReportRecovery[]>("/admin/recovery/reports"),
+    queryKey: ["recovery-reports", reportsPage],
+    queryFn: () =>
+      apiRequest<Paginated<ReportRecovery>>(
+        `/admin/recovery/reports?page=${reportsPage}&limit=${TABLE_PAGE_SIZE}`,
+      ),
+    placeholderData: keepPreviousData,
   });
   const imports = useQuery({
-    queryKey: ["recovery-imports"],
-    queryFn: () => apiRequest<ImportRecovery[]>("/admin/recovery/imports"),
+    queryKey: ["recovery-imports", importsPage],
+    queryFn: () =>
+      apiRequest<Paginated<ImportRecovery>>(
+        `/admin/recovery/imports?page=${importsPage}&limit=${TABLE_PAGE_SIZE}`,
+      ),
+    placeholderData: keepPreviousData,
   });
   const metrics = useQuery({
     queryKey: ["recovery-report-metrics"],
@@ -113,8 +127,11 @@ export function RecoveryTab() {
 
       <RecoveryTable
         empty="Không có báo cáo nào bị lỗi."
-        items={reports.data ?? []}
+        currentPage={reportsPage}
+        items={reports.data?.items ?? []}
         loading={reports.isLoading}
+        onPageChange={setReportsPage}
+        total={reports.data?.total ?? 0}
         title="Báo cáo lỗi"
       >
         {(item) => (
@@ -168,8 +185,11 @@ export function RecoveryTab() {
 
       <RecoveryTable
         empty="Không có lượt nhập kho nào bị lỗi."
-        items={imports.data ?? []}
+        currentPage={importsPage}
+        items={imports.data?.items ?? []}
         loading={imports.isLoading}
+        onPageChange={setImportsPage}
+        total={imports.data?.total ?? 0}
         title="Nhập kho lỗi"
       >
         {(item) => (
@@ -264,12 +284,18 @@ function RecoveryTable<T extends { id: string }>({
   title,
   empty,
   items,
+  total,
+  currentPage,
+  onPageChange,
   loading,
   children,
 }: {
   title: string;
   empty: string;
   items: T[];
+  total: number;
+  currentPage: number;
+  onPageChange: (page: number) => void;
   loading: boolean;
   children: (item: T) => ReactNode;
 }) {
@@ -277,7 +303,7 @@ function RecoveryTable<T extends { id: string }>({
     <div className="surface overflow-hidden">
       <div className="flex items-center justify-between border-b border-[var(--color-table-border)] px-5 py-4">
         <h3 className="m-0 font-display text-base font-semibold tracking-tight">{title}</h3>
-        <span className="font-mono text-xs text-[var(--color-text-muted)]">{items.length} mục</span>
+        <span className="font-mono text-xs text-[var(--color-text-muted)]">{total} mục</span>
       </div>
       <div className="overflow-x-auto">
         <table className="data-table">
@@ -297,6 +323,13 @@ function RecoveryTable<T extends { id: string }>({
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={currentPage}
+        onPageChange={onPageChange}
+        pageSize={TABLE_PAGE_SIZE}
+        totalItems={total}
+        totalPages={Math.ceil(total / TABLE_PAGE_SIZE)}
+      />
     </div>
   );
 }

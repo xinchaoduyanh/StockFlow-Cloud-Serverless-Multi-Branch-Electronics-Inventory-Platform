@@ -1,9 +1,16 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FormEvent, useState } from "react";
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { FormEvent, useEffect, useState } from "react";
 import { UserRole } from "@stockflow/shared";
-import type { UserDTO, Branch, AdminCreateUserBody, AdminUpdateUserBody } from "@stockflow/shared";
+import type {
+  UserDTO,
+  Branch,
+  AdminCreateUserBody,
+  AdminUpdateUserBody,
+  Paginated,
+} from "@stockflow/shared";
 import { apiRequest } from "@/lib/api-client";
 import { errorMessage } from "@/lib/errors";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Notice } from "@/components/Notice";
 import { Pagination } from "@/components/table/Pagination";
@@ -11,8 +18,6 @@ import { RowActions } from "@/components/table/RowActions";
 import { StatusBadge } from "@/components/table/StatusBadge";
 import { TableHeader, TableState } from "@/components/table/TablePieces";
 import { isBranchBoundRole, toUserRole, USER_ROLE_LABELS } from "@/features/auth/role-labels";
-
-const PAGE_SIZE = 8;
 
 export function UsersAdmin() {
   const queryClient = useQueryClient();
@@ -29,8 +34,10 @@ export function UsersAdmin() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const usersQuery = useQuery({
-    queryKey: ["users"],
-    queryFn: () => apiRequest<UserDTO[]>("/users"),
+    queryKey: ["users", currentPage],
+    queryFn: () =>
+      apiRequest<Paginated<UserDTO>>(`/users?page=${currentPage}&limit=${TABLE_PAGE_SIZE}`),
+    placeholderData: keepPreviousData,
   });
 
   const branchesQuery = useQuery({
@@ -38,8 +45,15 @@ export function UsersAdmin() {
     queryFn: () => apiRequest<Branch[]>("/branches"),
   });
 
-  const users = usersQuery.data ?? [];
+  const users = usersQuery.data?.items ?? [];
+  const totalUsers = usersQuery.data?.total ?? 0;
+  const totalPages = Math.ceil(totalUsers / TABLE_PAGE_SIZE);
   const branches = branchesQuery.data ?? [];
+
+  // Deleting the last row of the last page would otherwise leave an empty page on screen.
+  useEffect(() => {
+    if (currentPage > 1 && totalPages > 0 && currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   const createUserMutation = useMutation({
     mutationFn: (body: AdminCreateUserBody) =>
@@ -130,9 +144,6 @@ export function UsersAdmin() {
     deleteUserMutation.mutate(userPendingDelete.id);
     setUserPendingDelete(null);
   }
-
-  const totalPages = Math.ceil(users.length / PAGE_SIZE);
-  const paginatedUsers = users.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   function getBranchCode(id: string | null) {
     return branches.find((branch) => branch.id === id)?.code ?? "Chưa gán";
@@ -244,7 +255,7 @@ export function UsersAdmin() {
       </form>
 
       <section className="surface min-w-0 overflow-hidden">
-        <TableHeader title="Danh sách nhân viên" count={users.length} />
+        <TableHeader title="Danh sách nhân viên" count={totalUsers} />
 
         <div className="overflow-x-auto">
           <table className="data-table">
@@ -262,14 +273,14 @@ export function UsersAdmin() {
               {usersQuery.isLoading ? (
                 <TableState colSpan={6} text="Đang tải danh sách nhân viên…" />
               ) : null}
-              {!usersQuery.isLoading && users.length === 0 ? (
+              {!usersQuery.isLoading && totalUsers === 0 ? (
                 <TableState
                   colSpan={6}
                   text="Chưa có nhân viên nào. Mời người đầu tiên ở khung bên trái."
                 />
               ) : null}
               {!usersQuery.isLoading &&
-                paginatedUsers.map((userItem) => (
+                users.map((userItem) => (
                   <tr key={userItem.id}>
                     <td className="font-medium text-slate-900">
                       {userItem.fullName ?? "Chưa đặt tên"}
@@ -313,8 +324,8 @@ export function UsersAdmin() {
         <Pagination
           currentPage={currentPage}
           onPageChange={setCurrentPage}
-          pageSize={PAGE_SIZE}
-          totalItems={users.length}
+          pageSize={TABLE_PAGE_SIZE}
+          totalItems={totalUsers}
           totalPages={totalPages}
         />
       </section>

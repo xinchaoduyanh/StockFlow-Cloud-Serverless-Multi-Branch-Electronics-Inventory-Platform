@@ -55,8 +55,12 @@ export function ImportsPanel({ branches, selectedBranchId, defaultBranchId }: Im
   });
 
   const previewQuery = useQuery({
-    queryKey: ["imports", selectedImportId, "preview"],
-    queryFn: () => apiRequest<ImportPreviewRow[]>(`/imports/${selectedImportId}/preview`),
+    queryKey: ["imports", selectedImportId, "preview", previewPage],
+    queryFn: () =>
+      apiRequest<Paginated<ImportPreviewRow>>(
+        `/imports/${selectedImportId}/preview?page=${previewPage}&limit=${TABLE_PAGE_SIZE}`,
+      ),
+    placeholderData: keepPreviousData,
     enabled: Boolean(selectedImportId),
   });
 
@@ -146,7 +150,13 @@ export function ImportsPanel({ branches, selectedBranchId, defaultBranchId }: Im
             isLoading={previewQuery.isLoading}
             onConfirm={() => confirmImport.mutate(selectedImportId)}
             onPageChange={setPreviewPage}
-            rows={previewQuery.data ?? []}
+            rows={previewQuery.data?.items ?? []}
+            summary={{
+              totalRows: selectedJob?.totalRows ?? 0,
+              validRows: selectedJob?.validRows ?? 0,
+              invalidRows: selectedJob?.invalidRows ?? 0,
+            }}
+            total={previewQuery.data?.total ?? 0}
           />
         </ImportPreviewModal>
       ) : null}

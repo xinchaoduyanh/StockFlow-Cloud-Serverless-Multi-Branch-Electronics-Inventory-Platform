@@ -1,10 +1,10 @@
-import { ImportRowStatus } from "@stockflow/shared";
 import type { ReactNode } from "react";
 import { Icon } from "@/components/Icon";
 import { Modal } from "@/components/Modal";
 import { Pagination } from "@/components/table/Pagination";
 import { StatusBadge } from "@/components/table/StatusBadge";
 import { TableState } from "@/components/table/TablePieces";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 import type { ImportJob, ImportPreviewRow } from "./types";
 
 export function ImportPreviewModal({
@@ -30,6 +30,8 @@ export function ImportPreviewModal({
 
 export function ImportPreview({
   rows,
+  total,
+  summary,
   isLoading,
   canConfirm,
   isConfirming,
@@ -37,7 +39,11 @@ export function ImportPreview({
   currentPage,
   onPageChange,
 }: {
+  /** Rows of the current page only. */
   rows: ImportPreviewRow[];
+  total: number;
+  /** Row counts of the whole job, not just the page on screen. */
+  summary: { totalRows: number; validRows: number; invalidRows: number };
   isLoading: boolean;
   canConfirm: boolean;
   isConfirming: boolean;
@@ -45,11 +51,7 @@ export function ImportPreview({
   currentPage: number;
   onPageChange: (page: number) => void;
 }) {
-  const pageSize = 6;
-  const totalPages = Math.ceil(rows.length / pageSize);
-  const paginatedRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const validCount = rows.filter((row) => row.validationStatus === ImportRowStatus.VALID).length;
-  const invalidCount = rows.length - validCount;
+  const totalPages = Math.ceil(total / TABLE_PAGE_SIZE);
 
   return (
     <section className="overflow-hidden rounded-lg border border-slate-200/60 bg-[var(--color-bg-surface)]">
@@ -65,11 +67,11 @@ export function ImportPreview({
           </p>
         </div>
 
-        {rows.length > 0 ? (
+        {total > 0 ? (
           canConfirm ? (
             <button
               className="button-primary px-5 py-2.5"
-              disabled={validCount === 0 || isConfirming}
+              disabled={summary.validRows === 0 || isConfirming}
               onClick={onConfirm}
               type="button"
             >
@@ -84,13 +86,13 @@ export function ImportPreview({
         ) : null}
       </div>
 
-      {rows.length > 0 ? (
+      {total > 0 ? (
         /* Spacious Stats Cards Section */
         <div className="grid grid-cols-1 gap-3 border-b border-slate-200/60 bg-slate-50 p-4 sm:grid-cols-3">
           <div className="flex items-center justify-between rounded-lg border border-slate-200/60 bg-[var(--color-bg-surface)] p-4">
             <div>
               <span className="text-xs font-medium r text-slate-500">Tổng số dòng đã nạp</span>
-              <p className="mt-1 text-2xl font-semibold text-slate-950">{rows.length}</p>
+              <p className="mt-1 text-2xl font-semibold text-slate-950">{summary.totalRows}</p>
             </div>
             <div className="rounded-md bg-slate-100 p-2 text-slate-600">
               <Icon name="list" className="h-5 w-5" />
@@ -100,7 +102,7 @@ export function ImportPreview({
           <div className="flex items-center justify-between rounded-lg border border-emerald-100/70 bg-[var(--color-bg-surface)] p-4">
             <div>
               <span className="text-xs font-medium r text-emerald-700">Dòng hợp lệ</span>
-              <p className="mt-1 text-2xl font-semibold text-emerald-800">{validCount}</p>
+              <p className="mt-1 text-2xl font-semibold text-emerald-800">{summary.validRows}</p>
             </div>
             <div className="rounded-md bg-emerald-50 p-2 text-emerald-700">
               <Icon name="checkCircle" className="h-5 w-5" />
@@ -110,7 +112,7 @@ export function ImportPreview({
           <div className="flex items-center justify-between rounded-lg border border-rose-100/70 bg-[var(--color-bg-surface)] p-4">
             <div>
               <span className="text-xs font-medium r text-rose-700">Dòng lỗi / Không hợp lệ</span>
-              <p className="mt-1 text-2xl font-semibold text-rose-800">{invalidCount}</p>
+              <p className="mt-1 text-2xl font-semibold text-rose-800">{summary.invalidRows}</p>
             </div>
             <div className="rounded-md bg-rose-50 p-2 text-rose-700">
               <Icon name="alert" className="h-5 w-5" />
@@ -132,14 +134,14 @@ export function ImportPreview({
           </thead>
           <tbody>
             {isLoading ? <TableState colSpan={5} text="Đang tải bản xem trước…" /> : null}
-            {!isLoading && rows.length === 0 ? (
+            {!isLoading && total === 0 ? (
               <TableState
                 colSpan={5}
                 text="Chọn một phiên nhập kho để hiển thị nhật ký kiểm tra."
               />
             ) : null}
             {!isLoading &&
-              paginatedRows.map((row) => (
+              rows.map((row) => (
                 <tr key={row.id} className="transition-colors duration-150 hover:bg-slate-50/70">
                   <td className="font-normal text-slate-500">{row.rowNumber}</td>
                   <td className="font-medium text-slate-800">{row.sku ?? "-"}</td>
@@ -171,8 +173,8 @@ export function ImportPreview({
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={onPageChange}
-        totalItems={rows.length}
-        pageSize={pageSize}
+        totalItems={total}
+        pageSize={TABLE_PAGE_SIZE}
       />
     </section>
   );
