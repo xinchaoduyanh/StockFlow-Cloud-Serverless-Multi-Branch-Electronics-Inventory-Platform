@@ -7,7 +7,15 @@ import {
   AdminEnableUserCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import { UserRole, UserStatus } from "@prisma/client";
-import { AdminCreateUserBody, AdminUpdateUserBody, UserDTO } from "@stockflow/shared";
+import {
+  AdminCreateUserBody,
+  AdminUpdateUserBody,
+  Paginated,
+  toPaginated,
+  UserDTO,
+  UsersListQuery,
+} from "@stockflow/shared";
+import { toPagination } from "../common/schemas/pagination.schema";
 import { PrismaService } from "../database/prisma.service";
 import { EnvService } from "../config/env.service";
 
@@ -35,17 +43,23 @@ export class UsersService {
     this.cognitoClient = new CognitoIdentityProviderClient(config);
   }
 
-  async list(): Promise<UserDTO[]> {
-    const users = await this.prisma.user.findMany({
-      include: {
-        branch: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+  async list(query: UsersListQuery): Promise<Paginated<UserDTO>> {
+    const { skip, take } = toPagination(query);
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        skip,
+        take,
+        include: {
+          branch: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      this.prisma.user.count(),
+    ]);
 
-    return users.map((u) => ({
+    const items = users.map((u) => ({
       id: u.id,
       email: u.email,
       fullName: u.fullName,
@@ -55,6 +69,8 @@ export class UsersService {
       createdAt: u.createdAt,
       updatedAt: u.updatedAt,
     }));
+
+    return toPaginated(items, total, query);
   }
 
   async create(body: AdminCreateUserBody): Promise<UserDTO> {

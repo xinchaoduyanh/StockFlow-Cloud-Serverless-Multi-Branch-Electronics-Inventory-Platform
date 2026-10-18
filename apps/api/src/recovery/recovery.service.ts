@@ -6,6 +6,8 @@ import {
   ReportRecoveryDTO,
   ReportRecoveryListQuery,
   RecoveryActionBody,
+  Paginated,
+  toPaginated,
   sanitizeAuditSummary,
 } from "@stockflow/shared";
 import {
@@ -51,20 +53,24 @@ export class RecoveryService {
   async listReports(
     query: ReportRecoveryListQuery,
     actor?: PolicyActor,
-  ): Promise<ReportRecoveryDTO[]> {
+  ): Promise<Paginated<ReportRecoveryDTO>> {
     this.requireAdmin(actor);
     const { skip, take } = toPagination(query);
-    const jobs = await this.prisma.exportJob.findMany({
-      skip,
-      take,
-      where: {
-        status: query.status
-          ? (query.status as ExportJobStatus)
-          : { in: [ExportJobStatus.FAILED, ExportJobStatus.DISCARDED] },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-    return jobs.map((job) => ({
+    const where = {
+      status: query.status
+        ? (query.status as ExportJobStatus)
+        : { in: [ExportJobStatus.FAILED, ExportJobStatus.DISCARDED] },
+    };
+    const [jobs, total] = await Promise.all([
+      this.prisma.exportJob.findMany({
+        skip,
+        take,
+        where,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.exportJob.count({ where }),
+    ]);
+    const items = jobs.map((job) => ({
       id: job.id,
       reportType: String(job.reportType),
       status: String(job.status),
@@ -76,6 +82,8 @@ export class RecoveryService {
       createdAt: job.createdAt,
       updatedAt: job.updatedAt,
     }));
+
+    return toPaginated(items, total, query);
   }
 
   async reportQueueMetrics(actor?: PolicyActor) {
@@ -252,19 +260,27 @@ export class RecoveryService {
   async listImportRecovery(
     query: ImportRecoveryListQuery,
     actor?: PolicyActor,
-  ): Promise<ImportRecoveryItemDTO[]> {
+  ): Promise<Paginated<ImportRecoveryItemDTO>> {
     this.requireAdmin(actor);
     const { skip, take } = toPagination(query);
-    const items = await this.prisma.importRecoveryItem.findMany({
-      skip,
-      take,
-      where: {
-        status: query.status ? (query.status as RecoveryItemStatus) : undefined,
-        importJobId: query.importJobId,
-      },
-      orderBy: { createdAt: "desc" },
-    });
-    return items.map((item) => item as unknown as ImportRecoveryItemDTO);
+    const where = {
+      status: query.status ? (query.status as RecoveryItemStatus) : undefined,
+      importJobId: query.importJobId,
+    };
+    const [items, total] = await Promise.all([
+      this.prisma.importRecoveryItem.findMany({
+        skip,
+        take,
+        where,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.importRecoveryItem.count({ where }),
+    ]);
+    return toPaginated(
+      items.map((item) => item as unknown as ImportRecoveryItemDTO),
+      total,
+      query,
+    );
   }
 
   async replayImport(id: string, body: RecoveryActionBody, actor?: PolicyActor) {

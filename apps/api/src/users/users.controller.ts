@@ -1,12 +1,25 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { UserRole } from "@prisma/client";
 import {
   AdminCreateUserBody,
   AdminUpdateUserBody,
+  Paginated,
   UserDTO,
+  UsersListQuery,
   adminCreateUserSchema,
   adminUpdateUserSchema,
+  usersListQuerySchema,
 } from "@stockflow/shared";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { uuidParamSchema } from "../common/schemas/params.schema";
@@ -24,9 +37,11 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @ApiOkResponse({ description: "Get list of all users." })
-  list(): Promise<UserDTO[]> {
-    return this.usersService.list();
+  @ApiOkResponse({ description: "Get one page of users." })
+  list(
+    @Query(new ZodValidationPipe(usersListQuerySchema)) query: UsersListQuery,
+  ): Promise<Paginated<UserDTO>> {
+    return this.usersService.list(query);
   }
 
   @Post()

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { paginationQuerySchema } from "./reconciliation";
 
 export const loginBodySchema = z.object({
   email: z
@@ -39,6 +40,9 @@ export const adminUpdateUserSchema = z.object({
   branchId: z.string().uuid().nullable().optional(),
   status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
 });
+
+export const usersListQuerySchema = paginationQuerySchema;
+export type UsersListQuery = z.infer<typeof usersListQuerySchema>;
 
 export type LoginBody = z.infer<typeof loginBodySchema>;
 export type RefreshBody = z.infer<typeof refreshBodySchema>;

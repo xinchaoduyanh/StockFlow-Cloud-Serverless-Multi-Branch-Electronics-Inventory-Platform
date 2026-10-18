@@ -9,6 +9,8 @@ import {
   PresignedPostRequest,
   importRowIdempotencyKey,
   ImportJobDTO,
+  ImportPreviewQuery,
+  ImportPreviewRowDTO,
   Paginated,
   toPaginated,
 } from "@stockflow/shared";
@@ -229,12 +231,25 @@ export class ImportsService {
     });
   }
 
-  async preview(id: string, actor?: PolicyActor) {
+  async preview(
+    id: string,
+    query: ImportPreviewQuery,
+    actor?: PolicyActor,
+  ): Promise<Paginated<ImportPreviewRowDTO>> {
     await this.assertJob(id, actor);
-    return this.prisma.importJobRow.findMany({
-      where: { importJobId: id },
-      orderBy: { rowNumber: "asc" },
-    });
+    const { skip, take } = toPagination(query);
+    const where = { importJobId: id };
+    const [rows, total] = await Promise.all([
+      this.prisma.importJobRow.findMany({
+        skip,
+        take,
+        where,
+        orderBy: { rowNumber: "asc" },
+      }),
+      this.prisma.importJobRow.count({ where }),
+    ]);
+
+    return toPaginated(rows as unknown as ImportPreviewRowDTO[], total, query);
   }
 
   async confirm(id: string, actorId?: string, actor?: PolicyActor) {

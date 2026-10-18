@@ -183,3 +183,42 @@ describe("RecoveryService authorization boundary", () => {
     ).rejects.toThrow("claimed by another operator");
   });
 });
+
+describe("RecoveryService list pagination", () => {
+  const authorization = { assertAdmin: jest.fn() } as never;
+  const env = { get: jest.fn(() => "ap-southeast-1") } as never;
+  const admin = { role: UserRole.ADMIN, branchId: null, sub: "admin" };
+
+  it("returns the total of failed report exports, not just the page", async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const count = jest.fn().mockResolvedValue(27);
+    const service = new RecoveryService(
+      { exportJob: { findMany, count } } as never,
+      env,
+      authorization,
+      {} as never,
+    );
+
+    const page = await service.listReports({ page: 3, limit: 10 }, admin);
+
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 20, take: 10 }));
+    expect(count).toHaveBeenCalledWith({ where: findMany.mock.calls[0][0].where });
+    expect(page).toEqual({ items: [], total: 27, page: 3, limit: 10 });
+  });
+
+  it("returns the total of import recovery items with the page", async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const count = jest.fn().mockResolvedValue(14);
+    const service = new RecoveryService(
+      { importRecoveryItem: { findMany, count } } as never,
+      env,
+      authorization,
+      {} as never,
+    );
+
+    const page = await service.listImportRecovery({ page: 2, limit: 10 }, admin);
+
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 10, take: 10 }));
+    expect(page).toEqual({ items: [], total: 14, page: 2, limit: 10 });
+  });
+});

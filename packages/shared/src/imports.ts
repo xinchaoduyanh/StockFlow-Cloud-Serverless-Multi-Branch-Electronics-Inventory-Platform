@@ -179,6 +179,9 @@ export const importListQuerySchema = paginationQuerySchema.extend({
   branchId: z.string().uuid().optional(),
 });
 
+export const importPreviewQuerySchema = paginationQuerySchema;
+export type ImportPreviewQuery = z.infer<typeof importPreviewQuerySchema>;
+
 export const uploadImportBodySchema = z.object({
   branchId: z.string().uuid(),
 });

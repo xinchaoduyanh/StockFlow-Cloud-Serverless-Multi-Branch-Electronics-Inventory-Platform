@@ -98,3 +98,24 @@ describe("ImportsService list", () => {
     expect(page).toEqual({ items: [], total: 12, page: 2, limit: 5 });
   });
 });
+
+describe("ImportsService preview", () => {
+  it("pages the rows of one job and reports how many rows the job has", async () => {
+    const rows = [{ id: "r1", rowNumber: 11 }];
+    const findMany = jest.fn().mockResolvedValue(rows);
+    const count = jest.fn().mockResolvedValue(240);
+    const prisma = {
+      importJob: { findUnique: jest.fn().mockResolvedValue({ id: "job-1", branchId: "b1" }) },
+      importJobRow: { findMany, count },
+    } as unknown as PrismaService;
+    const service = new ImportsService(prisma, {} as S3Service, new AuthorizationPolicyService());
+
+    const page = await service.preview("job-1", { page: 2, limit: 10 });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { importJobId: "job-1" }, skip: 10, take: 10 }),
+    );
+    expect(count).toHaveBeenCalledWith({ where: { importJobId: "job-1" } });
+    expect(page).toEqual({ items: rows, total: 240, page: 2, limit: 10 });
+  });
+});

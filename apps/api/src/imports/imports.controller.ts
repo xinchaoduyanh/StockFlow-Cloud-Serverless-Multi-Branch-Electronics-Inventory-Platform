@@ -26,6 +26,8 @@ import {
   PresignedPostResponse,
   ImportJobDTO,
   ImportPreviewRowDTO,
+  ImportPreviewQuery,
+  importPreviewQuerySchema,
   Paginated,
 } from "@stockflow/shared";
 import { AuthenticatedRequest, JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -133,9 +135,10 @@ export class ImportsController {
   @ApiOkResponse({ description: "Get import preview rows." })
   preview(
     @Param(new ZodValidationPipe(uuidParamSchema)) params: { id: string },
+    @Query(new ZodValidationPipe(importPreviewQuerySchema)) query: ImportPreviewQuery,
     @Req() request: AuthenticatedRequest,
-  ): Promise<ImportPreviewRowDTO[]> {
-    return this.importsService.preview(params.id, request.user);
+  ): Promise<Paginated<ImportPreviewRowDTO>> {
+    return this.importsService.preview(params.id, query, request.user);
   }
 
   @Post(":id/confirm")
