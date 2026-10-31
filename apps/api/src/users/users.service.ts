@@ -18,6 +18,7 @@ import {
 import { toPagination } from "../common/schemas/pagination.schema";
 import { PrismaService } from "../database/prisma.service";
 import { EnvService } from "../config/env.service";
+import { staticAwsCredentials } from "../config/aws-credentials";
 
 @Injectable()
 export class UsersService {
@@ -34,11 +35,8 @@ export class UsersService {
     const config: any = {
       region: this.env.get("AWS_REGION") || this.env.get("COGNITO_REGION") || "ap-southeast-1",
     };
-    const accessKeyId = this.env.get("AWS_ACCESS_KEY_ID");
-    const secretAccessKey = this.env.get("AWS_SECRET_ACCESS_KEY");
-    if (accessKeyId && secretAccessKey) {
-      config.credentials = { accessKeyId, secretAccessKey };
-    }
+    const credentials = staticAwsCredentials(this.env);
+    if (credentials) config.credentials = credentials;
 
     this.cognitoClient = new CognitoIdentityProviderClient(config);
   }

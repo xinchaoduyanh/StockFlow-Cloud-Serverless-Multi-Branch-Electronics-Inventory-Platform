@@ -13,6 +13,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { ApiErrors } from "../common/errors/api-error";
 import { toPagination } from "../common/schemas/pagination.schema";
 import { EnvService } from "../config/env.service";
+import { staticAwsCredentials } from "../config/aws-credentials";
 import { PrismaService } from "../database/prisma.service";
 import { S3Service } from "../imports/s3.service";
 import { AuthorizationPolicyService, PolicyActor } from "../auth/authorization-policy.service";
@@ -131,13 +132,11 @@ export class ReportsService {
     }
 
     const region = this.envService.get("AWS_REGION");
-    const accessKeyId = this.envService.get("AWS_ACCESS_KEY_ID");
-    const secretAccessKey = this.envService.get("AWS_SECRET_ACCESS_KEY");
     const endpoint = this.envService.get("AWS_S3_ENDPOINT");
 
     const s3Client = new S3Client({
       region,
-      credentials: accessKeyId && secretAccessKey ? { accessKeyId, secretAccessKey } : undefined,
+      credentials: staticAwsCredentials(this.envService),
       endpoint: endpoint || undefined,
       forcePathStyle: endpoint ? true : undefined,
     });

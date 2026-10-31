@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { S3Client } from "@aws-sdk/client-s3";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { EnvService } from "../config/env.service";
+import { staticAwsCredentials } from "../config/aws-credentials";
 
 @Injectable()
 export class S3Service {
@@ -9,13 +10,11 @@ export class S3Service {
 
   constructor(private readonly envService: EnvService) {
     const region = this.envService.get("AWS_REGION");
-    const accessKeyId = this.envService.get("AWS_ACCESS_KEY_ID");
-    const secretAccessKey = this.envService.get("AWS_SECRET_ACCESS_KEY");
     const endpoint = this.envService.get("AWS_S3_ENDPOINT");
 
     this.s3Client = new S3Client({
       region,
-      credentials: accessKeyId && secretAccessKey ? { accessKeyId, secretAccessKey } : undefined,
+      credentials: staticAwsCredentials(this.envService),
       endpoint: endpoint || undefined,
       forcePathStyle: endpoint ? true : undefined,
     });
