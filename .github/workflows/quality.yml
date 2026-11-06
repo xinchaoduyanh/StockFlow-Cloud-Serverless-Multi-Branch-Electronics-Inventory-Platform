@@ -251,7 +251,8 @@ jobs:
           elif [ -z "$deployed" ] || ! git cat-file -e "${deployed}^{commit}" 2>/dev/null; then
             echo "Unknown deployed frontend commit '${deployed}', rebuilding."
             changed=true
-          elif ! git diff --quiet "$deployed" HEAD -- :/apps/web :/packages/shared :/package.json :/package-lock.json; then
+          elif ! git diff --quiet "$deployed" HEAD -- :/apps/web :/packages/shared :/package.json :/package-lock.json \
+              :/.github/workflows/quality.yml; then
             echo "Frontend changed since ${deployed}."
             changed=true
           fi
@@ -276,7 +277,13 @@ jobs:
           npm run build:web
           # Ghi commit vào bản build để sync --delete giữ nó; lần deploy sau so diff với commit này.
           echo "$GITHUB_SHA" > apps/web/out/deploy-sha.txt
-          aws s3 sync apps/web/out "s3://${bucket}/" --delete
+          # Chunk có hash trong tên: cache vĩnh viễn và giữ lại bản cũ, để tab còn HTML cũ vẫn tải được JS
+          # (thiếu chunk thì CloudFront trả index.html, trình duyệt báo "Unexpected token '<'").
+          aws s3 sync apps/web/out/_next/static "s3://${bucket}/_next/static" \
+            --cache-control "public, max-age=31536000, immutable"
+          # HTML và payload RSC phải hỏi lại server mỗi lần, nếu không trình duyệt giữ bản cũ sau deploy.
+          aws s3 sync apps/web/out "s3://${bucket}/" --delete --exclude "_next/static/*" \
+            --cache-control "no-cache"
           aws cloudfront create-invalidation --distribution-id "$distribution_id" --paths "/*"
 
       # API phải trả đúng commit vừa deploy; thử lại vì Lambda có thể cần vài giây.
