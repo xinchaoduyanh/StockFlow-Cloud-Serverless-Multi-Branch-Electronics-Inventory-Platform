@@ -149,8 +149,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          # Cần commit trước đó để biết frontend có đổi không.
-          fetch-depth: 2
+          # Cần đủ lịch sử để so với commit frontend đã deploy lần trước (có thể cách nhiều commit).
+          fetch-depth: 0
 
       # Fail sớm, nói rõ thiếu gì, thay vì lỗi khó hiểu giữa chừng Terraform.
       - name: Check required secrets
@@ -236,16 +236,23 @@ jobs:
         run: terraform apply -input=false tfplan
 
       # Chỉ build và sync frontend khi cần, để khỏi invalidate CloudFront vô ích.
+      # So với commit frontend đã deploy (deploy-sha.txt trong bucket), không so với HEAD~1:
+      # run bị cancel hoặc push nhiều commit một lần từng làm web đứng yên ở bản cũ trong khi API đã đổi.
       - name: Detect frontend changes
         id: frontend
         working-directory: infrastructure/terraform
         run: |
           bucket="$(terraform output -raw web_bucket)"
+          deployed="$(aws s3 cp "s3://${bucket}/deploy-sha.txt" - 2>/dev/null | tr -d '[:space:]' || true)"
           changed=false
           if ! aws s3api head-object --bucket "$bucket" --key index.html >/dev/null 2>&1; then
             echo "Web bucket has no index.html yet."
             changed=true
-          elif ! git diff --quiet HEAD~1 HEAD -- :/apps/web :/packages/shared; then
+          elif [ -z "$deployed" ] || ! git cat-file -e "${deployed}^{commit}" 2>/dev/null; then
+            echo "Unknown deployed frontend commit '${deployed}', rebuilding."
+            changed=true
+          elif ! git diff --quiet "$deployed" HEAD -- :/apps/web :/packages/shared :/package.json :/package-lock.json; then
+            echo "Frontend changed since ${deployed}."
             changed=true
           fi
           echo "deploy=$changed" >> "$GITHUB_OUTPUT"
@@ -267,6 +274,8 @@ jobs:
           distribution_id="$(terraform output -raw cloudfront_distribution_id)"
           cd ../..
           npm run build:web
+          # Ghi commit vào bản build để sync --delete giữ nó; lần deploy sau so diff với commit này.
+          echo "$GITHUB_SHA" > apps/web/out/deploy-sha.txt
           aws s3 sync apps/web/out "s3://${bucket}/" --delete
           aws cloudfront create-invalidation --distribution-id "$distribution_id" --paths "/*"
 
