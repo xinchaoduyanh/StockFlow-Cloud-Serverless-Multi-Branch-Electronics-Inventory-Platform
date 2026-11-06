@@ -15,6 +15,16 @@ import { useImportUpload } from "./use-import-upload";
 
 const ACTIVE_JOB_POLL_MS = 1500;
 
+// Trạng thái pipeline còn tự chuyển tiếp mà không cần người bấm. Thiếu CONFIRMING/COMMITTING thì
+// sau khi xác nhận, bảng dừng poll và kẹt ở "Đang lưu kho" dù job đã COMPLETED.
+const IN_FLIGHT_STATUSES: ReadonlySet<string> = new Set([
+  ImportStatus.UPLOADED,
+  ImportStatus.PARSING,
+  ImportStatus.VALIDATING,
+  ImportStatus.CONFIRMING,
+  ImportStatus.COMMITTING,
+]);
+
 type ImportsPanelProps = {
   branches: Branch[];
   selectedBranchId: string;
@@ -47,8 +57,8 @@ export function ImportsPanel({ branches, selectedBranchId, defaultBranchId }: Im
     },
     placeholderData: keepPreviousData,
     refetchInterval: (query) => {
-      const hasActiveJobs = query.state.data?.items.some(
-        (job) => job.status === ImportStatus.UPLOADED || job.status === ImportStatus.VALIDATING,
+      const hasActiveJobs = query.state.data?.items.some((job) =>
+        IN_FLIGHT_STATUSES.has(job.status),
       );
       return hasActiveJobs ? ACTIVE_JOB_POLL_MS : false;
     },
